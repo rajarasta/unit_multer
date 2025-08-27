@@ -1413,6 +1413,9 @@ export default function InvoiceProcesser() {
             settings={settings} 
             onSettingsChange={setSettings}
             onClose={() => setShowSettings(false)}
+            llmStatus={llmStatus}
+            availableModels={availableModels}
+            fetchAvailableModels={fetchAvailableModels}
           />
         )}
       </div>
@@ -2257,7 +2260,7 @@ function DebugPanel({ document, llmStatus, settings }) {
   }
 
 // ENHANCED SettingsPanel (UPDATED to include Analysis Mode selection)
-function SettingsPanel({ settings, onSettingsChange, onClose }) {
+function SettingsPanel({ settings, onSettingsChange, onClose, llmStatus, availableModels, fetchAvailableModels }) {
     const updateSetting = (key, value) => {
         onSettingsChange({ ...settings, [key]: value });
     };
