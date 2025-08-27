@@ -1,0 +1,12 @@
+﻿import theme from '@al/theme';
+
+
+export const radius = theme.radius;
+export const shadow = theme.shadow;
+export const zIndex = theme.zIndex;
+export const motion = theme.motion;
+export const border = theme.border;
+export const focus = theme.focus;
+export const spacing = theme.spacing;
+export default theme;
+

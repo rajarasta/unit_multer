@@ -1,0 +1,1015 @@
+{
+  "version": "5.1",
+  "exportDate": "2025-08-23T15:00:00Z",
+  "meta": {
+    "schemaName": "project.unified",
+    "schemaVersion": "5.1.0",
+    "changes": [
+      "Added individual pieces with installation states",
+      "Added floor-specific documents and comments", 
+      "Added installation process tracking",
+      "Added quality control data",
+      "Added delivery and installation scheduling"
+    ]
+  },
+  "activeProjectId": "dom-001",
+  "projects": [
+    {
+      "id": "dom-001",
+      "name": "Domograd Projekt - Aluminum Systems",
+      "description": "Complete aluminum fabrication project with doors, windows and facade elements",
+      "client": "Domograd d.o.o.",
+      "location": "Zagreb, Croatia",
+      "startDate": "2025-08-16",
+      "endDate": "2025-10-30",
+      "floors": [
+        {
+          "id": "floor-0",
+          "name": "Prizemlje",
+          "description": "Ground floor with main entrance and retail spaces",
+          "level": 0,
+          "height": 3.2,
+          "area": 180.5,
+          "pdfData": null,
+          "pdfWidth": 600,
+          "pdfHeight": 400,
+          "floorplan": {
+            "basePlan": {
+              "id": "FLR-001",
+              "file": "file:///D:/Projekti/istok/tlocrt_lvl0.dwg",
+              "preview": "dwg",
+              "scale": "1:100"
+            },
+            "width": 600,
+            "height": 400,
+            "scale": 1.0,
+            "units": "mm"
+          }
+        },
+        {
+          "id": "floor-1", 
+          "name": "Prvi kat",
+          "description": "First floor with offices and meeting rooms",
+          "level": 1,
+          "height": 3.0,
+          "area": 175.2,
+          "pdfData": null,
+          "pdfWidth": 600,
+          "pdfHeight": 400,
+          "floorplan": {
+            "basePlan": {
+              "id": "FLR-002",
+              "file": "file:///D:/Projekti/istok/tlocrt_lvl1.dwg", 
+              "preview": "dwg",
+              "scale": "1:100"
+            },
+            "width": 600,
+            "height": 400,
+            "scale": 1.0,
+            "units": "mm"
+          }
+        }
+      ],
+      "documents": [
+        {
+          "id": "DOC-TS-1",
+          "name": "Teh_spec_Stijena_AP76.pdf",
+          "type": "application/pdf",
+          "size": "100 KB",
+          "uploadDate": "2025-08-22T20:01:44Z",
+          "isImage": false,
+          "path": "file:///D:/Projekti/docs/Teh_spec_Stijena_AP76.pdf"
+        }
+      ],
+      "accounting": {
+        "documents": [
+          {
+            "id": "INV-REQ-001",
+            "documentType": "request",
+            "number": "sno",
+            "date": null,
+            "dueDate": null,
+            "supplier": {
+              "name": "SCHUCO International",
+              "oib": "96769806716",
+              "address": "Industrijska zona 12, Zagreb"
+            },
+            "buyer": {
+              "name": "Domograd d.o.o.",
+              "oib": "8701030809",
+              "address": "Savska 25, Zagreb"
+            },
+            "totals": {
+              "itemsCount": 12,
+              "subtotal": 18750.00,
+              "vatAmount": 4687.50,
+              "totalAmount": 23437.50,
+              "currency": "EUR"
+            },
+            "fileRef": "file:///D:/Projekti/docs/Ponuda_aluminium_2025-08-18.pdf"
+          }
+        ],
+        "payments": [],
+        "budget": {
+          "currency": "EUR",
+          "plannedTotal": 85000,
+          "committed": 23500,
+          "invoiced": 8900,
+          "paid": 3200
+        }
+      },
+      "positions": [
+        {
+          "id": "PZ-01",
+          "title": "Glavni ulazna vrata - Aluminum",
+          "description": "Main entrance aluminum doors with safety glass and automated opening system",
+          "totalQuantity": 2,
+          "department": "Doors & Entrances",
+          "status": "In Progress",
+          "startDate": "2025-08-20",
+          "endDate": "2025-09-15",
+          "llmData": {
+            "summary": "Glavni ulazni sistem – 2 komada",
+            "keywords": ["Ulazna vrata", "Automatska", "Aluminum", "Sigurnosno staklo"]
+          },
+          "descriptions": {
+            "short": "Glavni ulazna vrata - Aluminum automatska",
+            "long": "Aluminijska ulazna vrata s automatskim otvaranjem, sigurnosnim staklom i kontrolom pristupa. Profil SCHUCO 70mm s termalnim prekidom.",
+            "technical": "SCHUCO ADS 70 sistem, staklo 8+8 laminated, automatika GEZE ECdrive"
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-01-1",
+              "name": "PZ-01_tehnicki_crtez.pdf",
+              "type": "application/pdf",
+              "size": "850 KB",
+              "uploadDate": "2025-08-20T09:15:00Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/PZ-01_tehnicki_crtez.pdf",
+              "category": "drawing"
+            },
+            {
+              "id": "DOC-PZ-01-2", 
+              "name": "SCHUCO_70mm_specifikacija.pdf",
+              "type": "application/pdf",
+              "size": "2.1 MB",
+              "uploadDate": "2025-08-20T10:30:00Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/SCHUCO_70mm_spec.pdf",
+              "category": "specification"
+            },
+            {
+              "id": "DOC-PZ-01-3",
+              "name": "Automatika_GEZE_prirucnik.pdf", 
+              "type": "application/pdf",
+              "size": "3.5 MB",
+              "uploadDate": "2025-08-21T14:20:00Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/GEZE_manual.pdf",
+              "category": "manual"
+            }
+          ],
+          "ganttComments": [
+            {
+              "id": "PZ-01-gantt-c1",
+              "text": "Potrebno koordinirati s elektrikarima za napajanje automatike",
+              "author": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "timestamp": "2025-08-21T08:30:00Z",
+              "type": "coordination",
+              "priority": "high",
+              "addedOnGantt": true
+            },
+            {
+              "id": "PZ-01-gantt-c2",
+              "text": "Client zahtijeva promjenu boje kvake na crnu",
+              "author": {
+                "id": "u3", 
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "timestamp": "2025-08-22T11:45:00Z",
+              "type": "change_request",
+              "priority": "medium",
+              "addedOnGantt": true
+            }
+          ],
+          "tasks": [
+            {
+              "id": "PZ-01-t1",
+              "title": "Finalizacija tehničkih crteža",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-25",
+              "completed": "2025-08-24",
+              "refs": []
+            },
+            {
+              "id": "PZ-01-t2",
+              "title": "Naručiti GEZE automatiku",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.", 
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-28",
+              "refs": ["acc:INV-REQ-001"]
+            }
+          ],
+          "materials": [
+            {
+              "sku": "SCHUCO-ADS70-DOOR",
+              "name": "SCHUCO ADS 70 door frame 2100x900mm",
+              "qty": 2,
+              "unit": "kom",
+              "supplier": "SCHUCO International",
+              "price": 1850.00,
+              "currency": "EUR",
+              "leadTime": "3 weeks",
+              "specifications": {
+                "thermalBreak": true,
+                "profile": "70mm",
+                "glazing": "24mm max"
+              }
+            },
+            {
+              "sku": "GLASS-LAM-8-8",
+              "name": "Laminated safety glass 8+8mm clear",
+              "qty": 3.6,
+              "unit": "m²",
+              "supplier": "Guardian Glass",
+              "price": 95.00,
+              "currency": "EUR",
+              "leadTime": "2 weeks"
+            },
+            {
+              "sku": "GEZE-ECDRIVE",
+              "name": "GEZE ECdrive automatic opener",
+              "qty": 2,
+              "unit": "kom", 
+              "supplier": "GEZE Croatia",
+              "price": 2100.00,
+              "currency": "EUR",
+              "leadTime": "4 weeks"
+            }
+          ],
+          "processes": [
+            {
+              "id": "proc-design-001",
+              "name": "Design & Engineering",
+              "status": "Završeno",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-25",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-24",
+              "progress": 100,
+              "notes": "Design completed ahead of schedule"
+            },
+            {
+              "id": "proc-procurement-001",
+              "name": "Material Procurement", 
+              "status": "U tijeku",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-25",
+              "plannedEnd": "2025-09-05",
+              "actualStart": "2025-08-25",
+              "progress": 65,
+              "notes": "GEZE automatika delivery delayed by 1 week"
+            },
+            {
+              "id": "proc-fabrication-001",
+              "name": "Fabrication",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Tomislav R.",
+                "email": "tomislav@example.com"
+              },
+              "plannedStart": "2025-09-05",
+              "plannedEnd": "2025-09-12",
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-20",
+              "end": "2025-09-15",
+              "progress": 35,
+              "criticalPath": true,
+              "dependencies": ["PZ-02"],
+              "milestones": [
+                {
+                  "date": "2025-08-25",
+                  "name": "Design approval",
+                  "status": "completed"
+                },
+                {
+                  "date": "2025-09-05",
+                  "name": "Material delivery",
+                  "status": "pending"
+                }
+              ]
+            }
+          },
+          "pieces": [
+            {
+              "id": "PZ-01-piece-001",
+              "pieceNumber": 1,
+              "floorId": "floor-0",
+              "floorX": 20.0,
+              "floorY": 77.5,
+              "description": "Main entrance door - left panel with automation",
+              "serialNumber": "DOM-PZ01-001",
+              "dimensions": {
+                "width": 900,
+                "height": 2100,
+                "depth": 70,
+                "unit": "mm"
+              },
+              "weight": 85.5,
+              "floorComments": [
+                {
+                  "id": "floor-comment-001",
+                  "text": "Posebna pažnja - glavni ulaz, visoka prohodnost",
+                  "author": "Voditelj gradilišta",
+                  "timestamp": "2025-08-25T07:30:00Z",
+                  "addedOnFloor": true,
+                  "priority": "high",
+                  "category": "installation"
+                },
+                {
+                  "id": "floor-comment-002",
+                  "text": "Provjeriti električne instalacije prije montaže automatike",
+                  "author": "Električar",
+                  "timestamp": "2025-08-26T14:15:00Z", 
+                  "addedOnFloor": true,
+                  "priority": "medium",
+                  "category": "coordination"
+                }
+              ],
+              "floorDocuments": [
+                {
+                  "id": "floor-doc-001",
+                  "name": "Upute_za_montazu_PZ-01-001.pdf",
+                  "type": "application/pdf",
+                  "url": "file:///D:/Projekti/docs/install/PZ-01-001.pdf",
+                  "addedBy": "Voditelj gradilišta",
+                  "addedAt": "2025-08-25T09:00:00Z",
+                  "addedOnFloor": true,
+                  "category": "installation_guide",
+                  "size": "1.2 MB"
+                },
+                {
+                  "id": "floor-doc-002",
+                  "name": "QC_checklist_ulazna_vrata.pdf",
+                  "type": "application/pdf", 
+                  "url": "file:///D:/Projekti/docs/qc/QC_doors.pdf",
+                  "addedBy": "QC Inspector",
+                  "addedAt": "2025-08-26T11:30:00Z",
+                  "addedOnFloor": true,
+                  "category": "quality_control",
+                  "size": "450 KB"
+                }
+              ],
+              "processes": {
+                "dovezeno": true,
+                "montirano": true,
+                "ostakljeno": true,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "installation": {
+                "plannedDate": "2025-09-10",
+                "actualDate": null,
+                "team": {
+                  "leader": "Marko Installer",
+                  "members": ["Pero Assistant", "Mile Helper"],
+                  "contact": "+385 91 234 5678"
+                },
+                "duration": 6,
+                "unit": "hours",
+                "equipment": ["Crane", "Welding equipment", "Measuring tools"],
+                "weather": {
+                  "requirements": "No rain, wind < 15km/h",
+                  "backup_date": "2025-09-11"
+                }
+              },
+              "quality": {
+                "inspector": "Ana QC Lead",
+                "inspectionDate": "2025-08-28T10:00:00Z",
+                "status": "passed",
+                "score": 95,
+                "notes": "All measurements within tolerance, excellent workmanship",
+                "checkpoints": [
+                  {
+                    "item": "Dimensions",
+                    "status": "passed", 
+                    "tolerance": "±2mm",
+                    "actual": "+1mm"
+                  },
+                  {
+                    "item": "Surface finish",
+                    "status": "passed",
+                    "note": "No scratches or dents"
+                  },
+                  {
+                    "item": "Hardware alignment",
+                    "status": "passed",
+                    "note": "Perfect alignment"
+                  }
+                ]
+              },
+              "delivery": {
+                "plannedDate": "2025-09-08",
+                "actualDate": "2025-09-07",
+                "courier": "Aluminum Transport d.o.o.",
+                "trackingNumber": "ALU2025090701",
+                "status": "delivered",
+                "receivedBy": "Ivan Site Manager",
+                "condition": "excellent",
+                "notes": "Delivered 1 day early, perfect condition"
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-25T08:00:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 20.0%, 77.5% • Kat: Prizemlje • Komad #1"
+                },
+                {
+                  "action": "Process dovezeno completed",
+                  "timestamp": "2025-09-07T14:30:00Z",
+                  "user": "Delivery Team",
+                  "details": "Komad 1 pozicije Glavni ulazna vrata uspješno dostavljeno"
+                },
+                {
+                  "action": "Process montirano completed", 
+                  "timestamp": "2025-09-08T16:45:00Z",
+                  "user": "Installation Team",
+                  "details": "Montaža okvira završena, pripremno za ostakljenje"
+                },
+                {
+                  "action": "Process ostakljeno completed",
+                  "timestamp": "2025-09-09T11:20:00Z",
+                  "user": "Glazing Specialist",
+                  "details": "Laminirano staklo 8+8mm ugrađeno"
+                },
+                {
+                  "action": "Quality inspection passed",
+                  "timestamp": "2025-08-28T10:00:00Z",
+                  "user": "Ana QC Lead",
+                  "details": "Score: 95/100 - Excellent quality"
+                }
+              ]
+            },
+            {
+              "id": "PZ-01-piece-002",
+              "pieceNumber": 2,
+              "floorId": "floor-0", 
+              "floorX": 36.7,
+              "floorY": 77.5,
+              "description": "Main entrance door - right panel with automation",
+              "serialNumber": "DOM-PZ01-002",
+              "dimensions": {
+                "width": 900,
+                "height": 2100,
+                "depth": 70,
+                "unit": "mm"
+              },
+              "weight": 87.2,
+              "floorComments": [
+                {
+                  "id": "floor-comment-003",
+                  "text": "Desni panel - sinkronizirati s lijevim panelom",
+                  "author": "Voditelj gradilišta",
+                  "timestamp": "2025-08-25T07:35:00Z",
+                  "addedOnFloor": true,
+                  "priority": "high",
+                  "category": "installation"
+                }
+              ],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": true,
+                "montirano": true,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "installation": {
+                "plannedDate": "2025-09-10",
+                "actualDate": null,
+                "team": {
+                  "leader": "Marko Installer",
+                  "members": ["Pero Assistant", "Mile Helper"],
+                  "contact": "+385 91 234 5678"
+                },
+                "duration": 5,
+                "unit": "hours",
+                "equipment": ["Crane", "Welding equipment", "Measuring tools"]
+              },
+              "quality": {
+                "inspector": "Ana QC Lead", 
+                "inspectionDate": "2025-08-28T10:30:00Z",
+                "status": "passed",
+                "score": 92,
+                "notes": "Good quality, minor adjustment needed on bottom seal"
+              },
+              "delivery": {
+                "plannedDate": "2025-09-08",
+                "actualDate": "2025-09-07",
+                "courier": "Aluminum Transport d.o.o.",
+                "trackingNumber": "ALU2025090702", 
+                "status": "delivered",
+                "receivedBy": "Ivan Site Manager",
+                "condition": "good",
+                "notes": "Small scratch on frame edge, within acceptable limits"
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-25T08:05:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 36.7%, 77.5% • Kat: Prizemlje • Komad #2"
+                },
+                {
+                  "action": "Process dovezeno completed",
+                  "timestamp": "2025-09-07T14:35:00Z",
+                  "user": "Delivery Team",
+                  "details": "Komad 2 pozicije Glavni ulazna vrata uspješno dostavljeno"
+                },
+                {
+                  "action": "Process montirano completed",
+                  "timestamp": "2025-09-08T17:15:00Z",
+                  "user": "Installation Team", 
+                  "details": "Montaža okvira završena, sinkroniziran s lijevim panelom"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "PZ-02",
+          "title": "Aluminijski prozori - Ured 1",
+          "description": "Aluminum office windows with thermal break and opening mechanisms",
+          "totalQuantity": 4,
+          "department": "Windows",
+          "status": "Planning",
+          "startDate": "2025-08-28",
+          "endDate": "2025-09-25",
+          "llmData": {
+            "summary": "Uredski prozori – 4 komada",
+            "keywords": ["Prozori", "Aluminum", "Ured", "Termoizolacija"]
+          },
+          "descriptions": {
+            "short": "Aluminijski prozori za ured s termo prekidom",
+            "long": "Aluminijski prozori s termalnim prekidom za uredske prostorije. Profil REYNAERS CS 68 s trostrukim ostakljenjem.",
+            "technical": "REYNAERS CS 68 sistem, staklo 4+16+4+16+4 argon, Uf = 1.4 W/m²K"
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-02-1",
+              "name": "PZ-02_tehnicki_crtez.pdf",
+              "type": "application/pdf",
+              "size": "1.2 MB", 
+              "uploadDate": "2025-08-26T09:00:00Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/PZ-02_windows.pdf",
+              "category": "drawing"
+            }
+          ],
+          "ganttComments": [
+            {
+              "id": "PZ-02-gantt-c1",
+              "text": "Čekamo završetak PZ-01 prije početka montaže prozora",
+              "author": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "timestamp": "2025-08-26T15:20:00Z",
+              "type": "dependency",
+              "addedOnGantt": true
+            }
+          ],
+          "tasks": [],
+          "materials": [
+            {
+              "sku": "REYNAERS-CS68-WIN",
+              "name": "REYNAERS CS 68 window frame 1200x1000mm",
+              "qty": 4,
+              "unit": "kom",
+              "supplier": "REYNAERS Aluminum",
+              "price": 650.00,
+              "currency": "EUR",
+              "leadTime": "3 weeks"
+            }
+          ],
+          "processes": [
+            {
+              "id": "proc-design-002",
+              "name": "Design & Engineering",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-26",
+              "plannedEnd": "2025-09-02",
+              "actualStart": "2025-08-26",
+              "progress": 40,
+              "notes": "Design in progress"
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-28",
+              "end": "2025-09-25", 
+              "progress": 15,
+              "criticalPath": false,
+              "dependencies": []
+            }
+          },
+          "pieces": [
+            {
+              "id": "PZ-02-piece-001",
+              "pieceNumber": 1,
+              "floorId": "floor-1",
+              "floorX": 15.0,
+              "floorY": 25.0,
+              "description": "Office window - east wall", 
+              "serialNumber": "DOM-PZ02-001",
+              "dimensions": {
+                "width": 1200,
+                "height": 1000,
+                "depth": 68,
+                "unit": "mm"
+              },
+              "weight": 45.2,
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "installation": {
+                "plannedDate": "2025-09-20",
+                "actualDate": null,
+                "team": {
+                  "leader": "TBD",
+                  "members": [],
+                  "contact": ""
+                },
+                "duration": 3,
+                "unit": "hours"
+              },
+              "quality": {
+                "inspector": null,
+                "inspectionDate": null,
+                "status": "pending"
+              },
+              "delivery": {
+                "plannedDate": "2025-09-18",
+                "actualDate": null,
+                "status": "pending"
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-26T10:00:00Z",
+                  "user": "Voditelj gradilišta", 
+                  "details": "Koordinate: 15.0%, 25.0% • Kat: Prvi kat • Komad #1"
+                }
+              ]
+            },
+            {
+              "id": "PZ-02-piece-002",
+              "pieceNumber": 2,
+              "floorId": "floor-1",
+              "floorX": 45.0,
+              "floorY": 25.0,
+              "description": "Office window - east wall",
+              "serialNumber": "DOM-PZ02-002",
+              "dimensions": {
+                "width": 1200,
+                "height": 1000,
+                "depth": 68,
+                "unit": "mm"
+              },
+              "weight": 44.8,
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "installation": {
+                "plannedDate": "2025-09-20",
+                "actualDate": null,
+                "duration": 3,
+                "unit": "hours"
+              },
+              "quality": {
+                "status": "pending"
+              },
+              "delivery": {
+                "plannedDate": "2025-09-18",
+                "status": "pending"
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-26T10:05:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 45.0%, 25.0% • Kat: Prvi kat • Komad #2"
+                }
+              ]
+            },
+            {
+              "id": "PZ-02-piece-003",
+              "pieceNumber": 3,
+              "floorId": "floor-1",
+              "floorX": 75.0,
+              "floorY": 25.0,
+              "description": "Office window - east wall",
+              "serialNumber": "DOM-PZ02-003",
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-26T10:10:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 75.0%, 25.0% • Kat: Prvi kat • Komad #3"
+                }
+              ]
+            },
+            {
+              "id": "PZ-02-piece-004",
+              "pieceNumber": 4,
+              "floorId": "floor-1", 
+              "floorX": 85.0,
+              "floorY": 75.0,
+              "description": "Office window - south wall",
+              "serialNumber": "DOM-PZ02-004",
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-26T10:15:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 85.0%, 75.0% • Kat: Prvi kat • Komad #4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "PZ-03",
+          "title": "Fasadni paneli - Južni dio",
+          "description": "Aluminum facade panels with thermal insulation for south wall",
+          "totalQuantity": 6,
+          "department": "Facade",
+          "status": "Planning", 
+          "startDate": "2025-09-05",
+          "endDate": "2025-10-15",
+          "llmData": {
+            "summary": "Fasadni paneli – 6 komada", 
+            "keywords": ["Fasada", "Paneli", "Izolacija", "Aluminum"]
+          },
+          "descriptions": {
+            "short": "Aluminijski fasadni paneli s izolacijom",
+            "long": "Aluminijski fasadni paneli composite konstrukcije s termalnom izolacijom za južni zid zgrade.",
+            "technical": "Alucobond A2 paneli 4mm, nosiva konstrukcija aluminum profiles"
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-03-1",
+              "name": "PZ-03_fasadni_sistem.pdf",
+              "type": "application/pdf",
+              "size": "2.8 MB",
+              "uploadDate": "2025-08-27T11:00:00Z",
+              "category": "drawing"
+            }
+          ],
+          "ganttComments": [],
+          "materials": [
+            {
+              "sku": "ALUCOBOND-A2-4MM",
+              "name": "Alucobond A2 panel 4mm 1500x4000mm",
+              "qty": 6,
+              "unit": "kom",
+              "supplier": "3A Composites",
+              "price": 180.00,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "id": "proc-design-003",
+              "name": "Design & Engineering",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-09-01",
+              "plannedEnd": "2025-09-10",
+              "progress": 0
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-09-05",
+              "end": "2025-10-15",
+              "progress": 5,
+              "criticalPath": false
+            }
+          },
+          "pieces": [
+            {
+              "id": "PZ-03-piece-001",
+              "pieceNumber": 1,
+              "floorId": "floor-0",
+              "floorX": 50.8,
+              "floorY": 50.0,
+              "description": "Facade panel - ground floor section 1",
+              "serialNumber": "DOM-PZ03-001",
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-27T12:00:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 50.8%, 50.0% • Kat: Prizemlje • Komad #1"
+                }
+              ]
+            },
+            {
+              "id": "PZ-03-piece-002", 
+              "pieceNumber": 2,
+              "floorId": "floor-1",
+              "floorX": 50.8,
+              "floorY": 50.0,
+              "description": "Facade panel - first floor section 1",
+              "serialNumber": "DOM-PZ03-002",
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu", 
+                  "timestamp": "2025-08-27T12:05:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 50.8%, 50.0% • Kat: Prvi kat • Komad #2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dom-002",
+      "name": "Domograd Projekt 2 - Extension",
+      "description": "Extension building with additional aluminum elements",
+      "client": "Domograd d.o.o.",
+      "location": "Zagreb, Croatia",
+      "floors": [
+        {
+          "id": "floor-ext-0",
+          "name": "Prizemlje - Dogradnja",
+          "description": "Ground floor extension",
+          "floorplan": {
+            "width": 400,
+            "height": 300
+          }
+        }
+      ],
+      "positions": [
+        {
+          "id": "EXT-01",
+          "title": "Balkonske ograde",
+          "description": "Aluminum balcony railings with safety glass",
+          "totalQuantity": 3,
+          "department": "Railings",
+          "status": "Planning",
+          "startDate": "2025-09-15",
+          "endDate": "2025-10-05",
+          "documents": [],
+          "ganttComments": [],
+          "materials": [],
+          "processes": [],
+          "gantt": {
+            "bar": {
+              "start": "2025-09-15",
+              "end": "2025-10-05",
+              "progress": 0
+            }
+          },
+          "pieces": [
+            {
+              "id": "EXT-01-piece-001",
+              "pieceNumber": 1,
+              "floorId": "floor-ext-0",
+              "floorX": 25.0,
+              "floorY": 30.0,
+              "description": "Balcony railing - west side",
+              "serialNumber": "DOM-EXT01-001",
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-08-28T09:00:00Z",
+                  "user": "Voditelj gradilišta",
+                  "details": "Koordinate: 25.0%, 30.0% • Kat: Prizemlje - Dogradnja • Komad #1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

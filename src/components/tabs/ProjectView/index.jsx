@@ -1,0 +1,532 @@
+﻿import theme from '@al/theme';
+const { colors, fontStack } = theme;
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Upload, Map, ListTree, PanelsTopLeft, FileText, AlertTriangle, GanttChart as GanttIcon, Plus, Search, Download, Link2, Circle, CheckCircle2, XCircle, Image as ImageIcon } from 'lucide-react';
+import { useProjectStore, DEPARTMENTS, STATUSES } from '.../.../store/useProjectStore';// --- Subtab helpers ---
+const SUBTABS = [
+    { key: 'overview', label: 'Overview', icon: PanelsTopLeft },
+    { key: 'floor', label: 'Floor plan', icon: Map },
+    { key: 'gantt', label: 'Gantt', icon: GanttIcon },
+    { key: 'positions', label: 'Positions', icon: ListTree },
+    { key: 'tasks', label: 'Tasks', icon: Circle },
+    { key: 'docs', label: 'Docs', icon: FileText },
+    { key: 'imports', label: 'Imports', icon: Upload },
+];
+
+export default function ProjectView() {
+    const { project, activeSubtab, setActiveSubtab } = useProjectStore(s => ({ project: s.project, activeSubtab: s.activeSubtab, setActiveSubtab: s.setActiveSubtab }));
+
+
+    return (
+        <div className="h-full flex flex-col">
+            <Header project={project} />
+
+
+            <div className="px-4 border-b border-slate-200 bg-white">
+                <div className="flex gap-2 overflow-x-auto py-2">
+                    {SUBTABS.map(({ key, label, icon: Icon }) => (
+                        <button key={key} onClick={() => setActiveSubtab(key)}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition ${activeSubtab === key ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>
+                            <Icon className="w-4 h-4" />
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+
+            <div className="flex-1 overflow-auto">
+                {activeSubtab === 'overview' && <OverviewTab />}
+                {activeSubtab === 'floor' && <FloorPlanTab />}
+                {activeSubtab === 'gantt' && <GanttTab />}
+                {activeSubtab === 'positions' && <PositionsTab />}
+                {activeSubtab === 'tasks' && <TasksTab />}
+                {activeSubtab === 'docs' && <DocsTab />}
+                {activeSubtab === 'imports' && <ImportsTab />}
+            </div>
+        </div>
+    );
+}
+
+function Header({ project }) {
+    return (
+        <div className="px-4 py-3 bg-gradient-to-r from-white to-slate-50 border-b border-slate-200">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-semibold text-slate-900">{project.name}</h1>
+                    <div className="text-sm text-slate-600 mt-1 flex flex-wrap gap-3">
+                        {project.orderNo && <span>Order: <b>{project.orderNo}</b></span>}
+                        {project.offerNo && <span>Offer: <b>{project.offerNo}</b></span>}
+                        {project.pm && <span>PM: <b>{project.pm}</b></span>}
+                        {project.system && <span>System: <b>{project.system}</b></span>}
+                        {project.colors?.length ? <span>Colors: <b>{project.colors.join(', ')}</b></span> : null}
+                    </div>
+                </div>
+                <div className="text-right">
+                    <div className="text-2xl font-bold">{(project.totals?.subtotal ?? 0).toFixed(2)} {project.currency || 'EUR'}</div>
+                    <div className="text-xs text-slate-500">Subtotal</div>
+                </div>
+            </div>
+            {project.warnings?.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {project.warnings.map((w, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+                            <AlertTriangle className="w-3 h-3" /> {w}
+                        </span>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function OverviewTab() {
+    const { project } = useProjectStore();
+    const kpis = useMemo(() => ([
+        { label: 'Positions', value: project.positions?.length || 0 },
+        { label: 'Tasks', value: project.tasks?.length || 0 },
+        { label: 'Installed', value: (project.positions || []).filter(p => p.status === 'Installed').length },
+        { label: 'Warnings', value: project.warnings?.length || 0 },
+    ]), [project]);
+
+
+    return (
+        <div className="p-4 space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {kpis.map((k) => (
+                    <div key={k.label} className="p-4 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200">
+                        <div className="text-xs text-slate-500">{k.label}</div>
+                        <div className="text-2xl font-semibold">{k.value}</div>
+                    </div>
+                ))}
+            </div>
+
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="p-4 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200">
+                    <div className="font-semibold mb-2">Recent tasks</div>
+                    <ul className="divide-y">
+                        {(project.tasks || []).slice(0, 6).map(t => (
+                            <li key={t.id} className="py-2 flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium text-slate-800">{t.title}</div>
+                                    <div className="text-xs text-slate-500">{t.department} â€¢ {t.status}</div>
+                                </div>
+                                <div className="text-xs text-slate-500">{t.start} â†’ {t.end}</div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+
+                <div className="p-4 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200">
+                    <div className="font-semibold mb-2">Materials snapshot</div>
+                    <div className="max-h-64 overflow-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-slate-500">
+                                <tr>
+                                    <th className="text-left py-1 pr-2">Group</th>
+                                    <th className="text-left py-1 pr-2">Description</th>
+                                    <th className="text-right py-1 pr-2">Qty</th>
+                                    <th className="text-right py-1 pr-2">Unit â‚¬</th>
+                                    <th className="text-right py-1 pr-2">Total â‚¬</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(project.materials || []).slice(0, 20).map((m, i) => (
+                                    <tr key={i} className="border-t">
+                                        <td className="py-1 pr-2">{m.group}</td>
+                                        <td className="py-1 pr-2">{m.description}</td>
+                                        <td className="py-1 pr-2 text-right">{m.quantity} {m.quantity_unit || ''}</td>
+                                        <td className="py-1 pr-2 text-right">{(m.price || 0).toFixed(2)}</td>
+                                        <td className="py-1 pr-2 text-right">{(m.total || 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+// --- Floor Plan ---
+function FloorPlanTab() {
+    const fileRef = useRef(null);
+    const { project, setFloorImage, addMarker, updateMarker } = useProjectStore();
+    const [hover, setHover] = useState(null);
+
+
+    // Canvas-based simple viewer
+    return (
+        <div className="h-full flex flex-col">
+            <div className="p-3 border-b bg-white flex items-center gap-2">
+                <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">
+                    <ImageIcon className="w-4 h-4" /> Upload floor plan
+                </button>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const url = URL.createObjectURL(f);
+                    setFloorImage(url);
+                }} />
+                <span className="text-sm text-slate-500">Click to add a marker; drag to move. Markers link to positions by tag.</span>
+            </div>
+
+
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-5">
+                <div className="lg:col-span-3 relative bg-slate-50">
+                    {project.floor.imageUrl ? (
+                        <ImageMarkerBoard imageUrl={project.floor.imageUrl} markers={project.floor.markers} onAdd={(pt) => addMarker({ id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), x: pt.x, y: pt.y, label: `P${(project.floor.markers.length || 0) + 1}`, positionTag: '' })} onMove={(id, pt) => updateMarker(id, pt)} />
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-slate-400">Upload a floor plan image to start.</div>
+                    )}
+                </div>
+                <div className="lg:col-span-2 border-l bg-white">
+                    <FloorRightPane />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+
+function ImageMarkerBoard({ imageUrl, markers, onAdd, onMove }) {
+    const canvasRef = useRef(null);
+    const [img, setImg] = useState(null);
+    const [drag, setDrag] = useState(null);
+
+
+    useEffect(() => { const im = new Image(); im.onload = () => setImg(im); im.src = imageUrl; }, [imageUrl]);
+    useEffect(() => { draw(); }, [img, markers]);
+
+
+    function draw() {
+        const canvas = canvasRef.current; if (!canvas || !img) return;
+        const ctx = canvas.getContext('2d');
+        const { width, height } = canvas.getBoundingClientRect();
+        canvas.width = width * devicePixelRatio; canvas.height = height * devicePixelRatio; ctx.scale(devicePixelRatio, devicePixelRatio);
+        ctx.clearRect(0, 0, width, height);
+        // fit image
+        const scale = Math.min(width / img.width, height / img.height);
+        const iw = img.width * scale; const ih = img.height * scale; const ix = (width - iw) / 2; const iy = (height - ih) / 2;
+        ctx.drawImage(img, ix, iy, iw, ih);
+
+
+        // draw markers
+        markers.forEach(m => {
+            const px = ix + m.x * iw; const py = iy + m.y * ih;
+            ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fillStyle = 'rgba(59,130,246,0.9)'; ctx.fill();
+            ctx.fillStyle = 'white'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(m.label || 'â€¢', px, py);
+        });
+    }
+
+
+    function toLocal(e) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        return { x, y };
+    }
+
+
+    function hit(pt) {
+        // return id if near a marker
+        const rect = canvasRef.current.getBoundingClientRect();
+        const w = rect.width; const h = rect.height;
+        for (const m of markers) {
+            const dx = pt.x - m.x; const dy = pt.y - m.y;
+            if (Math.hypot(dx * w, dy * h) < 0.03 * Math.min(w, h)) return m.id;
+        }
+        return null;
+    }
+
+
+    return (
+        <div className="h-full">
+            <canvas ref={canvasRef}
+                onMouseDown={(e) => {
+                    const pt = toLocal(e); const id = hit(pt);
+                    if (id) setDrag({ id, offset: { x: pt.x, y: pt.y } }); else onAdd?.(pt);
+                }}
+                onMouseMove={(e) => { if (!drag) return; const pt = toLocal(e); const dx = pt.x - drag.offset.x; const dy = pt.y - drag.offset.y; drag.offset = pt; onMove?.(drag.id, (prev => prev) || { x: 0, y: 0 }); /* noop for perf */ }}
+                onMouseUp={(e) => { if (!drag) return; const pt = toLocal(e); onMove?.(drag.id, { x: pt.x, y: pt.y }); setDrag(null); }}
+                className="w-full h-[60vh]" />
+        </div>
+    );
+}
+
+
+function FloorRightPane() {
+    const { project, updateTask, addTask, moveTaskStatus, updateMarker } = useProjectStore();
+    const [q, setQ] = useState('');
+    const filtered = (project.positions || []).filter(p => !q || p.tag.toLowerCase().includes(q.toLowerCase()));
+    return (
+        <div className="h-full flex flex-col">
+            <div className="p-3 border-b flex items-center gap-2">
+                <div className="relative flex-1">
+                    <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search positionsâ€¦" className="w-full px-3 py-2 pl-8 rounded-xl bg-slate-100 focus:bg-white ring-1 ring-transparent focus:ring-blue-300 outline-none" />
+                    <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-slate-400" />
+                </div>
+            </div>
+            <div className="flex-1 overflow-auto">
+                <ul className="divide-y">
+                    {filtered.map(p => (
+                        <li key={p.id} className="p-3 group hover:bg-slate-50">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">{p.tag}</div>
+                                    <div className="text-xs text-slate-500">{p.type} â€¢ {p.level} {p.zone ? `â€¢ ${p.zone}` : ''}</div>
+                                </div>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+                                    <button className="text-xs px-2 py-1 rounded-lg bg-slate-200 hover:bg-slate-300" onClick={() => addTask({ title: `Work â€” ${p.tag}`, department: 'Fabrication' })}>Add task</button>
+                                    <button className="text-xs px-2 py-1 rounded-lg bg-slate-200 hover:bg-slate-300" onClick={() => moveTaskStatus(p.id, 'Installed')}>Mark installed</button>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </div>
+    );
+}
+
+// --- Gantt --- (minimal SVG bars grouped by department)
+function GanttTab() {
+    const { project } = useProjectStore();
+    const tasksByDept = useMemo(() => {
+        const map = new Map();
+        for (const d of DEPARTMENTS) map.set(d, []);
+        (project.tasks || []).forEach(t => { const arr = map.get(t.department) || []; arr.push(t); map.set(t.department, arr); });
+        return map;
+    }, [project.tasks]);
+
+
+    // compute time domain
+    const allDates = (project.tasks || []).flatMap(t => [t.start, t.end]).filter(Boolean).map(d => new Date(d));
+    const min = allDates.length ? new Date(Math.min(...allDates)) : new Date();
+    const max = allDates.length ? new Date(Math.max(...allDates)) : new Date();
+    const dayMs = 86400000; const span = Math.max(1, Math.ceil((max - min) / dayMs));
+
+
+    return (
+        <div className="p-4">
+            {[...tasksByDept.entries()].map(([dept, tasks]) => (
+                <div key={dept} className="mb-6">
+                    <div className="text-sm font-semibold mb-2">{dept}</div>
+                    <div className="relative border rounded-xl bg-white shadow-sm overflow-hidden">
+                        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px)] bg-[length:40px_100%]" />
+                        <div className="p-3 space-y-2">
+                            {tasks.map((t, i) => (
+                                <Bar key={t.id} t={t} min={min} span={span} />
+                            ))}
+                            {!tasks.length && <div className="text-slate-400 text-sm py-6 text-center">No tasks</div>}
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function Bar({ t, min, span }) {
+    const leftPct = ((new Date(t.start) - min) / 86400000) / span * 100;
+    const widthPct = ((new Date(t.end) - new Date(t.start)) / 86400000) / span * 100;
+    return (
+        <div className="relative h-10">
+            <div className="absolute top-1/2 -translate-y-1/2 h-6 rounded-lg bg-blue-600/90 text-white text-xs flex items-center px-2 shadow" style={{ left: `${leftPct}%`, width: `${Math.max(6, widthPct)}%` }}>
+                <GanttIcon className="w-3 h-3 mr-1" />{t.title}
+            </div>
+        </div>
+    );
+}
+
+// --- Positions ---
+function PositionsTab() {
+    const { project } = useProjectStore();
+    const [q, setQ] = useState('');
+    const list = useMemo(() => (project.positions || []).filter(p => !q || p.tag.toLowerCase().includes(q.toLowerCase())), [project.positions, q]);
+
+
+    return (
+        <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+                <div className="relative">
+                    <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search positionsâ€¦" className="w-72 px-3 py-2 pl-8 rounded-xl bg-slate-100 focus:bg-white ring-1 ring-transparent focus:ring-blue-300 outline-none" />
+                    <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-slate-400" />
+                </div>
+            </div>
+
+
+            <div className="overflow-auto bg-white rounded-2xl shadow-sm ring-1 ring-slate-200">
+                <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                        <tr>
+                            <th className="text-left px-3 py-2">Tag</th>
+                            <th className="text-left px-3 py-2">Type</th>
+                            <th className="text-left px-3 py-2">Level/Zone</th>
+                            <th className="text-left px-3 py-2">Status</th>
+                            <th className="text-right px-3 py-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {list.map(p => (
+                            <tr key={p.id} className="border-t hover:bg-slate-50">
+                                <td className="px-3 py-2 font-medium">{p.tag}</td>
+                                <td className="px-3 py-2">{p.type}</td>
+                                <td className="px-3 py-2">{p.level} {p.zone ? `â€¢ ${p.zone}` : ''}</td>
+                                <td className="px-3 py-2">
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-200">{p.status}</span>
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                    <div className="inline-flex items-center gap-2 opacity-70 hover:opacity-100">
+                                        <button className="px-2 py-1 text-xs rounded-lg bg-slate-200 hover:bg-slate-300">Open BOM</button>
+                                        <button className="px-2 py-1 text-xs rounded-lg bg-slate-200 hover:bg-slate-300">Create Work Order</button>
+                                        <button className="px-2 py-1 text-xs rounded-lg bg-slate-200 hover:bg-slate-300">Print Label</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {!list.length && <div className="p-6 text-center text-slate-500">No positions.</div>}
+            </div>
+        </div>
+    );
+}
+
+// --- Tasks (Kanban-lite) ---
+function TasksTab() {
+    const { project, moveTaskStatus } = useProjectStore();
+    const [dept, setDept] = useState('');
+    const tasks = useMemo(() => (project.tasks || []).filter(t => !dept || t.department === dept), [project.tasks, dept]);
+
+
+    return (
+        <div className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+                <label className="text-sm text-slate-600">Department</label>
+                <select className="px-3 py-2 rounded-xl bg-white ring-1 ring-slate-200" value={dept} onChange={e => setDept(e.target.value)}>
+                    <option value="">All</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+            </div>
+
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                {STATUSES.map(status => (
+                    <div key={status} className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-3">
+                        <div className="font-semibold text-sm mb-2">{status}</div>
+                        <div className="space-y-2 min-h-[120px]">
+                            {tasks.filter(t => t.status === status).map(t => (
+                                <div key={t.id} className="p-3 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+                                    <div className="font-medium text-slate-800">{t.title}</div>
+                                    <div className="text-xs text-slate-500">{t.department} â€¢ {t.start} â†’ {t.end}</div>
+                                    <div className="mt-2 flex gap-2">
+                                        {STATUSES.filter(s => s !== status).map(s => (
+                                            <button key={s} className="text-xs px-2 py-1 rounded-lg bg-slate-200 hover:bg-slate-300" onClick={() => moveTaskStatus(t.id, s)}>{s}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// --- Docs ---
+function DocsTab() {
+    const { project } = useProjectStore();
+
+
+    function exportJSON() {
+        const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${project.name.replace(/\s+/g, '_')}.project.json`; a.click(); URL.revokeObjectURL(url);
+    }
+
+
+    function exportCSV() {
+        const headers = ['group', 'description', 'sku', 'quantity', 'quantity_unit', 'price', 'total'];
+        const rows = (project.materials || []).map(m => [m.group, m.description, m.sku, m.quantity, m.quantity_unit || '', m.price || 0, m.total || 0]);
+        const csv = [headers.join(','), ...rows.map(r => r.map(v => typeof v === 'string' && v.includes(',') ? `"${v.replace(/"/g, '""')}"` : v).join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${project.name.replace(/\s+/g, '_')}.materials.csv`; a.click(); URL.revokeObjectURL(url);
+    }
+
+
+    return (
+        <div className="p-4 space-y-3">
+            <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-4 flex items-center gap-2">
+                <button onClick={exportJSON} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-black"><Download className="w-4 h-4" /> Export project JSON</button>
+                <button onClick={exportCSV} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"><Download className="w-4 h-4" /> Export BOM CSV</button>
+            </div>
+
+
+            <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-4">
+                <div className="font-semibold mb-2">Attachments</div>
+                <div className="text-sm text-slate-500">(Drop your PDFs, drawings, certificates here â€” wire up to your storage later.)</div>
+            </div>
+        </div>
+    );
+}
+
+// --- Imports ---
+function ImportsTab() {
+    const inputRef = useRef(null);
+    const { importFromXmlFile } = useProjectStore();
+
+
+    async function onPickXml(e) {
+        const f = e.target.files?.[0]; if (!f) return;
+        await importFromXmlFile(f);
+        alert('LogiKal XML imported. Check Overview, Positions, Gantt, and Tasks.');
+    }
+
+
+    return (
+        <div className="p-4">
+            <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="font-semibold">Upload project</div>
+                        <div className="text-sm text-slate-500">Import LogiKal XML Â· Optional: BOQ CSV/XLSX Â· Floor plan image/PDF</div>
+                    </div>
+                    <div>
+                        <button onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">
+                            <Upload className="w-4 h-4" /> Import LogiKal XML
+                        </button>
+                        <input ref={inputRef} type="file" accept=".xml" className="hidden" onChange={onPickXml} />
+                    </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <ImportCard title="LogiKal XML" exts=".xml" desc="Full project structure (materials, cut list, glass, warnings)" />
+                    <ImportCard title="BOQ (CSV/XLSX)" exts=".csv, .xlsx" desc="Optional: Cross-check counts and enrich descriptions" />
+                    <ImportCard title="Floor plan (PDF/IMG)" exts=".pdf, .png, .jpg" desc="Link plan markers to positions" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ImportCard({ title, exts, desc }) {
+    return (
+        <div className="p-4 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+            <div className="font-medium">{title}</div>
+            <div className="text-sm text-slate-500">Allowed: {exts}</div>
+            <div className="text-sm text-slate-500 mt-1">{desc}</div>
+        </div>
+    );
+}
+
+
+
+
+

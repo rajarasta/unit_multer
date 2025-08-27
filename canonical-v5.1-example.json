@@ -1,0 +1,344 @@
+{
+  "version": "5.1",
+  "activeProjectId": "proj-001",
+  "projects": [
+    {
+      "id": "proj-001",
+      "name": "Zgrada A - Aluminum Fabrication",
+      "description": "Kompletan aluminum facade i windows projekt",
+      "floors": [
+        {
+          "id": "floor-0",
+          "name": "Prizemlje",
+          "description": "Ground floor with main entrance",
+          "pdfData": null,
+          "pdfWidth": 800,
+          "pdfHeight": 600,
+          "floorplan": {
+            "width": 800,
+            "height": 600,
+            "scale": 1.0,
+            "units": "mm"
+          }
+        },
+        {
+          "id": "floor-1", 
+          "name": "Prvi kat",
+          "description": "First floor with offices",
+          "pdfData": null,
+          "pdfWidth": 800,
+          "pdfHeight": 600,
+          "floorplan": {
+            "width": 800,
+            "height": 600,
+            "scale": 1.0,
+            "units": "mm"
+          }
+        }
+      ],
+      "positions": [
+        {
+          "id": "PZ-01",
+          "title": "Glavni ulazna vrata",
+          "description": "Aluminum entrance door with glass panels",
+          "totalQuantity": 5,
+          "department": "Fabrication",
+          "status": "Planning",
+          "startDate": "2025-01-15",
+          "endDate": "2025-02-15",
+          "documents": [
+            {
+              "id": "doc-001",
+              "name": "Tehnički crtež PZ-01.pdf", 
+              "type": "drawing",
+              "url": "https://example.com/drawings/PZ-01.pdf",
+              "addedBy": "Engineer",
+              "addedAt": "2025-01-10"
+            },
+            {
+              "id": "doc-002",
+              "name": "Material specifikacija",
+              "type": "specification",
+              "url": "https://example.com/specs/PZ-01.pdf", 
+              "addedBy": "Designer",
+              "addedAt": "2025-01-12"
+            }
+          ],
+          "ganttComments": [
+            {
+              "id": "comment-001",
+              "text": "Potrebno koordinirati s elektrikama",
+              "author": "Project Manager", 
+              "timestamp": "2025-01-10T10:30:00Z",
+              "type": "note"
+            },
+            {
+              "id": "comment-002", 
+              "text": "Client request: Change handle color to black",
+              "author": "Sales",
+              "timestamp": "2025-01-12T14:20:00Z",
+              "type": "change_request"
+            }
+          ],
+          "materials": [
+            {
+              "id": "mat-001",
+              "name": "Aluminum profile 60x40mm",
+              "qty": 12,
+              "unit": "m",
+              "supplier": "Aluplast"
+            },
+            {
+              "id": "mat-002", 
+              "name": "Safety glass 6mm",
+              "qty": 3,
+              "unit": "m²", 
+              "supplier": "Pilkington"
+            }
+          ],
+          "processes": [
+            {
+              "id": "proc-001",
+              "name": "Design",
+              "status": "Completed",
+              "owner": { "name": "Design Department" },
+              "plannedStart": "2025-01-10",
+              "plannedEnd": "2025-01-15",
+              "actualStart": "2025-01-10",
+              "actualEnd": "2025-01-14"
+            },
+            {
+              "id": "proc-002",
+              "name": "Procurement", 
+              "status": "In Progress",
+              "owner": { "name": "Procurement" },
+              "plannedStart": "2025-01-15",
+              "plannedEnd": "2025-01-20"
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-01-15",
+              "end": "2025-02-15", 
+              "progress": 25
+            }
+          },
+          "pieces": [
+            {
+              "id": "PZ-01-piece-001",
+              "pieceNumber": 1,
+              "floorId": "floor-0",
+              "floorX": 25.5,
+              "floorY": 45.2,
+              "floorComments": [
+                {
+                  "id": "floor-comment-001",
+                  "text": "Ovaj komad treba posebnu pažnju - glavni ulaz",
+                  "author": "Foreman",
+                  "timestamp": "2025-01-15T09:00:00Z",
+                  "addedOnFloor": true
+                }
+              ],
+              "floorDocuments": [
+                {
+                  "id": "floor-doc-001",
+                  "name": "Installation guide - Main entrance",
+                  "type": "installation",
+                  "url": "https://example.com/install/PZ-01-001.pdf",
+                  "addedBy": "Site Manager",
+                  "addedAt": "2025-01-15T11:00:00Z",
+                  "addedOnFloor": true
+                }
+              ],
+              "processes": {
+                "dovezeno": true,
+                "montirano": true, 
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-01-15T08:00:00Z",
+                  "user": "Site Manager",
+                  "details": "Koordinate: 25.5%, 45.2% • Kat: Prizemlje • Komad #1"
+                },
+                {
+                  "action": "Process dovezeno completed",
+                  "timestamp": "2025-01-15T10:30:00Z", 
+                  "user": "Delivery Team",
+                  "details": "Komad 1 pozicije Glavni ulazna vrata"
+                },
+                {
+                  "action": "Process montirano completed",
+                  "timestamp": "2025-01-15T15:45:00Z",
+                  "user": "Installation Team", 
+                  "details": "Komad 1 pozicije Glavni ulazna vrata"
+                }
+              ]
+            },
+            {
+              "id": "PZ-01-piece-002",
+              "pieceNumber": 2,
+              "floorId": "floor-0",
+              "floorX": 75.8,
+              "floorY": 30.1,
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": true,
+                "montirano": false,
+                "ostakljeno": false, 
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-01-15T08:30:00Z",
+                  "user": "Site Manager", 
+                  "details": "Koordinate: 75.8%, 30.1% • Kat: Prizemlje • Komad #2"
+                },
+                {
+                  "action": "Process dovezeno completed",
+                  "timestamp": "2025-01-15T10:30:00Z",
+                  "user": "Delivery Team",
+                  "details": "Komad 2 pozicije Glavni ulazna vrata"
+                }
+              ]
+            },
+            {
+              "id": "PZ-01-piece-003",
+              "pieceNumber": 3,
+              "floorId": "floor-1",
+              "floorX": 40.2,
+              "floorY": 55.7,
+              "floorComments": [
+                {
+                  "id": "floor-comment-002",
+                  "text": "Paziti na električne instalacije u blizini",
+                  "author": "Electrician",
+                  "timestamp": "2025-01-16T14:00:00Z", 
+                  "addedOnFloor": true
+                }
+              ],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu",
+                  "timestamp": "2025-01-16T09:00:00Z",
+                  "user": "Site Manager",
+                  "details": "Koordinate: 40.2%, 55.7% • Kat: Prvi kat • Komad #3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "PZ-02",
+          "title": "Fasadni paneli",
+          "description": "Aluminum facade panels with thermal insulation",
+          "totalQuantity": 8,
+          "department": "Facade",
+          "status": "Planning",
+          "startDate": "2025-01-20",
+          "endDate": "2025-02-28",
+          "documents": [
+            {
+              "id": "doc-003",
+              "name": "Facade panel details",
+              "type": "drawing", 
+              "url": "https://example.com/drawings/PZ-02.pdf",
+              "addedBy": "Architect",
+              "addedAt": "2025-01-08"
+            }
+          ],
+          "ganttComments": [
+            {
+              "id": "comment-003",
+              "text": "Fasadni paneli trebaju poseban tretman zbog izolacije",
+              "author": "Technical Manager",
+              "timestamp": "2025-01-08T16:00:00Z",
+              "type": "technical_note"
+            }
+          ],
+          "materials": [
+            {
+              "id": "mat-003",
+              "name": "Aluminum panel 3mm",
+              "qty": 25,
+              "unit": "m²",
+              "supplier": "Reynobond"
+            },
+            {
+              "id": "mat-004",
+              "name": "Thermal insulation",
+              "qty": 25,
+              "unit": "m²", 
+              "supplier": "Rockwool"
+            }
+          ],
+          "processes": [
+            {
+              "id": "proc-003",
+              "name": "Design",
+              "status": "Completed", 
+              "owner": { "name": "Design Department" },
+              "plannedStart": "2025-01-08",
+              "plannedEnd": "2025-01-18"
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-01-20",
+              "end": "2025-02-28",
+              "progress": 10
+            }
+          },
+          "pieces": [
+            {
+              "id": "PZ-02-piece-001",
+              "pieceNumber": 1,
+              "floorId": "floor-1",
+              "floorX": 15.3,
+              "floorY": 20.8,
+              "floorComments": [],
+              "floorDocuments": [],
+              "processes": {
+                "dovezeno": false,
+                "montirano": false,
+                "ostakljeno": false,
+                "brtvljeno": false,
+                "obrada": false,
+                "blokirano": false,
+                "reklamacija": false
+              },
+              "history": [
+                {
+                  "action": "Komad kreiran na tlocrtu", 
+                  "timestamp": "2025-01-16T10:00:00Z",
+                  "user": "Site Manager",
+                  "details": "Koordinate: 15.3%, 20.8% • Kat: Prvi kat • Komad #1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

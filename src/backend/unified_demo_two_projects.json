@@ -1,0 +1,1762 @@
+{
+  "version": "5.0",
+  "exportDate": "2025-08-22T20:38:36.380244Z",
+  "meta": {
+    "schemaName": "project.unified",
+    "schemaVersion": "5.0.0",
+    "types": {
+      "item.id": "string",
+      "item.ref": "string",
+      "item.url": "string",
+      "item.user": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "name": "string",
+          "email": "string"
+        }
+      },
+      "item.descriptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "short": {
+            "type": "string"
+          },
+          "long": {
+            "type": "string"
+          },
+          "technical": {
+            "type": "string"
+          }
+        }
+      },
+      "item.process": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "status": {
+            "enum": [
+              "Čeka",
+              "U tijeku",
+              "Na stajanju",
+              "Završeno"
+            ]
+          },
+          "owner": "item.user",
+          "plannedStart": "string",
+          "plannedEnd": "string",
+          "actualStart": "string|null",
+          "actualEnd": "string|null",
+          "progress": "number",
+          "notes": "string"
+        }
+      }
+    }
+  },
+  "projects": [
+    {
+      "id": "PRJ-2025-0101",
+      "name": "Stambena zgrada – Istok",
+      "client": {
+        "name": "Domograd d.o.o.",
+        "oib": "11111111111"
+      },
+      "created": "2025-08-18T08:00:00Z",
+      "owner": {
+        "id": "u1",
+        "name": "Ivan S.",
+        "email": "ivan@example.com"
+      },
+      "llmData": {
+        "summary": "5 pozicija: alu profili, staklo, čelik, okov, montaža",
+        "keywords": [
+          "aluminij",
+          "staklo",
+          "okvir",
+          "montaža"
+        ],
+        "nextBestActions": [
+          "Provjera rupa Ø10 na PZ-02",
+          "Potvrda dizalice za PZ-05"
+        ]
+      },
+      "descriptions": {
+        "short": "Demo projekt punih tokova",
+        "long": "Uključuje nabavu, proizvodnju i ugradnju za 5 pozicija.",
+        "technical": "EN 1090; ISO 9001; tolerancije ±1mm"
+      },
+      "documents": [
+        {
+          "id": "DOC-PO-1",
+          "name": "Ponuda_staklo_2025-08-18.pdf",
+          "type": "application/pdf",
+          "size": "100 KB",
+          "uploadDate": "2025-08-22T20:01:44Z",
+          "isImage": false,
+          "path": "file:///D:/Projekti/docs/Ponuda_staklo_2025-08-18.pdf"
+        },
+        {
+          "id": "DOC-TS-1",
+          "name": "Teh_spec_Stijena_AP76.pdf",
+          "type": "application/pdf",
+          "size": "100 KB",
+          "uploadDate": "2025-08-22T20:01:44Z",
+          "isImage": false,
+          "path": "file:///D:/Projekti/docs/Teh_spec_Stijena_AP76.pdf"
+        }
+      ],
+      "accounting": {
+        "documents": [
+          {
+            "id": "INV-REQ-001",
+            "documentType": "request",
+            "number": "sno",
+            "date": null,
+            "dueDate": null,
+            "supplier": {
+              "name": null,
+              "oib": "96769806716",
+              "address": null
+            },
+            "buyer": {
+              "name": "Domograd d.o.o.",
+              "oib": "8701030809",
+              "address": null
+            },
+            "totals": {
+              "itemsCount": 0,
+              "subtotal": 0,
+              "vatAmount": 25,
+              "totalAmount": 14.33,
+              "currency": "EUR"
+            },
+            "fileRef": "file:///D:/Projekti/docs/Ponuda_staklo_2025-08-18.pdf"
+          }
+        ],
+        "payments": [],
+        "budget": {
+          "currency": "EUR",
+          "plannedTotal": 24500,
+          "committed": 6200,
+          "invoiced": 1433,
+          "paid": 0
+        }
+      },
+      "floorplan": {
+        "basePlan": {
+          "id": "FLR-001",
+          "file": "file:///D:/Projekti/istok/tlocrt_lvl0.dwg",
+          "preview": "dwg"
+        },
+        "interactiveElements": [
+          {
+            "id": "fp-PZ-01",
+            "type": "rect",
+            "position": [
+              120,
+              310,
+              80,
+              22
+            ],
+            "label": "PZ-01",
+            "linkRef": "pos:PZ-01"
+          },
+          {
+            "id": "fp-PZ-02",
+            "type": "rect",
+            "position": [
+              220,
+              310,
+              60,
+              22
+            ],
+            "label": "PZ-02",
+            "linkRef": "pos:PZ-02"
+          },
+          {
+            "id": "fp-PZ-03",
+            "type": "rect",
+            "position": [
+              305,
+              295,
+              90,
+              25
+            ],
+            "label": "PZ-03",
+            "linkRef": "pos:PZ-03"
+          },
+          {
+            "id": "fp-PZ-04",
+            "type": "rect",
+            "position": [
+              410,
+              300,
+              70,
+              22
+            ],
+            "label": "PZ-04",
+            "linkRef": "pos:PZ-04"
+          },
+          {
+            "id": "fp-PZ-05",
+            "type": "rect",
+            "position": [
+              500,
+              305,
+              85,
+              22
+            ],
+            "label": "PZ-05",
+            "linkRef": "pos:PZ-05"
+          }
+        ]
+      },
+      "gantt": {
+        "scale": "days",
+        "start": "2025-08-16",
+        "end": "2025-09-20"
+      },
+      "positions": [
+        {
+          "id": "PZ-01",
+          "title": "Aluminijski L profil 40x20x3mm L=6m",
+          "llmData": {
+            "summary": "L profilovi – 3 kom",
+            "keywords": [
+              "Aluminijski",
+              "L",
+              "profil"
+            ]
+          },
+          "descriptions": {
+            "short": "Aluminijski L profil 40x20x3mm L=6m",
+            "long": "Detaljniji opis za Aluminijski L profil 40x20x3mm L=6m.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-01-1",
+              "name": "PZ-01_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/PZ-01_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "PZ-01-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "PZ-01-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "PZ-01-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "AL-L-40x20x3-6",
+              "name": "Alu L 40x20x3 L=6m",
+              "qty": 3,
+              "unit": "kom",
+              "supplier": "SCH",
+              "price": 72.5,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "PZ-01-ms1",
+                "date": "2025-08-22",
+                "title": "Isporuka"
+              }
+            ]
+          }
+        },
+        {
+          "id": "PZ-02",
+          "title": "Stakleni panel 6-6.4mm, kaljeno/laminirano",
+          "llmData": {
+            "summary": "Paneli za stijenu, 5 kom",
+            "keywords": [
+              "Stakleni",
+              "panel",
+              "6-6.4mm,"
+            ]
+          },
+          "descriptions": {
+            "short": "Stakleni panel 6-6.4mm, kaljeno/laminirano",
+            "long": "Detaljniji opis za Stakleni panel 6-6.4mm, kaljeno/laminirano.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-02-1",
+              "name": "PZ-02_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/PZ-02_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "PZ-02-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "PZ-02-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "PZ-02-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "GLS-6-6.4",
+              "name": "Staklo 6-6.4",
+              "qty": 5,
+              "unit": "kom",
+              "supplier": "GlassCo",
+              "price": 95,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "PZ-02-ms1",
+                "date": "2025-08-22",
+                "title": "Potvrda rupa Ø10"
+              }
+            ]
+          }
+        },
+        {
+          "id": "PZ-03",
+          "title": "Čelični okvir FEA D45-001",
+          "llmData": {
+            "summary": "Zavareni okvir s plastifikacijom",
+            "keywords": [
+              "Čelični",
+              "okvir",
+              "FEA"
+            ]
+          },
+          "descriptions": {
+            "short": "Čelični okvir FEA D45-001",
+            "long": "Detaljniji opis za Čelični okvir FEA D45-001.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-03-1",
+              "name": "PZ-03_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/PZ-03_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "PZ-03-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "PZ-03-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "STL-45-PROF",
+              "name": "Profil 45mm",
+              "qty": 12,
+              "unit": "m",
+              "supplier": "SteelOne",
+              "price": 6.5,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "PZ-03-ms1",
+                "date": "2025-08-22",
+                "title": "Potvrda nabave"
+              }
+            ]
+          }
+        },
+        {
+          "id": "PZ-04",
+          "title": "Okov i spojni elementi",
+          "llmData": {
+            "summary": "Spojnice, vijci, ankeri",
+            "keywords": [
+              "Okov",
+              "i",
+              "spojni"
+            ]
+          },
+          "descriptions": {
+            "short": "Okov i spojni elementi",
+            "long": "Detaljniji opis za Okov i spojni elementi.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-04-1",
+              "name": "PZ-04_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/PZ-04_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "PZ-04-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "PZ-04-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "PZ-04-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "BLT-A2-M6",
+              "name": "Vijak A2 M6x20",
+              "qty": 50,
+              "unit": "kom",
+              "supplier": "FixFast",
+              "price": 0.12,
+              "currency": "EUR"
+            },
+            {
+              "sku": "ANC-M8",
+              "name": "Anker M8",
+              "qty": 16,
+              "unit": "kom",
+              "supplier": "FixFast",
+              "price": 0.85,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "PZ-04-ms1",
+                "date": "2025-08-22",
+                "title": "Isporuka"
+              }
+            ]
+          }
+        },
+        {
+          "id": "PZ-05",
+          "title": "Montaža kompletne stijene",
+          "llmData": {
+            "summary": "Završna ugradnja svih komponenti",
+            "keywords": [
+              "Montaža",
+              "kompletne",
+              "stijene"
+            ]
+          },
+          "descriptions": {
+            "short": "Montaža kompletne stijene",
+            "long": "Detaljniji opis za Montaža kompletne stijene.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-PZ-05-1",
+              "name": "PZ-05_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/PZ-05_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "PZ-05-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "PZ-05-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "PZ-05-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "SIL-SKF221",
+              "name": "Sikaflex 221",
+              "qty": 6,
+              "unit": "tuba",
+              "supplier": "Sika",
+              "price": 7.8,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "PZ-05-ms1",
+                "date": "2025-08-22",
+                "title": "Start montaže"
+              }
+            ]
+          }
+        }
+      ],
+      "history": [
+        {
+          "id": "h1",
+          "date": "2025-08-18T08:05:00Z",
+          "type": "create",
+          "title": "Projekt kreiran",
+          "details": ""
+        }
+      ],
+      "dataCache": {
+        "enabled": true,
+        "lastSync": "2025-08-22T20:20:00Z",
+        "items": []
+      }
+    },
+    {
+      "id": "PRJ-2025-0102",
+      "name": "Uredski Kompleks – Zapad",
+      "client": {
+        "name": "OfficePlus d.o.o.",
+        "oib": "22222222222"
+      },
+      "created": "2025-08-19T09:00:00Z",
+      "owner": {
+        "id": "u1",
+        "name": "Ivan S.",
+        "email": "ivan@example.com"
+      },
+      "llmData": {
+        "summary": "3 pozicije: fasadni modul, klizni sistem, servis",
+        "keywords": [
+          "fasada",
+          "klizni",
+          "servis"
+        ],
+        "nextBestActions": [
+          "Uskladiti rokove sa stolarijom",
+          "Potvrditi RAL boju"
+        ]
+      },
+      "descriptions": {
+        "short": "Kompleks A&B – dvije zgrade",
+        "long": "Fasadni moduli i klizni sistemi sa segmentnim rokom isporuke.",
+        "technical": "Curtain Wall CW-50; RAL 7016 mat; Uw ≤ 1.2 W/m2K"
+      },
+      "documents": [
+        {
+          "id": "DOC-PO-2",
+          "name": "Ponuda_okov_2025-08-19.pdf",
+          "type": "application/pdf",
+          "size": "100 KB",
+          "uploadDate": "2025-08-22T20:01:44Z",
+          "isImage": false,
+          "path": "file:///D:/Projekti/docs/Ponuda_okov_2025-08-19.pdf"
+        },
+        {
+          "id": "DOC-P2-TS",
+          "name": "Teh_spec_CW50.pdf",
+          "type": "application/pdf",
+          "size": "100 KB",
+          "uploadDate": "2025-08-22T20:01:44Z",
+          "isImage": false,
+          "path": "file:///D:/Projekti/docs/Teh_spec_CW50.pdf"
+        }
+      ],
+      "accounting": {
+        "documents": [
+          {
+            "id": "INV-REQ-010",
+            "documentType": "request",
+            "number": "RQ-OKOV-10",
+            "date": "2025-08-20",
+            "dueDate": "2025-09-05",
+            "supplier": {
+              "name": "OkovTech",
+              "oib": "99333999111",
+              "address": "Zg"
+            },
+            "buyer": {
+              "name": "OfficePlus d.o.o.",
+              "oib": "33333333333",
+              "address": "Zg"
+            },
+            "totals": {
+              "itemsCount": 12,
+              "subtotal": 3800,
+              "vatAmount": 25,
+              "totalAmount": 4750,
+              "currency": "EUR"
+            },
+            "fileRef": "file:///D:/Projekti/docs/Ponuda_okov_2025-08-19.pdf"
+          }
+        ],
+        "payments": [],
+        "budget": {
+          "currency": "EUR",
+          "plannedTotal": 78000,
+          "committed": 12500,
+          "invoiced": 0,
+          "paid": 0
+        }
+      },
+      "floorplan": {
+        "basePlan": {
+          "id": "FLR-010",
+          "file": "file:///D:/Projekti/zapad/plan_A1.dwg",
+          "preview": "dwg"
+        },
+        "interactiveElements": [
+          {
+            "id": "fp-ZP-01",
+            "type": "rect",
+            "position": [
+              160,
+              280,
+              90,
+              26
+            ],
+            "label": "ZP-01",
+            "linkRef": "pos:ZP-01"
+          },
+          {
+            "id": "fp-ZP-02",
+            "type": "rect",
+            "position": [
+              280,
+              280,
+              110,
+              26
+            ],
+            "label": "ZP-02",
+            "linkRef": "pos:ZP-02"
+          },
+          {
+            "id": "fp-ZP-03",
+            "type": "rect",
+            "position": [
+              420,
+              280,
+              90,
+              26
+            ],
+            "label": "ZP-03",
+            "linkRef": "pos:ZP-03"
+          }
+        ]
+      },
+      "gantt": {
+        "scale": "days",
+        "start": "2025-08-19",
+        "end": "2025-10-05"
+      },
+      "positions": [
+        {
+          "id": "ZP-01",
+          "title": "Fasadni modul CW-50 segment A",
+          "llmData": {
+            "summary": "Modul A",
+            "keywords": [
+              "Fasadni",
+              "modul",
+              "CW-50"
+            ]
+          },
+          "descriptions": {
+            "short": "Fasadni modul CW-50 segment A",
+            "long": "Detaljniji opis za Fasadni modul CW-50 segment A.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-ZP-01-1",
+              "name": "ZP-01_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/ZP-01_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "ZP-01-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "ZP-01-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "ZP-01-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "CW50-A",
+              "name": "Modul CW50 A",
+              "qty": 12,
+              "unit": "kom",
+              "supplier": "CWCo",
+              "price": 320,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "ZP-01-ms1",
+                "date": "2025-08-22",
+                "title": "Mock-up"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ZP-02",
+          "title": "Klizni sistem HS-76",
+          "llmData": {
+            "summary": "Klizni – 4 krila",
+            "keywords": [
+              "Klizni",
+              "sistem",
+              "HS-76"
+            ]
+          },
+          "descriptions": {
+            "short": "Klizni sistem HS-76",
+            "long": "Detaljniji opis za Klizni sistem HS-76.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-ZP-02-1",
+              "name": "ZP-02_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/ZP-02_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "ZP-02-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "ZP-02-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "ZP-02-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "HS-76-K",
+              "name": "HS-76 komplet",
+              "qty": 2,
+              "unit": "set",
+              "supplier": "SlidePro",
+              "price": 1450,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "ZP-02-ms1",
+                "date": "2025-08-22",
+                "title": "Isporuka okova"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ZP-03",
+          "title": "Servis i atesti",
+          "llmData": {
+            "summary": "Servis CW i HS",
+            "keywords": [
+              "Servis",
+              "i",
+              "atesti"
+            ]
+          },
+          "descriptions": {
+            "short": "Servis i atesti",
+            "long": "Detaljniji opis za Servis i atesti.",
+            "technical": "Prema standardima; vidi teh. specifikaciju."
+          },
+          "documents": [
+            {
+              "id": "DOC-ZP-03-1",
+              "name": "ZP-03_skica.pdf",
+              "type": "application/pdf",
+              "size": "100 KB",
+              "uploadDate": "2025-08-22T20:01:44Z",
+              "isImage": false,
+              "path": "file:///D:/Projekti/docs/ZP-03_skica.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "ZP-03-t1",
+              "title": "Provjera stanja",
+              "status": "done",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-08-18",
+              "refs": []
+            },
+            {
+              "id": "ZP-03-t2",
+              "title": "Naručiti materijal",
+              "status": "doing",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-08-22",
+              "refs": [
+                "acc:INV-REQ-001"
+              ]
+            }
+          ],
+          "comments": [
+            {
+              "id": "ZP-03-c1",
+              "author": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "date": "2025-08-19T10:30:00Z",
+              "text": "Potvrđen opis.",
+              "refs": []
+            }
+          ],
+          "materials": [
+            {
+              "sku": "SERV-SET",
+              "name": "Servisni set",
+              "qty": 1,
+              "unit": "set",
+              "supplier": "TechServ",
+              "price": 250,
+              "currency": "EUR"
+            }
+          ],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Završeno",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-08-16",
+              "plannedEnd": "2025-08-16",
+              "actualStart": "2025-08-16",
+              "actualEnd": "2025-08-16",
+              "progress": 100,
+              "notes": ""
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "U tijeku",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-19",
+              "actualStart": "2025-08-17",
+              "actualEnd": null,
+              "progress": 60,
+              "notes": "Čeka detalje"
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-08-20",
+              "plannedEnd": "2025-08-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-08-24",
+              "plannedEnd": "2025-08-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-03",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "gantt": {
+            "bar": {
+              "start": "2025-08-16",
+              "end": "2025-09-03"
+            },
+            "milestones": [
+              {
+                "id": "ZP-03-ms1",
+                "date": "2025-08-22",
+                "title": "Predaja zapisnika"
+              }
+            ]
+          }
+        }
+      ],
+      "history": [
+        {
+          "id": "h10",
+          "date": "2025-08-19T09:05:00Z",
+          "type": "create",
+          "title": "Projekt kreiran",
+          "details": ""
+        }
+      ],
+      "dataCache": {
+        "enabled": true,
+        "lastSync": "2025-08-22T20:20:00Z",
+        "items": []
+      }
+    }
+  ],
+  "activeProjectId": "PRJ-2025-0101"
+}

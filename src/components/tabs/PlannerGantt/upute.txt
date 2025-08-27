@@ -1,0 +1,530 @@
+# 📚 Gantt Chart - Napredni Hover Sustav
+## Tehnička Dokumentacija i Upute za Integraciju
+
+---
+
+## 📋 Sadržaj
+
+1. [Pregled Sustava](#pregled-sustava)
+2. [Arhitektura Rješenja](#arhitektura-rješenja)
+3. [Implementacija - Korak po Korak](#implementacija)
+4. [API Referenca](#api-referenca)
+5. [Testiranje](#testiranje)
+6. [Troubleshooting](#troubleshooting)
+
+---
+
+## 🎯 Pregled Sustava
+
+### Cilj Integracije
+Unaprijediti postojeći Gantt chart s naprednim hover sustavom koji omogućava:
+- **Vizualno bogat prikaz** statusa montaže
+- **Multi-level hover** interakciju (mali → veliki → dock-ovi)
+- **Segmentirani progress** prikaz (analogno satu)
+- **Ambient glow** za kritične statuse
+
+### Komponente Sustava
+
+```
+┌─────────────────────────────────────────┐
+│          GANTT CHART VIEW               │
+│  ┌────────────────────────────────┐     │
+│  │     TaskBar Component           │     │
+│  │  ┌──────┐ ┌──────────────┐     │     │
+│  │  │Ring  │ │  Task Bar     │     │     │
+│  │  └──────┘ └──────────────┘     │     │
+│  └────────────────────────────────┘     │
+│                ↓ hover                   │
+│  ┌────────────────────────────────┐     │
+│  │    UnifiedGanttHoverCard       │     │
+│  │  ┌─────┬──────────┬─────┐     │     │
+│  │  │Left │   Main   │Right│     │     │
+│  │  │Dock │   Card   │Dock │     │     │
+│  │  └─────┴──────────┴─────┘     │     │
+│  └────────────────────────────────┘     │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 🏗️ Arhitektura Rješenja
+
+### Podatkovna Struktura
+
+```javascript
+// Prošireni Task Model
+interface EnhancedTask {
+  // Postojeći podaci
+  id: string;
+  naziv: string;
+  pozicija: string;
+  proces: string;
+  status: string;
+  start: Date;
+  end: Date;
+  
+  // NOVO: Montaža status
+  montazaStatus: {
+    transport: boolean;
+    ugradnja: boolean;
+    stakljenje: boolean;
+    brtvljenje: boolean;
+    dodaci: boolean;
+    zavrseno: boolean;
+    reklamacija: boolean;
+    blokirano: boolean;
+  };
+  
+  // NOVO: Komadi/Pieces
+  pieces: Array<{
+    id: number;
+    pieceNumber: number;
+    processData: {
+      comments: Comment[];
+      documents: Document[];
+      tasks: Subtask[];
+    };
+    montaza: MontazaSubStatus;
+  }>;
+}
+```
+
+### Komponente Hijerarhija
+
+```
+PlannerGanttTab.jsx
+├── TaskBar.jsx (modificiran)
+│   ├── MontazaProgressRing.jsx (novo)
+│   └── StatusPill.jsx (novo)
+├── UnifiedGanttHoverCard.jsx (novo)
+│   ├── LeftDockSystem.jsx
+│   │   ├── PrimaryDock.jsx
+│   │   ├── SecondaryDock.jsx
+│   │   └── TertiaryDock.jsx
+│   ├── MainHoverContent.jsx
+│   └── RightDockSystem.jsx
+│       ├── CommentsPanel.jsx
+│       ├── AttachmentsPanel.jsx
+│       ├── TasksPanel.jsx
+│       └── HistoryPanel.jsx
+└── services/
+    └── MontazaDataService.js (novo)
+```
+
+---
+
+## 🛠️ Implementacija
+
+### FAZA 1: Priprema Podatkovne Strukture
+
+#### Korak 1.1: Kreirati Data Service
+
+```javascript
+// services/MontazaDataService.js
+export class MontazaDataService {
+  /**
+   * Ekstraktira montaža status iz procesa
+   * @param {Object} task - Task objekt
+   * @returns {Object} Montaža status
+   */
+  static extractMontazaStatus(task) {
+    // Logika za mapiranje process → montaža status
+    const montazaMap = {
+      'transport': task.processes?.transport?.completed || false,
+      'ugradnja': task.processes?.ugradnja?.completed || false,
+      // ... ostali
+    };
+    
+    return montazaMap;
+  }
+  
+  /**
+   * Kreira piece strukturu iz pozicije
+   * @param {string} positionId 
+   * @returns {Array} Pieces array
+   */
+  static mapPositionToPieces(positionId) {
+    // Implementacija mapiranja
+  }
+}
+```
+
+#### Korak 1.2: Proširiti Task Objekte
+
+```javascript
+// U PlannerGanttTab.jsx
+import { MontazaDataService } from './services/MontazaDataService';
+
+const enrichTasks = useCallback((tasks) => {
+  return tasks.map(task => ({
+    ...task,
+    montazaStatus: MontazaDataService.extractMontazaStatus(task),
+    pieces: MontazaDataService.mapPositionToPieces(task.pozicija)
+  }));
+}, []);
+```
+
+---
+
+### FAZA 2: Vizualne Komponente
+
+#### Korak 2.1: Progress Ring Komponenta
+
+```javascript
+// components/MontazaProgressRing.jsx
+import React from 'react';
+import { motion } from 'framer-motion';
+
+export function MontazaProgressRing({ 
+  montazaStatus, 
+  size = 'medium',
+  showLabels = false 
+}) {
+  const SUBPROCESS_CONFIG = {
+    transport: { color: '#3B82F6', label: 'Transport', angle: 0 },
+    ugradnja: { color: '#8B5CF6', label: 'Ugradnja', angle: 60 },
+    stakljenje: { color: '#06B6D4', label: 'Stakljenje', angle: 120 },
+    brtvljenje: { color: '#10B981', label: 'Brtvljenje', angle: 180 },
+    dodaci: { color: '#F59E0B', label: 'Dodaci', angle: 240 },
+    zavrseno: { color: '#16A34A', label: 'Završeno', angle: 300 }
+  };
+  
+  const radius = size === 'small' ? 12 : size === 'medium' ? 20 : 28;
+  
+  return (
+    <svg width={radius * 2 + 4} height={radius * 2 + 4}>
+      {/* Implementacija segmenata */}
+    </svg>
+  );
+}
+```
+
+#### Korak 2.2: Status Pill Komponenta
+
+```javascript
+// components/StatusPill.jsx
+export function StatusPill({ 
+  text, 
+  hasProblems, 
+  glowColor 
+}) {
+  return (
+    <motion.div className="status-pill">
+      {hasProblems && (
+        <div className="glow-effect" style={{ backgroundColor: glowColor }} />
+      )}
+      <div className="pill-content">
+        {text}
+      </div>
+    </motion.div>
+  );
+}
+```
+
+---
+
+### FAZA 3: Unified Hover Card
+
+#### Korak 3.1: Glavni Hover Wrapper
+
+```javascript
+// components/UnifiedGanttHoverCard.jsx
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LeftDockSystem } from './docks/LeftDockSystem';
+import { RightDockSystem } from './docks/RightDockSystem';
+
+export function UnifiedGanttHoverCard({
+  task,
+  position,
+  level,
+  onClose,
+  onEdit,
+  onUpdateTask,
+  projectService,
+  projectId
+}) {
+  const [dockLeft, setDockLeft] = useState(null);
+  const [dockRight, setDockRight] = useState(null);
+  const [scope, setScope] = useState('piece'); // 'piece' | 'position'
+  
+  // Hover card dimenzije prema levelu
+  const dimensions = {
+    1: { width: 320, height: 220 }, // Mali hover
+    2: { width: 480, height: 380 }, // Veliki hover
+    3: { width: 480, height: 380 }  // Sa dock-ovima
+  };
+  
+  return (
+    <motion.div
+      className="unified-hover-card"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+    >
+      {/* Lijevi dock sustav */}
+      {level >= 3 && (
+        <LeftDockSystem
+          task={task}
+          onProcessSelect={setDockLeft}
+        />
+      )}
+      
+      {/* Glavni sadržaj */}
+      <MainCard
+        task={task}
+        dimensions={dimensions[level]}
+        showControls={level >= 2}
+      />
+      
+      {/* Desni dock sustav */}
+      {level >= 2 && (
+        <RightDockSystem
+          type={dockRight}
+          scope={scope}
+          data={task}
+          onScopeChange={setScope}
+        />
+      )}
+    </motion.div>
+  );
+}
+```
+
+---
+
+### FAZA 4: Integracija u Gantt
+
+#### Korak 4.1: Modificirati TaskBar
+
+```javascript
+// U TaskBar komponenti (PlannerGanttTab.jsx)
+const TaskBar = React.memo(function TaskBarInner({ task, rowIndex }) {
+  // ... postojeći kod ...
+  
+  return (
+    <>
+      {/* NOVO: Progress ring */}
+      {task.montazaStatus && (
+        <div 
+          className="absolute"
+          style={{ 
+            left: x - 20, 
+            top: y + height/2 - 10 
+          }}
+        >
+          <MontazaProgressRing 
+            montazaStatus={task.montazaStatus}
+            size="small"
+          />
+        </div>
+      )}
+      
+      {/* Postojeći task bar */}
+      <div className="task-bar">
+        {/* ... */}
+      </div>
+      
+      {/* NOVO: Status pill */}
+      {task.montazaStatus?.reklamacija && (
+        <StatusPill
+          text="!"
+          hasProblems={true}
+          glowColor="#DC2626"
+        />
+      )}
+    </>
+  );
+});
+```
+
+#### Korak 4.2: Zamijeniti Hover Komponentu
+
+```javascript
+// U PlannerGanttTab.jsx
+import { UnifiedGanttHoverCard } from './components/UnifiedGanttHoverCard';
+
+// Umjesto:
+// <AdvancedTaskHoverCard ... />
+
+// Koristi:
+<AnimatePresence>
+  {hoveredTask && (
+    <UnifiedGanttHoverCard
+      task={enrichedHoveredTask}
+      position={hoveredTask.position}
+      level={hoverLevel}
+      onClose={handleCloseHover}
+      onEdit={handleEditTask}
+      onUpdateTask={updateTask}
+      projectService={projectService}
+      projectId={activeProjectId}
+    />
+  )}
+</AnimatePresence>
+```
+
+---
+
+## 📡 API Referenca
+
+### MontazaDataService
+
+| Metoda | Parametri | Povrat | Opis |
+|--------|-----------|--------|------|
+| `extractMontazaStatus` | `task: Object` | `Object` | Izvlači montaža status |
+| `mapPositionToPieces` | `positionId: string` | `Array` | Mapira poziciju u komade |
+| `calculateProgress` | `montazaStatus: Object` | `number` | Računa postotak završenosti |
+
+### UnifiedGanttHoverCard Props
+
+| Prop | Tip | Obavezno | Opis |
+|------|-----|----------|------|
+| `task` | `Object` | ✅ | Task objekt s proširenim podacima |
+| `position` | `{x, y}` | ✅ | Pozicija za prikaz |
+| `level` | `1\|2\|3` | ✅ | Razina hover prikaza |
+| `onClose` | `Function` | ✅ | Callback za zatvaranje |
+| `onEdit` | `Function` | ❌ | Callback za uređivanje |
+
+---
+
+## 🧪 Testiranje
+
+### Unit Testovi
+
+```javascript
+// __tests__/MontazaDataService.test.js
+describe('MontazaDataService', () => {
+  test('should extract montaza status correctly', () => {
+    const task = { /* mock data */ };
+    const status = MontazaDataService.extractMontazaStatus(task);
+    expect(status.transport).toBe(true);
+  });
+});
+```
+
+### Integracija Testovi
+
+```javascript
+// __tests__/GanttHoverIntegration.test.js
+describe('Gantt Hover Integration', () => {
+  test('should show progress ring on task hover', async () => {
+    // Test implementacija
+  });
+});
+```
+
+### Ručno Testiranje - Checklist
+
+- [ ] Progress ring se prikazuje na hover
+- [ ] Segmenti se ispravno boje prema statusu
+- [ ] Glow efekt radi za reklamacije/blokade
+- [ ] Dock-ovi se otvaraju/zatvaraju glatko
+- [ ] Scope switching (komad/pozicija) radi
+- [ ] Performance je prihvatljiv (60fps)
+- [ ] Nema memory leak-ova
+
+---
+
+## 🔧 Troubleshooting
+
+### Problem: Hover se ne prikazuje
+
+**Rješenje:**
+```javascript
+// Provjeri z-index hijerarhiju
+.unified-hover-card {
+  z-index: 9999; /* Mora biti iznad svega */
+}
+```
+
+### Problem: Segmenti se krivo prikazuju
+
+**Rješenje:**
+```javascript
+// Provjeri SVG viewBox i koordinate
+const centerX = radius + strokeWidth/2;
+const centerY = radius + strokeWidth/2;
+```
+
+### Problem: Performance problemi
+
+**Rješenje:**
+1. Koristi `React.memo` za TaskBar
+2. Implementiraj virtualizaciju za velike liste
+3. Debounce hover eventi:
+
+```javascript
+const debouncedHover = useMemo(
+  () => debounce(handleHover, 100),
+  [handleHover]
+);
+```
+
+---
+
+## 📚 Dodatni Resursi
+
+### Datoteke za Download
+- [MontazaProgressRing.jsx](./components/MontazaProgressRing.jsx)
+- [UnifiedGanttHoverCard.jsx](./components/UnifiedGanttHoverCard.jsx)
+- [MontazaDataService.js](./services/MontazaDataService.js)
+
+### Korisni Linkovi
+- [Framer Motion Docs](https://www.framer.com/motion/)
+- [React Performance](https://react.dev/learn/render-and-commit)
+- [SVG Path Tutorial](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths)
+
+### Kontakt za Podršku
+- Email: dev-team@example.com
+- Slack: #gantt-hover-integration
+- GitHub Issues: [Link to repo]
+
+---
+
+## 📈 Roadmap
+
+### v1.0 - Osnovna Integracija ✅
+- [x] Progress ring vizualizacija
+- [x] Osnovni hover sa 2 razine
+- [x] Status pill komponenta
+
+### v1.1 - Napredne Značajke 🚧
+- [ ] Dock sustav
+- [ ] Scope switching
+- [ ] Animirani prijelazi
+
+### v1.2 - Optimizacija 📅
+- [ ] Performance tuning
+- [ ] Lazy loading dock-ova
+- [ ] Caching strategija
+
+### v2.0 - Buduće Mogućnosti 💡
+- [ ] AI-powered status predviđanje
+- [ ] 3D vizualizacija progress-a
+- [ ] Real-time kolaboracija
+
+---
+
+## 📝 Changelog
+
+### [1.0.0] - 2025-01-10
+- Inicijalna verzija dokumentacije
+- Dodane osnovne komponente
+- Implementiran progress ring
+
+### [0.9.0] - 2025-01-09
+- Draft verzija
+- Proof of concept
+
+---
+
+## 📄 Licenca
+
+MIT License - Slobodno koristite i modificirajte
+
+---
+
+*Dokumentacija verzija: 1.0.0*  
+*Zadnje ažuriranje: 10.01.2025*  
+*Autor: Development Team*

@@ -1,0 +1,30 @@
+﻿:root{
+  /* brand */
+  --al-primary: #2563eb;
+  --al-primary-hover: #1d4ed8;
+  --al-accent: #a855f7;
+  --al-info: #0ea5e9;
+  --al-success: #10b981;
+  --al-warning: #f59e0b;
+  --al-error: #ef4444;
+
+  /* ui */
+  --al-bg: #f8fafc;
+  --al-surface: #ffffff;
+  --al-surface-alt: #f1f5f9;
+  --al-border: #e2e8f0;
+  --al-text: #0f172a;
+  --al-text-subtle: #475569;
+
+  /* radius */
+  --al-r-xs: 4px;
+  --al-r-sm: 6px;
+  --al-r-md: 10px;
+  --al-r-lg: 14px;
+  --al-r-xl: 20px;
+
+  /* shadow */
+  --al-sh-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --al-sh-md: 0 2px 6px rgba(0,0,0,0.10);
+  --al-sh-lg: 0 8px 24px rgba(0,0,0,0.12);
+}

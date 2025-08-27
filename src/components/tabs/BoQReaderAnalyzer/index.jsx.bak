@@ -1,0 +1,757 @@
+﻿import { useState, useEffect, useRef } from "react";
+import {
+import theme from '@al/theme';
+const { colors, fontStack } = theme;
+  FileSpreadsheet, Upload, AlertTriangle, Info, Package,
+  Calendar, Loader2, Eye, ChevronRight, Sparkles, Clock,
+  CheckCircle2, Settings, TrendingUp, AlertCircle, Layers,
+  Hammer, Truck, PenTool, ShoppingCart, Factory, BookOpen
+} from "lucide-react";
+
+// Mock Excel parser (replace with actual XLSX library in production)
+import * as XLSX from 'xlsx';
+
+export default function BOQReaderAnalyzer() {
+  const [file, setFile] = useState(null);
+  const [positions, setPositions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [llmStatus, setLlmStatus] = useState("checking");
+  const [selectedPosition, setSelectedPosition] = useState(null);
+  const [hoveredPosition, setHoveredPosition] = useState(null);
+  const [excelPreview, setExcelPreview] = useState(null);
+  const [ganttView, setGanttView] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const fileInputRef = useRef(null);
+
+  // LM Studio config
+  const LM_STUDIO_CONFIG = {
+    endpoint: "http://localhost:1234/v1/chat/completions",
+    model: "local-model",
+    temperature: 0.3,
+    max_tokens: 2000,
+  };
+
+  // Department colors for Gantt chart
+  const departmentColors = {
+    design: "#3B82F6",
+    orders: "#8B5CF6",
+    technical: "#10B981",
+    production: "#F59E0B",
+    installation: "#EF4444"
+  };
+
+  // Check LLM connection
+  useEffect(() => {
+    const checkLLM = async () => {
+      try {
+        const res = await fetch("http://localhost:1234/v1/models");
+        setLlmStatus(res.ok ? "connected" : "offline");
+      } catch {
+        setLlmStatus("offline");
+      }
+    };
+    checkLLM();
+    const interval = setInterval(checkLLM, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Parse Excel file
+  const parseExcelFile = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      
+      // Get first sheet
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false });
+      
+      // Create preview
+      const previewData = data.slice(0, 10).map(row => row.slice(0, 8));
+      setExcelPreview(previewData);
+      
+      // Extract positions (skip headers and empty rows)
+      const extractedPositions = [];
+      let currentSection = "";
+      let positionNumber = 1;
+      
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        if (!row || row.length === 0) continue;
+        
+        // Check if it's a section header
+        const firstCell = String(row[0] || "").trim();
+        if (firstCell && !firstCell.match(/^\d/) && row[1] === undefined) {
+          currentSection = firstCell;
+          continue;
+        }
+        
+        // Extract position data
+        if (row[0] && (row[2] || row[3] || row[4])) {
+          const position = {
+            id: `POS-${positionNumber.toString().padStart(3, '0')}`,
+            number: firstCell,
+            description: String(row[1] || "").trim(),
+            longDescription: String(row[1] || "").trim() + " " + String(row[2] || "").trim(),
+            section: currentSection,
+            quantity: parseFloat(row[3]) || 0,
+            unit: String(row[4] || "").trim(),
+            unitPrice: parseFloat(row[5]) || 0,
+            totalPrice: parseFloat(row[6]) || 0,
+            status: "pending",
+            beware: null,
+            recommendations: null,
+            similar: null,
+            timeline: null
+          };
+          
+          if (position.description || position.quantity > 0) {
+            extractedPositions.push(position);
+            positionNumber++;
+          }
+        }
+      }
+      
+      return extractedPositions;
+    } catch (error) {
+      console.error("Excel parsing error:", error);
+      throw new Error("Failed to parse Excel file");
+    }
+  };
+
+  // Analyze position with AI
+  const analyzePositionWithAI = async (position) => {
+    if (llmStatus !== "connected") {
+      // Fallback analysis
+      return {
+        beware: position.description.toLowerCase().includes("alu") 
+          ? "Check aluminum grade and finish specifications"
+          : "Verify dimensions and specifications",
+        recommendations: "Request technical drawings and samples before ordering",
+        similar: "Similar to standard curtain wall profiles",
+        timeline: generateTimeline(position)
+      };
+    }
+
+    const prompt = `Analyze this construction BOQ position for aluminum doors/windows/curtain walls:
+Position: ${position.description}
+Long Description: ${position.longDescription}
+Quantity: ${position.quantity} ${position.unit}
+Section: ${position.section}
+
+Provide analysis in JSON format:
+{
+  "beware": "Key risks or concerns (max 100 chars)",
+  "recommendations": "Best practices or suggestions (max 100 chars)",
+  "similar": "Similar products or alternatives (max 80 chars)",
+  "complexity": "low|medium|high",
+  "leadTime": number (days)
+}`;
+
+    try {
+      const response = await fetch(LM_STUDIO_CONFIG.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: LM_STUDIO_CONFIG.model,
+          messages: [
+            { role: "system", content: "You are an expert in aluminum construction and curtain wall systems." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 500,
+        }),
+      });
+
+      const result = await response.json();
+      const content = result?.choices?.[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      
+      if (jsonMatch) {
+        const analysis = JSON.parse(jsonMatch[0]);
+        return {
+          beware: analysis.beware || "Check specifications",
+          recommendations: analysis.recommendations || "Verify with technical team",
+          similar: analysis.similar || "Standard profile",
+          timeline: generateTimeline(position, analysis.complexity, analysis.leadTime)
+        };
+      }
+    } catch (error) {
+      console.error("AI analysis failed:", error);
+    }
+
+    // Fallback
+    return {
+      beware: "Verify specifications",
+      recommendations: "Check technical requirements",
+      similar: "Standard aluminum profile",
+      timeline: generateTimeline(position)
+    };
+  };
+
+  // Generate timeline for Gantt chart
+  const generateTimeline = (position, complexity = "medium", leadTime = 30) => {
+    const today = new Date();
+    const complexityFactors = { low: 0.8, medium: 1, high: 1.5 };
+    const factor = complexityFactors[complexity] || 1;
+    
+    const timeline = {
+      design: {
+        start: new Date(today),
+        end: new Date(today.getTime() + (5 * factor * 24 * 60 * 60 * 1000)),
+        progress: 0
+      },
+      orders: {
+        start: new Date(today.getTime() + (3 * 24 * 60 * 60 * 1000)),
+        end: new Date(today.getTime() + (8 * factor * 24 * 60 * 60 * 1000)),
+        progress: 0
+      },
+      technical: {
+        start: new Date(today.getTime() + (7 * 24 * 60 * 60 * 1000)),
+        end: new Date(today.getTime() + (14 * factor * 24 * 60 * 60 * 1000)),
+        progress: 0
+      },
+      production: {
+        start: new Date(today.getTime() + (14 * 24 * 60 * 60 * 1000)),
+        end: new Date(today.getTime() + ((14 + leadTime) * factor * 24 * 60 * 60 * 1000)),
+        progress: 0
+      },
+      installation: {
+        start: new Date(today.getTime() + ((14 + leadTime) * 24 * 60 * 60 * 1000)),
+        end: new Date(today.getTime() + ((14 + leadTime + 7) * factor * 24 * 60 * 60 * 1000)),
+        progress: 0
+      }
+    };
+    
+    return timeline;
+  };
+
+  // Process file
+  const processFile = async (file) => {
+    setLoading(true);
+    setProcessingProgress(0);
+    
+    try {
+      // Parse Excel
+      setProcessingProgress(20);
+      const extractedPositions = await parseExcelFile(file);
+      
+      // Analyze each position with AI
+      setProcessingProgress(40);
+      const analyzedPositions = [];
+      
+      for (let i = 0; i < extractedPositions.length; i++) {
+        const position = extractedPositions[i];
+        const analysis = await analyzePositionWithAI(position);
+        analyzedPositions.push({
+          ...position,
+          ...analysis
+        });
+        setProcessingProgress(40 + (50 * (i + 1) / extractedPositions.length));
+      }
+      
+      setPositions(analyzedPositions);
+      setProcessingProgress(100);
+    } catch (error) {
+      console.error("Processing error:", error);
+      alert("Failed to process file: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format date for display
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Calculate days between dates
+  const daysBetween = (start, end) => {
+    return Math.ceil((end - start) / (24 * 60 * 60 * 1000));
+  };
+
+  // Get department icon
+  const getDepartmentIcon = (dept) => {
+    const icons = {
+      design: <PenTool className="w-4 h-4" />,
+      orders: <ShoppingCart className="w-4 h-4" />,
+      technical: <Settings className="w-4 h-4" />,
+      production: <Factory className="w-4 h-4" />,
+      installation: <Truck className="w-4 h-4" />
+    };
+    return icons[dept] || <Package className="w-4 h-4" />;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                BOQ Reader & Analyzer
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">
+                AI-powered analysis for aluminum construction bills of quantities
+              </p>
+              <div className="flex items-center gap-4 mt-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${llmStatus === "connected" ? "bg-green-500" : "bg-orange-500"} animate-pulse`} />
+                  <span className="text-sm text-gray-600">AI: {llmStatus}</span>
+                </div>
+                {positions.length > 0 && (
+                  <>
+                    <span className="text-sm text-gray-600">
+                      {positions.length} positions loaded
+                    </span>
+                    <button
+                      onClick={() => setGanttView(!ganttView)}
+                      className="text-sm text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1"
+                    >
+                      <Calendar className="w-3 h-3" />
+                      {ganttView ? "Show Table" : "Show Gantt"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            {file && (
+              <button 
+                onClick={() => {
+                  setFile(null);
+                  setPositions([]);
+                  setExcelPreview(null);
+                  fileInputRef.current.value = "";
+                }}
+                className="px-5 py-2.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all shadow-md hover:shadow-lg"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Upload Area */}
+        {!file && (
+          <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-8 shadow-sm border border-gray-200/50 mb-6">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group"
+            >
+              <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FileSpreadsheet className="w-10 h-10 text-green-600" />
+              </div>
+              <p className="text-xl font-semibold text-gray-800 mb-2">Upload BOQ Excel File</p>
+              <p className="text-sm text-gray-500">Supports .xls, .xlsx formats</p>
+              <p className="text-xs text-gray-400 mt-2">AI will analyze positions for aluminum construction</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".xls,.xlsx"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  setFile(f);
+                  processFile(f);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-12 shadow-sm border border-gray-200/50 text-center">
+            <Loader2 className="w-12 h-12 text-blue-600 mx-auto mb-4 animate-spin" />
+            <p className="text-lg font-medium text-gray-700">Processing BOQ File...</p>
+            <div className="mt-4 max-w-xs mx-auto">
+              <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-full transition-all duration-500"
+                  style={{ width: `${processingProgress}%` }}
+                />
+              </div>
+              <p className="text-sm text-gray-500 mt-2">{Math.round(processingProgress)}% complete</p>
+            </div>
+          </div>
+        )}
+
+        {/* Excel Preview */}
+        {excelPreview && !loading && (
+          <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 mb-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Eye className="w-5 h-5 text-blue-600" />
+              Excel Preview
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="text-xs">
+                <tbody>
+                  {excelPreview.map((row, i) => (
+                    <tr key={i} className="border-b border-gray-100">
+                      {row.map((cell, j) => (
+                        <td key={j} className="px-2 py-1 text-gray-600 max-w-[150px] truncate">
+                          {cell || "-"}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Positions Table View */}
+        {positions.length > 0 && !ganttView && (
+          <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-blue-600" />
+              Analyzed Positions
+            </h3>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-3 text-sm font-medium text-gray-600">ID</th>
+                    <th className="text-left py-3 px-3 text-sm font-medium text-gray-600">Description</th>
+                    <th className="text-right py-3 px-3 text-sm font-medium text-gray-600">Qty</th>
+                    <th className="text-left py-3 px-3 text-sm font-medium text-gray-600">Unit</th>
+                    <th className="text-right py-3 px-3 text-sm font-medium text-gray-600">Price</th>
+                    <th className="text-right py-3 px-3 text-sm font-medium text-gray-600">Value</th>
+                    <th className="text-left py-3 px-3 text-sm font-medium text-gray-600">Beware</th>
+                    <th className="text-left py-3 px-3 text-sm font-medium text-gray-600">Recommendations</th>
+                    <th className="text-left py-3 px-3 text-sm font-medium text-gray-600">Similar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.map((position, index) => (
+                    <tr 
+                      key={position.id}
+                      className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors relative cursor-pointer"
+                      onMouseEnter={() => setHoveredPosition(index)}
+                      onMouseLeave={() => setHoveredPosition(null)}
+                      onClick={() => setSelectedPosition(position)}
+                    >
+                      <td className="py-3 px-3">
+                        <span className="text-xs font-mono bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          {position.id}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="max-w-xs">
+                          <p className="font-medium text-sm text-gray-800 truncate">
+                            {position.description}
+                          </p>
+                          {position.section && (
+                            <p className="text-xs text-gray-500 mt-0.5">{position.section}</p>
+                          )}
+                        </div>
+                        
+                        {/* Hover tooltip */}
+                        {hoveredPosition === index && (
+                          <div className="absolute left-0 top-full mt-2 p-4 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 w-96">
+                            <div className="flex items-start gap-3">
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                                <Package className="w-6 h-6 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-semibold text-sm text-gray-800">{position.id}</p>
+                                <p className="text-xs text-gray-600 mt-1">{position.longDescription}</p>
+                                <div className="grid grid-cols-2 gap-2 mt-3">
+                                  <div className="text-xs">
+                                    <span className="text-gray-500">Section:</span>
+                                    <span className="ml-1 font-medium">{position.section || "General"}</span>
+                                  </div>
+                                  <div className="text-xs">
+                                    <span className="text-gray-500">Quantity:</span>
+                                    <span className="ml-1 font-medium">{position.quantity} {position.unit}</span>
+                                  </div>
+                                  <div className="text-xs">
+                                    <span className="text-gray-500">Unit Price:</span>
+                                    <span className="ml-1 font-medium">â‚¬{position.unitPrice.toFixed(2)}</span>
+                                  </div>
+                                  <div className="text-xs">
+                                    <span className="text-gray-500">Total:</span>
+                                    <span className="ml-1 font-medium">â‚¬{position.totalPrice.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                                {position.timeline && (
+                                  <div className="mt-3 pt-3 border-t border-gray-100">
+                                    <p className="text-xs font-medium text-gray-700 mb-2">Timeline Overview</p>
+                                    <div className="space-y-1">
+                                      {Object.entries(position.timeline).map(([dept, data]) => (
+                                        <div key={dept} className="flex items-center gap-2 text-xs">
+                                          <div 
+                                            className="w-2 h-2 rounded-full" 
+                                            style={{ backgroundColor: departmentColors[dept] }}
+                                          />
+                                          <span className="capitalize text-gray-600">{dept}:</span>
+                                          <span className="text-gray-800">
+                                            {formatDate(data.start)} - {formatDate(data.end)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-right font-medium">{position.quantity.toFixed(2)}</td>
+                      <td className="py-3 px-3">
+                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                          {position.unit}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">â‚¬{position.unitPrice.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-right font-semibold text-blue-600">
+                        â‚¬{position.totalPrice.toFixed(2)}
+                      </td>
+                      <td className="py-3 px-3">
+                        {position.beware && (
+                          <div className="flex items-start gap-1">
+                            <AlertTriangle className="w-3 h-3 text-orange-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs text-gray-700">{position.beware}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {position.recommendations && (
+                          <div className="flex items-start gap-1">
+                            <Info className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs text-gray-700">{position.recommendations}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {position.similar && (
+                          <div className="flex items-start gap-1">
+                            <TrendingUp className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs text-gray-700">{position.similar}</span>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4">
+                  <p className="text-xs text-blue-600 font-medium">Total Positions</p>
+                  <p className="text-2xl font-bold text-blue-700 mt-1">{positions.length}</p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4">
+                  <p className="text-xs text-green-600 font-medium">Total Value</p>
+                  <p className="text-2xl font-bold text-green-700 mt-1">
+                    â‚¬{positions.reduce((sum, p) => sum + p.totalPrice, 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4">
+                  <p className="text-xs text-purple-600 font-medium">Avg. Unit Price</p>
+                  <p className="text-2xl font-bold text-purple-700 mt-1">
+                    â‚¬{(positions.reduce((sum, p) => sum + p.unitPrice, 0) / positions.length).toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-xl p-4">
+                  <p className="text-xs text-orange-600 font-medium">Sections</p>
+                  <p className="text-2xl font-bold text-orange-700 mt-1">
+                    {new Set(positions.map(p => p.section)).size}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Gantt Chart View */}
+        {positions.length > 0 && ganttView && (
+          <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              Project Timeline - Gantt Chart
+            </h3>
+            
+            <div className="mb-4 flex items-center gap-6">
+              {Object.entries(departmentColors).map(([dept, color]) => (
+                <div key={dept} className="flex items-center gap-2">
+                  {getDepartmentIcon(dept)}
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
+                  <span className="text-xs text-gray-600 capitalize">{dept}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[1200px]">
+                {/* Timeline header */}
+                <div className="flex items-center border-b border-gray-200 pb-2 mb-4">
+                  <div className="w-32 text-sm font-medium text-gray-600">Position</div>
+                  <div className="flex-1 flex">
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + i * 7);
+                      return (
+                        <div key={i} className="flex-1 text-center text-xs text-gray-500">
+                          {formatDate(date)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Gantt rows */}
+                {positions.slice(0, 10).map((position) => (
+                  <div key={position.id} className="mb-3">
+                    <div className="flex items-center">
+                      <div className="w-32 pr-4">
+                        <p className="text-xs font-mono text-gray-700">{position.id}</p>
+                        <p className="text-xs text-gray-500 truncate">{position.description}</p>
+                      </div>
+                      <div className="flex-1 relative h-20 bg-gray-50 rounded-lg">
+                        {position.timeline && Object.entries(position.timeline).map(([dept, data], idx) => {
+                          const totalDays = 84; // 12 weeks
+                          const today = new Date();
+                          const startDay = daysBetween(today, data.start);
+                          const duration = daysBetween(data.start, data.end);
+                          const left = (startDay / totalDays) * 100;
+                          const width = (duration / totalDays) * 100;
+                          
+                          return (
+                            <div
+                              key={dept}
+                              className="absolute rounded transition-all hover:shadow-md"
+                              style={{
+                                backgroundColor: departmentColors[dept],
+                                opacity: 0.8,
+                                left: `${left}%`,
+                                width: `${width}%`,
+                                top: `${idx * 16 + 4}px`,
+                                height: "12px"
+                              }}
+                              title={`${dept}: ${formatDate(data.start)} - ${formatDate(data.end)}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {positions.length > 10 && (
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-500">Showing first 10 positions of {positions.length}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Selected Position Detail */}
+        {selectedPosition && (
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-6 z-50" onClick={() => setSelectedPosition(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-800">{selectedPosition.id}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{selectedPosition.description}</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedPosition(null)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Ã—
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Full Description</p>
+                    <p className="text-sm text-gray-800">{selectedPosition.longDescription}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <p className="text-xs font-medium text-blue-600 mb-1">Quantity</p>
+                      <p className="text-lg font-bold text-blue-800">
+                        {selectedPosition.quantity} {selectedPosition.unit}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 rounded-xl p-4">
+                      <p className="text-xs font-medium text-green-600 mb-1">Total Value</p>
+                      <p className="text-lg font-bold text-green-800">
+                        â‚¬{selectedPosition.totalPrice.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedPosition.beware && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-orange-800">Beware</p>
+                          <p className="text-sm text-orange-700 mt-1">{selectedPosition.beware}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPosition.recommendations && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">Recommendations</p>
+                          <p className="text-sm text-blue-700 mt-1">{selectedPosition.recommendations}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPosition.timeline && (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-sm font-medium text-gray-800 mb-3">Department Timeline</p>
+                      <div className="space-y-2">
+                        {Object.entries(selectedPosition.timeline).map(([dept, data]) => (
+                          <div key={dept} className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 w-28">
+                              {getDepartmentIcon(dept)}
+                              <span className="text-xs capitalize text-gray-600">{dept}</span>
+                            </div>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2 relative overflow-hidden">
+                              <div 
+                                className="absolute left-0 top-0 h-full rounded-full"
+                                style={{ 
+                                  backgroundColor: departmentColors[dept],
+                                  width: `${data.progress || 0}%`
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 w-32 text-right">
+                              {formatDate(data.start)} - {formatDate(data.end)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

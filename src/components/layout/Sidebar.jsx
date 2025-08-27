@@ -1,0 +1,48 @@
+﻿import React from 'react';
+import { Sparkles } from 'lucide-react';
+export default function Sidebar({ activeTab, setActiveTab, navItems }) {
+  return (
+    <aside className="h-full bg-gray-50 border-r border-slate-200 flex flex-col">
+      <div className="p-4">
+        <div className="px-2 py-1 text-sm font-semibold text-slate-700">
+          Microsoft Store
+        </div>
+      </div>
+      
+      <nav className="flex-1 px-4 pb-4 space-y-1 overflow-y-auto">
+        <button
+          key="demo"
+          onClick={() => setActiveTab('home')}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors ${
+            activeTab === 'home' 
+              ? "bg-slate-100 ring-1 ring-slate-300" 
+              : "bg-white hover:bg-slate-50 ring-1 ring-slate-200"
+          }`}
+        >
+          <Sparkles className="h-4 w-4" />
+          <span>Demo</span>
+        </button>
+        
+        {navItems.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors ${
+              activeTab === key 
+                ? "bg-slate-100 ring-1 ring-slate-300" 
+                : "bg-white hover:bg-slate-50 ring-1 ring-slate-200"
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+      
+      <div className="p-4 text-xs text-slate-500">
+        Â© Demo UI
+      </div>
+    </aside>
+  );
+}
+

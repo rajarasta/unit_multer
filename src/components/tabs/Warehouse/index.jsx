@@ -1,0 +1,899 @@
+﻿import { useState, useEffect, useRef, useMemo } from "react";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { 
+Home, Library, Gamepad2, AppWindow, Search, Settings, Sparkles, 
+  MoreHorizontal, ChevronDown, ChevronLeft, Bell, Check, CheckCheck, Plus, Minus, FileText,
+  GitBranch, Clock, Download, Upload, Eye, Edit3, Trash2, Copy,
+  Lock, Unlock, Users, FolderOpen, AlertCircle, Circle, Triangle, Shuffle, 
+  ChevronRight, ArrowRight, ArrowUp, Loader, Truck, FileSpreadsheet,
+  CheckCircle, XCircle, RefreshCw, Save, History, Package, Heart, Hexagon, Move,EyeOff,
+  Calendar, Flag, Target, Zap, TrendingUp, Award, Star, MessageSquare, Image as ImageIcon, Phone,
+  AlertTriangle, BarChart3, Layers, Grid3x3, Play, Pause, FastForward, Mail, ClipboardList, Building2,
+  Rewind, Maximize2, Filter, Camera,ShoppingCart,QrCode, Share2, BadgeCheck, Bookmark,
+  Building, MapPin, DoorOpen, Square, Maximize, Activity, X, ExternalLink // Also add X here
+} from "lucide-react";
+
+export default function WarehouseManagementTab  ()  {
+  const [activeScanner, setActiveScanner] = useState(null);
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [filterText, setFilterText] = useState('');
+  const [showARView, setShowARView] = useState(false);
+  const [activeTab, setActiveTab] = useState('inventory');
+  const [scanResult, setScanResult] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Mock data za artikle
+  const [articles, setArticles] = useState([
+    { id: 'ALU-001', name: 'Aluminijski profil 40x40', location: 'A-12-3', quantity: 245, status: 'available', project: 'Projekt Nova Zgrada' },
+    { id: 'ALU-002', name: 'Kutni spojevi L-tip', location: 'B-05-2', quantity: 1250, status: 'available', project: 'Projekt Fasada' },
+    { id: 'ALU-003', name: 'Profil 60x60 eloksirani', location: 'A-14-1', quantity: 89, status: 'low', project: 'Projekt Tower' },
+    { id: 'ALU-004', name: 'T-spojevi standard', location: 'C-02-4', quantity: 450, status: 'available', project: 'Projekt Marina' },
+    { id: 'ALU-005', name: 'ZavrÅ¡ne kape 40mm', location: 'D-08-3', quantity: 15, status: 'critical', project: 'Projekt Nova Zgrada' },
+    { id: 'ALU-006', name: 'Vijci M8x20', location: 'E-01-1', quantity: 5000, status: 'available', project: 'OpÄ‡i lager' },
+    { id: 'ALU-007', name: 'Brtve EPDM 5m', location: 'F-10-2', quantity: 120, status: 'available', project: 'Projekt Fasada' },
+    { id: 'ALU-008', name: 'NosaÄi stakla', location: 'G-15-4', quantity: 34, status: 'low', project: 'Projekt Tower' }
+  ]);
+
+  // Mock data za narudÅ¾be
+  const [orders, setOrders] = useState([
+    { id: 'ORD-001', supplier: 'Alu-Trade d.o.o.', items: 12, status: 'incoming', eta: '2025-08-20', value: 'â‚¬12,500' },
+    { id: 'ORD-002', supplier: 'Metal Pro Zagreb', items: 8, status: 'processing', eta: '2025-08-19', value: 'â‚¬8,200' },
+    { id: 'ORD-003', supplier: 'Euro Profiles', items: 25, status: 'delivered', eta: '2025-08-18', value: 'â‚¬15,700' },
+    { id: 'ORD-004', supplier: 'Tech Metals', items: 5, status: 'incoming', eta: '2025-08-22', value: 'â‚¬4,300' }
+  ]);
+
+  // Statistike
+  const stats = {
+    totalArticles: articles.length,
+    activeOrders: orders.filter(o => o.status !== 'delivered').length,
+    todayDeliveries: 3,
+    criticalItems: articles.filter(a => a.status === 'critical').length,
+    lowStock: articles.filter(a => a.status === 'low').length
+  };
+
+  // Filtrirani artikli
+  const filteredArticles = articles.filter(article => 
+    article.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    article.id.toLowerCase().includes(filterText.toLowerCase()) ||
+    article.project.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  // Simulacija skeniranja
+  const handleScan = (type) => {
+    setIsScanning(true);
+    setActiveScanner(type);
+    
+    setTimeout(() => {
+      setIsScanning(false);
+      
+      if (type === 'barcode') {
+        setScanResult({
+          type: 'article',
+          data: {
+            id: 'ALU-009',
+            name: 'Novi skenirani profil',
+            quantity: 100,
+            location: 'A-NEW-1'
+          }
+        });
+      } else if (type === 'profile') {
+        setScanResult({
+          type: 'profile',
+          data: {
+            shape: 'L-profil',
+            dimensions: '50x50x5mm',
+            material: 'AlMgSi0.5',
+            match: '94%'
+          }
+        });
+      }
+    }, 2000);
+  };
+
+  // Export funkcija
+  const handleExport = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "ID,Naziv,Lokacija,KoliÄina,Status,Projekt\n"
+      + articles.map(a => `${a.id},${a.name},${a.location},${a.quantity},${a.status},${a.project}`).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "skladiste_export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Scanner Component
+  const ScannerModal = () => (
+    <AnimatePresence>
+      {activeScanner && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setActiveScanner(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '32px',
+              width: '90%',
+              maxWidth: '500px',
+              textAlign: 'center'
+            }}
+          >
+            {isScanning ? (
+              <div>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  style={{ margin: '0 auto 24px', width: '80px', height: '80px' }}
+                >
+                  <QrCode size={80} color="#6366f1" />
+                </motion.div>
+                <h3 style={{ fontSize: '20px', marginBottom: '8px' }}>Skeniram...</h3>
+                <p style={{ color: '#6b7280' }}>DrÅ¾ite kameru usmjerenu prema barkodu</p>
+              </div>
+            ) : scanResult ? (
+              <div>
+                <CheckCircle size={64} color="#10b981" style={{ margin: '0 auto 16px' }} />
+                <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>UspjeÅ¡no skenirano!</h3>
+                {scanResult.type === 'article' ? (
+                  <div style={{ textAlign: 'left', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
+                    <p><strong>ID:</strong> {scanResult.data.id}</p>
+                    <p><strong>Naziv:</strong> {scanResult.data.name}</p>
+                    <p><strong>KoliÄina:</strong> {scanResult.data.quantity}</p>
+                    <p><strong>Lokacija:</strong> {scanResult.data.location}</p>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'left', backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
+                    <p><strong>Oblik:</strong> {scanResult.data.shape}</p>
+                    <p><strong>Dimenzije:</strong> {scanResult.data.dimensions}</p>
+                    <p><strong>Materijal:</strong> {scanResult.data.material}</p>
+                    <p><strong>Podudaranje:</strong> {scanResult.data.match}</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    setActiveScanner(null);
+                    setScanResult(null);
+                  }}
+                  style={{
+                    marginTop: '16px',
+                    padding: '10px 24px',
+                    backgroundColor: '#6366f1',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Zatvori
+                </button>
+              </div>
+            ) : (
+              <div>
+                <h3 style={{ fontSize: '20px', marginBottom: '24px' }}>
+                  {activeScanner === 'barcode' && 'ðŸ“· Barcode Skener'}
+                  {activeScanner === 'search' && 'ðŸ”Ž PretraÅ¾i Artikl'}
+                  {activeScanner === 'profile' && 'ðŸ“ Skener Profila'}
+                </h3>
+                <button
+                  onClick={() => handleScan(activeScanner)}
+                  style={{
+                    padding: '12px 32px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    marginBottom: '16px'
+                  }}
+                >
+                  ZapoÄni Skeniranje
+                </button>
+                <button
+                  onClick={() => setActiveScanner(null)}
+                  style={{
+                    display: 'block',
+                    margin: '0 auto',
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    color: '#6b7280',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  OtkaÅ¾i
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  // AR View Component
+  const ARViewModal = () => (
+    <AnimatePresence>
+      {showARView && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.95)',
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex: 1000
+          }}
+        >
+          <div style={{
+            padding: '20px',
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <h2 style={{ color: 'white', fontSize: '20px' }}>ðŸ¥½ AR Pregled SkladiÅ¡ta</h2>
+            <button
+              onClick={() => setShowARView(false)}
+              style={{
+                padding: '8px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                color: 'white'
+              }}
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative'
+          }}>
+            <div style={{
+              position: 'relative',
+              width: '80%',
+              maxWidth: '600px',
+              height: '400px',
+              backgroundColor: '#1f2937',
+              borderRadius: '16px',
+              overflow: 'hidden'
+            }}>
+              {/* Simulated AR view */}
+              <div style={{
+                position: 'absolute',
+                top: '20%',
+                left: '10%',
+                padding: '8px 12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.9)',
+                color: 'white',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}>
+                <strong>ALU-001</strong><br/>
+                Profil 40x40<br/>
+                245 kom
+              </div>
+              
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                right: '20%',
+                padding: '8px 12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                color: 'white',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}>
+                <strong>ALU-005</strong><br/>
+                KritiÄno!<br/>
+                15 kom
+              </div>
+              
+              <div style={{
+                position: 'absolute',
+                bottom: '20%',
+                left: '30%',
+                padding: '8px 12px',
+                backgroundColor: 'rgba(99, 102, 241, 0.9)',
+                color: 'white',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}>
+                <strong>ALU-003</strong><br/>
+                Profil 60x60<br/>
+                89 kom
+              </div>
+            </div>
+          </div>
+          
+          <div style={{
+            padding: '20px',
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(10px)',
+            color: 'white',
+            textAlign: 'center'
+          }}>
+            <p>PomiÄite naoÄale za skeniranje prostora. Artikli Ä‡e biti automatski prepoznati.</p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '24px',
+        color: 'white'
+      }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>
+          ðŸ­ Sustav Upravljanja SkladiÅ¡tem
+        </h1>
+        <p style={{ opacity: 0.9 }}>
+          Napredni sustav s AR podrÅ¡kom i inteligentnim prepoznavanjem
+        </p>
+      </div>
+
+      {/* Stats Grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '16px',
+        padding: '20px',
+        marginTop: '-30px'
+      }}>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+            <div>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Ukupno Artikala</p>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937' }}>{stats.totalArticles}</p>
+            </div>
+            <Package size={24} color="#6366f1" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+            <div>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Aktivne NarudÅ¾be</p>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937' }}>{stats.activeOrders}</p>
+            </div>
+            <ShoppingCart size={24} color="#10b981" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+            <div>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>DanaÅ¡nje Isporuke</p>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937' }}>{stats.todayDeliveries}</p>
+            </div>
+            <Truck size={24} color="#f59e0b" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+            <div>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>KritiÄni Artikli</p>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#ef4444' }}>{stats.criticalItems}</p>
+            </div>
+            <AlertCircle size={24} color="#ef4444" />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Scanner Section */}
+      <div style={{ padding: '20px' }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>
+            ðŸ” Skeneri i Prepoznavanje
+          </h2>
+          <p style={{ color: '#6b7280', marginBottom: '20px' }}>
+            Odaberite naÄin skeniranja ili prepoznavanja
+          </p>
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px'
+          }}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveScanner('barcode')}
+              style={{
+                padding: '20px',
+                backgroundColor: '#f3f4f6',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Camera size={32} color="#6366f1" style={{ marginBottom: '8px' }} />
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>Barcode Skener</h3>
+              <p style={{ fontSize: '12px', color: '#6b7280' }}>Skeniraj artikle za brzi unos</p>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveScanner('search')}
+              style={{
+                padding: '20px',
+                backgroundColor: '#f3f4f6',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Search size={32} color="#10b981" style={{ marginBottom: '8px' }} />
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>PretraÅ¾i Artikl</h3>
+              <p style={{ fontSize: '12px', color: '#6b7280' }}>PronaÄ‘i artikl i projekte</p>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveScanner('profile')}
+              style={{
+                padding: '20px',
+                backgroundColor: '#f3f4f6',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Grid3x3 size={32} color="#f59e0b" style={{ marginBottom: '8px' }} />
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>Skener Profila</h3>
+              <p style={{ fontSize: '12px', color: '#6b7280' }}>Prepoznaj presjek profila</p>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowARView(true)}
+              style={{
+                padding: '20px',
+                backgroundColor: '#f3f4f6',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Eye size={32} color="#8b5cf6" style={{ marginBottom: '8px' }} />
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>AR NaoÄale</h3>
+              <p style={{ fontSize: '12px', color: '#6b7280' }}>OptiÄko prepoznavanje</p>
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ padding: '0 20px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button
+            onClick={() => setActiveTab('inventory')}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: activeTab === 'inventory' ? '#6366f1' : 'white',
+              color: activeTab === 'inventory' ? 'white' : '#6b7280',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            ðŸ“¦ Artikli
+          </button>
+          <button
+            onClick={() => setActiveTab('orders')}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: activeTab === 'orders' ? '#6366f1' : 'white',
+              color: activeTab === 'orders' ? 'white' : '#6b7280',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            ðŸšš NarudÅ¾be
+          </button>
+          <button
+            onClick={() => setActiveTab('deliveries')}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: activeTab === 'deliveries' ? '#6366f1' : 'white',
+              color: activeTab === 'deliveries' ? 'white' : '#6b7280',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            ðŸ“… Isporuke
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div style={{ padding: '0 20px 20px' }}>
+        {activeTab === 'inventory' && (
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Lista Artikala</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Filtriraj artikle..."
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    width: '200px'
+                  }}
+                />
+                <button
+                  onClick={handleExport}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Download size={16} />
+                  Export
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280' }}>ID</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280' }}>Naziv</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280' }}>Lokacija</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280' }}>KoliÄina</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280' }}>Status</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280' }}>Projekt</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280' }}>Akcije</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredArticles.map((article, index) => (
+                    <motion.tr
+                      key={article.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      style={{ borderBottom: '1px solid #f3f4f6' }}
+                    >
+                      <td style={{ padding: '12px', fontSize: '14px', fontWeight: '500' }}>{article.id}</td>
+                      <td style={{ padding: '12px', fontSize: '14px' }}>{article.name}</td>
+                      <td style={{ padding: '12px', fontSize: '14px' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <MapPin size={14} />
+                          {article.location}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', fontSize: '14px' }}>{article.quantity}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          backgroundColor: article.status === 'available' ? '#dcfce7' :
+                                         article.status === 'low' ? '#fef3c7' : '#fee2e2',
+                          color: article.status === 'available' ? '#166534' :
+                                article.status === 'low' ? '#92400e' : '#991b1b'
+                        }}>
+                          {article.status === 'available' ? 'Dostupno' :
+                           article.status === 'low' ? 'Malo' : 'KritiÄno'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', fontSize: '14px' }}>{article.project}</td>
+                      <td style={{ padding: '12px' }}>
+                        <button
+                          onClick={() => setSelectedArticle(article)}
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#f3f4f6',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Detalji
+                        </button>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'orders' && (
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '20px' }}>NarudÅ¾be</h2>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: '16px'
+            }}>
+              {orders.map((order) => (
+                <motion.div
+                  key={order.id}
+                  whileHover={{ scale: 1.02 }}
+                  style={{
+                    padding: '16px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600' }}>{order.id}</h3>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      backgroundColor: order.status === 'delivered' ? '#dcfce7' :
+                                     order.status === 'processing' ? '#dbeafe' : '#fef3c7',
+                      color: order.status === 'delivered' ? '#166534' :
+                            order.status === 'processing' ? '#1e40af' : '#92400e'
+                    }}>
+                      {order.status === 'delivered' ? 'IsporuÄeno' :
+                       order.status === 'processing' ? 'U obradi' : 'Dolazi'}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '14px', color: '#374151', marginBottom: '8px' }}>{order.supplier}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#6b7280' }}>
+                    <span>{order.items} artikala</span>
+                    <span>ETA: {order.eta}</span>
+                  </div>
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+                    <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>{order.value}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'deliveries' && (
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '20px' }}>Planirane Isporuke</h2>
+            <div style={{
+              display: 'grid',
+              gap: '12px'
+            }}>
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#f0fdf4',
+                borderRadius: '8px',
+                borderLeft: '4px solid #10b981'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>Projekt Nova Zgrada</h3>
+                    <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>15 artikala â€¢ Vrijednost: â‚¬8,500</p>
+                    <p style={{ fontSize: '12px', color: '#059669' }}>Isporuka: Danas 14:00</p>
+                  </div>
+                  <CheckCircle size={24} color="#10b981" />
+                </div>
+              </div>
+
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#fef3c7',
+                borderRadius: '8px',
+                borderLeft: '4px solid #f59e0b'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>Projekt Fasada</h3>
+                    <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>8 artikala â€¢ Vrijednost: â‚¬5,200</p>
+                    <p style={{ fontSize: '12px', color: '#d97706' }}>Isporuka: Sutra 10:00</p>
+                  </div>
+                  <Clock size={24} color="#f59e0b" />
+                </div>
+              </div>
+
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#fee2e2',
+                borderRadius: '8px',
+                borderLeft: '4px solid #ef4444'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>Projekt Tower - HITNO</h3>
+                    <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>3 artikla â€¢ Vrijednost: â‚¬2,100</p>
+                    <p style={{ fontSize: '12px', color: '#dc2626' }}>KaÅ¡njenje: 2 dana</p>
+                  </div>
+                  <AlertCircle size={24} color="#ef4444" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <ScannerModal />
+      <ARViewModal />
+
+      {/* Article Details Modal */}
+      <AnimatePresence>
+        {selectedArticle && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }}
+            onClick={() => setSelectedArticle(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '16px',
+                padding: '32px',
+                width: '90%',
+                maxWidth: '500px'
+              }}
+            >
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>
+                Detalji Artikla
+              </h3>
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>ID:</span>
+                <p style={{ fontSize: '16px', fontWeight: '500' }}>{selectedArticle.id}</p>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>Naziv:</span>
+                <p style={{ fontSize: '16px', fontWeight: '500' }}>{selectedArticle.name}</p>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>Lokacija:</span>
+                <p style={{ fontSize: '16px', fontWeight: '500' }}>{selectedArticle.location}</p>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>KoliÄina:</span>
+                <p style={{ fontSize: '16px', fontWeight: '500' }}>{selectedArticle.quantity} kom</p>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>Projekt:</span>
+                <p style={{ fontSize: '16px', fontWeight: '500' }}>{selectedArticle.project}</p>
+              </div>
+              <button
+                onClick={() => setSelectedArticle(null)}
+                style={{
+                  marginTop: '16px',
+                  padding: '10px 24px',
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                Zatvori
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+

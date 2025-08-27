@@ -1,0 +1,182 @@
+﻿import { create } from 'zustand';
+import { nanoid } from 'nanoid';
+import { parseLogikalXml } from '../utils/parseLogikalXml';
+import theme from '@al/theme';
+const { colors, fontStack } = theme;
+
+// Named exports used by ProjectView.jsx
+export const DEPARTMENTS = [
+  'Design', 'Procurement', 'Cutting', 'Fabrication',
+  'Assembly', 'QA', 'Packing', 'Transport', 'Installation'
+];
+export const STATUSES = ['Backlog', 'In progress', 'Blocked', 'Done'];
+
+const defaultProject = () => ({
+  id: nanoid(),
+  name: 'Untitled Project',
+  orderNo: '',
+  offerNo: '',
+  pm: '',
+  vat: 25,
+  system: '',
+  colors: [],
+  metaText: '',
+  client: '',
+  address: '',
+  currency: 'EUR',
+  positions: [],
+  materials: [],
+  cutList: [],
+  glass: [],
+  warnings: [],
+  tasks: [],
+  docs: [],
+  totals: { subtotal: 0 },
+  floor: { imageUrl: '', pdfMeta: null, markers: [] },
+});
+
+// helper for demo seeding
+function daysFromNow(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function seedTasksFromParsed(parsed, positions) {
+  const tasks = [];
+  const suppliers = new Map();
+  (parsed.items || []).forEach(it => {
+    const key = it.meta?.supplier || it.meta?.priceClass || 'General';
+    suppliers.set(key, (suppliers.get(key) || 0) + (it.total || 0));
+  });
+  [...suppliers.keys()].forEach((key, i) => {
+    tasks.push({
+      id: nanoid(),
+      title: `Procure â€” ${key}`,
+      department: 'Procurement',
+      status: 'Backlog',
+      start: daysFromNow(0 + i),
+      end: daysFromNow(3 + i),
+      budget: suppliers.get(key),
+    });
+  });
+
+  (parsed.cutList || []).forEach(cut => {
+    tasks.push({
+      id: nanoid(),
+      title: `Cut â€” ${cut.profile || cut.sku}`,
+      department: 'Cutting',
+      status: 'Backlog',
+      start: daysFromNow(1),
+      end: daysFromNow(2),
+      positionId: cut.positionId,
+    });
+  });
+
+  (parsed.glass || []).forEach(g => {
+    tasks.push({
+      id: nanoid(),
+      title: `Glazing â€” ${g.name || 'Glass'}`,
+      department: 'Assembly',
+      status: 'Backlog',
+      start: daysFromNow(2),
+      end: daysFromNow(3),
+    });
+  });
+
+  (positions || []).forEach((p, i) => {
+    tasks.push({
+      id: nanoid(),
+      title: `Install ${p.tag}`,
+      department: 'Installation',
+      status: 'Backlog',
+      start: daysFromNow(5 + i),
+      end: daysFromNow(6 + i),
+      positionId: p.id,
+    });
+  });
+
+  return tasks;
+}
+
+// Named export for the store
+export const useProjectStore = create((set, get) => ({
+  project: defaultProject(),        // <-- defined on first render
+  activeSubtab: 'overview',
+
+  setActiveSubtab: (k) => set({ activeSubtab: k }),
+  reset: () => set({ project: defaultProject() }),
+
+  importFromXmlFile: async (file) => {
+    const parsed = await parseLogikalXml(file);
+    const positions = (parsed.positions && parsed.positions.length)
+      ? parsed.positions
+      : (parsed.items || []).filter(i => i.meta?.positionTag).reduce((acc, it) => {
+          if (!acc.find(p => p.tag === it.meta.positionTag)) {
+            acc.push({
+              id: nanoid(),
+              tag: it.meta.positionTag,
+              level: it.meta.level || '',
+              zone: it.meta.zone || '',
+              type: it.meta.type || 'Element',
+              qty: 1,
+              status: 'Backlog',
+              coords: null,
+            });
+          }
+          return acc;
+        }, []);
+
+    const seededTasks = seedTasksFromParsed(parsed, positions);
+
+    set({
+      project: {
+        ...defaultProject(),
+        id: nanoid(),
+        name: parsed.project?.name || 'LogiKal Project',
+        orderNo: parsed.project?.orderNo || parsed.project?.order || '',
+        offerNo: parsed.project?.offerNo || '',
+        pm: parsed.project?.pm || parsed.project?.personInCharge || '',
+        vat: parsed.project?.vat ?? 25,
+        system: parsed.project?.system || parsed.project?.profileSystem || '',
+        colors: parsed.project?.colors || [],
+        metaText: parsed.project?.description || '',
+        client: parsed.project?.customer || '',
+        currency: parsed.project?.currency || 'EUR',
+
+        positions,
+        materials: parsed.items || [],
+        cutList: parsed.cutList || [],
+        glass: parsed.glass || [],
+        warnings: (parsed.warnings || []).map(w => (typeof w === 'string' ? w : w.text)),
+        totals: parsed.totals || { subtotal: 0 },
+        tasks: seededTasks,
+        docs: [],
+        floor: { imageUrl: '', pdfMeta: null, markers: [] },
+      },
+    });
+  },
+
+  setFloorImage: (url, meta = null) =>
+    set(state => ({ project: { ...state.project, floor: { ...state.project.floor, imageUrl: url, pdfMeta: meta } } })),
+  addMarker: (marker) =>
+    set(state => ({ project: { ...state.project, floor: { ...state.project.floor, markers: [...state.project.floor.markers, marker] } } })),
+  updateMarker: (id, patch) =>
+    set(state => ({
+      project: {
+        ...state.project,
+        floor: {
+          ...state.project.floor,
+          markers: state.project.floor.markers.map(m => (m.id === id ? { ...m, ...patch } : m)),
+        },
+      },
+    })),
+
+  addTask: (task) =>
+    set(state => ({ project: { ...state.project, tasks: [...state.project.tasks, { id: nanoid(), status: 'Backlog', ...task }] } })),
+  updateTask: (id, patch) =>
+    set(state => ({ project: { ...state.project, tasks: state.project.tasks.map(t => (t.id === id ? { ...t, ...patch } : t)) } })),
+  moveTaskStatus: (id, status) =>
+    set(state => ({ project: { ...state.project, tasks: state.project.tasks.map(t => (t.id === id ? { ...t, status } : t)) } })),
+}));
+

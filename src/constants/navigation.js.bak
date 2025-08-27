@@ -1,0 +1,25 @@
+﻿import { 
+import theme from '@al/theme';
+const { colors, fontStack } = theme;
+  Home, Package, BarChart3, GitBranch, FileText, BarChart2,
+  Layers, Building, Sparkles, Settings, Eye, Grid3x3, Briefcase
+} from 'lucide-react';
+
+export const navItems = [
+  { key: "home", label: "Home", icon: Home },
+  { key: "materials", label: "Materials", icon: Package },
+  { key: "gantt", label: "Gantt Chart", icon: BarChart3 },
+  { key: "timeline", label: "Timeline", icon: GitBranch },
+  { key: "invoice", label: "Invoice Processing", icon: FileText },
+  { key: "production", label: "Production Timeline", icon: Layers },
+  { key: "floorplan", label: "Tlocrt", icon: Building },
+  { key: "animations", label: "Animations", icon: Sparkles },
+  { key: "reports", label: "Reports", icon: BarChart3 },
+  { key: "warehouse", label: "SkladiÅ¡te", icon: Package },
+  { key: "showcase", label: "Showcase", icon: Grid3x3 },
+  { key: "fluent", label: "Fluent", icon: FileText },
+  { key: "hover", label: "Hover", icon: Eye },
+  { key: "BoQ", label: "TroÅ¡kovnikm", icon: BarChart2},
+  { key: "ProjectView", label: "ProjectView", icon: Briefcase},
+  { key: "PlannerGanttTab", label: "Interaktivni gannt", icon: Briefcase}
+];
