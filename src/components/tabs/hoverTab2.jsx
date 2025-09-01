@@ -656,6 +656,7 @@ export default function TaskHoverCardRedesign({
   onClose, 
   onExpand,
   position: taskPosition,
+  hoverMeta,
   ...otherProps 
 }) {
   const task = propTask || {
@@ -702,6 +703,13 @@ export default function TaskHoverCardRedesign({
   // Position data
   const [position, setPosition] = useState(MOCK_POSITION);
   const [currentPieceIdx, setCurrentPieceIdx] = useState(0);
+  
+  // Update position data when hoverMeta is provided (for Employogram)
+  useEffect(() => {
+    if (hoverMeta && hoverMeta.position) {
+      setPosition(hoverMeta.position);
+    }
+  }, [hoverMeta]);
   
   // New state for content buttons
   const [hoveredBtn, setHoveredBtn] = useState(null);

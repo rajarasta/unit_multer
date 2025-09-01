@@ -1,12 +1,29 @@
 ﻿import React from 'react';
 import { Sparkles } from 'lucide-react';
+import { useUserStore } from '../../store/useUserStore';
+import UserDropdown from './UserDropdown';
 export default function Sidebar({ activeTab, setActiveTab, navItems }) {
+  const { currentUser, hasPermission } = useUserStore();
+  
+  // Filter navigation items based on user permissions
+  const filteredNavItems = navItems.filter(item => {
+    if (item.key === 'users') {
+      return hasPermission('manage_users');
+    }
+    return true;
+  });
+  
   return (
     <aside className="h-full bg-gray-50 border-r border-slate-200 flex flex-col">
       <div className="p-4">
         <div className="px-2 py-1 text-sm font-semibold text-slate-700">
-          Microsoft Store
+          Aluminum Store
         </div>
+        {currentUser && (
+          <div className="text-xs text-slate-500 px-2 mt-1">
+            {currentUser.department || 'Sustav upravljanja'}
+          </div>
+        )}
       </div>
       
       <nav className="flex-1 px-4 pb-4 space-y-1 overflow-y-auto">
@@ -23,7 +40,7 @@ export default function Sidebar({ activeTab, setActiveTab, navItems }) {
           <span>Demo</span>
         </button>
         
-        {navItems.map(({ key, label, icon: Icon }) => (
+        {filteredNavItems.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -39,8 +56,9 @@ export default function Sidebar({ activeTab, setActiveTab, navItems }) {
         ))}
       </nav>
       
-      <div className="p-4 text-xs text-slate-500">
-        Â© Demo UI
+      {/* User Dropdown */}
+      <div className="p-4 border-t border-slate-200">
+        <UserDropdown />
       </div>
     </aside>
   );

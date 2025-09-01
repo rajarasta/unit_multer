@@ -56,6 +56,98 @@ The application uses Zustand for state management with:
 - File naming: PascalCase for components, camelCase for utilities
 - ESLint configured with React hooks and refresh plugins
 
+#### Comprehensive Code Commenting Standards
+**MANDATORY:** All changes must include detailed comments for maintainability and future refactoring:
+
+**1. Change Documentation Comments**
+```javascript
+/* 
+ * CHANGE: [Date] - [Brief description of what was changed]
+ * WHY: [Reason for the change - business logic, bug fix, performance, UX improvement]
+ * IMPACT: [What this affects - components, state, user experience]
+ * AUTHOR: Claude Code Assistant
+ * SEARCH_TAGS: #hover-system #state-management #performance #refactor-candidate
+ */
+```
+
+**2. Code Chunk Documentation**
+```javascript
+/* 
+ * CHUNK: [Descriptive name - e.g., "Multi-level Hover State Management"]
+ * PURPOSE: [What this code block accomplishes]
+ * DEPENDENCIES: [What it relies on - props, state, external libraries]
+ * OUTPUTS: [What it produces/affects]
+ * COMPLEXITY: [Low/Medium/High - for refactoring prioritization]
+ * REFACTOR_CANDIDATE: [Yes/No + extraction strategy if yes]
+ */
+```
+
+**3. Forward-Thinking Refactoring Comments**
+```javascript
+/* 
+ * TODO_REFACTOR: Extract to separate file/component
+ * EXTRACTION_TARGET: src/hooks/useMultiLevelHover.js
+ * JUSTIFICATION: Reusable across multiple components, 200+ lines, complex state logic
+ * EXTRACTION_INTERFACE: { hoveredItem, hoverLevel, handleItemEnter, handleItemLeave, handleExpand, handleClose }
+ * DEPENDENCIES_TO_MOVE: [clearTimer, position calculation logic, timeout management]
+ * ESTIMATED_EFFORT: Medium (2-3 hours)
+ * PRIORITY: High - reduces main component complexity by 40%
+ */
+
+/* 
+ * TODO_REFACTOR: Split animation logic to separate module
+ * EXTRACTION_TARGET: src/utils/hoverAnimations.js
+ * JUSTIFICATION: Animation constants and Framer Motion configs can be reused
+ * EXTRACTION_INTERFACE: { getHoverAnimationConfig, getPositionCalculation }
+ * ESTIMATED_EFFORT: Low (30 minutes)
+ * PRIORITY: Medium - improves code organization
+ */
+```
+
+**4. Large File Navigation Comments**
+```javascript
+/* 
+ * ===== SECTION: [Section Name] =====
+ * LINES: [Start line] - [End line estimate]
+ * PURPOSE: [What this section handles]
+ * SEARCH_KEYWORDS: #section-hover-handlers #section-state-management #section-ui-rendering
+ * COMPLEXITY: [Low/Medium/High]
+ * DEPENDENCIES: [Other sections this relies on]
+ * ===== END SECTION =====
+ */
+```
+
+**5. Performance and Memory Management Comments**
+```javascript
+/* 
+ * PERFORMANCE_NOTE: useCallback prevents unnecessary re-renders
+ * MEMORY_MANAGEMENT: Timer cleanup in useEffect prevents memory leaks
+ * OPTIMIZATION_POTENTIAL: Consider memoizing position calculations if called frequently
+ * BENCHMARK: Current hover response time <50ms (target achieved)
+ */
+```
+
+**6. Bug Prevention and Debugging Comments**
+```javascript
+/* 
+ * BUG_PREVENTION: Checking hoverLevel === 1 prevents race conditions
+ * KNOWN_ISSUES: None currently
+ * DEBUG_STRATEGY: Use debugHoverState() function to trace state changes
+ * TESTING_CHECKLIST: [Test small hover, test expansion, test cleanup, test edge cases]
+ */
+```
+
+**7. Integration and API Comments**
+```javascript
+/* 
+ * INTEGRATION_POINT: Connects with parent component via callback props
+ * EXTERNAL_DEPENDENCIES: Framer Motion, React hooks
+ * PROP_INTERFACE: { task, position, level, isExpanded, onExpand, onClose }
+ * STATE_CONTRACT: Maintains hover state consistency across parent-child communication
+ * VERSION_COMPATIBILITY: React 19, Framer Motion 10+
+ */
+```
+
 ### Key Features
 - **LogiKal Integration**: XML import for aluminum project data
 - **Multi-department Workflow**: Task management across fabrication departments  
@@ -63,6 +155,8 @@ The application uses Zustand for state management with:
 - **Visual Planning**: Floor plans with interactive markers
 - **Inventory Management**: Materials grid with supplier tracking
 - **Project Analytics**: Gantt charts and timeline visualization
+- **AI Integration**: OpenWebUI and LM Studio integration for document processing
+- **Batch Analysis**: Multi-document comparison and analysis capabilities
 
 ## Important Notes
 - All tab components are lazy-loaded for performance
@@ -158,6 +252,139 @@ Ovaj pattern (vertical → horizontal expansion) može se koristiti za:
 - Form wizards → step-by-step horizontal flow
 
 **Ključna lekcija:** Unified state management + progressive refaktoriranje + bulk operations = uspješna transformacija kompleksnih UI komponenti.
+
+---
+
+## AI Integration Architecture (2025-09-01)
+
+### OpenWebUI & LM Studio Integration Overview
+
+Aplikacija sad ima kompletnu integraciju s lokalnim AI servisima za obradu dokumenata. Dva glavna servisa:
+
+1. **OpenWebUI** (`http://localhost:8080`) - RAG (Retrieval-Augmented Generation) sistem
+2. **LM Studio** (`http://10.39.35.136:1234`) - Direktna LLM obrada
+
+### AI Integration Service (`src/services/aiIntegrationService.js`)
+
+Centralizovani servis koji omogućava:
+- **OpenWebUI integraciju**: Upload file-ova za RAG analizu
+- **LM Studio integraciju**: Direktno slanje file sadržaja LLM-u
+- **Batch obradu**: Simultanu obradu više file-ova
+- **Error handling**: Graceful fallback i retry logika
+- **Progress tracking**: Real-time status updates
+
+```javascript
+// Osnovne funkcije:
+aiIntegrationService.uploadToOpenWebUI(file, onProgress)
+aiIntegrationService.processWithLMStudio(file, prompt, onProgress)
+aiIntegrationService.testAPIKey()
+aiIntegrationService.checkServiceHealth()
+```
+
+### Invoice Processor AI Integration
+
+**4 AI Analysis Modi**:
+1. **Vision Mode** - VLM analiza s renderovanim slikama (Qwen-VL, LLaVA)
+2. **Spatial Mode** - LLM analiza s koordinatama i tekstom 
+3. **OpenWebUI Mode** - Upload dokumenata za RAG
+4. **LM Studio Direct** - Direktno slanje bez OCR/preprocessing
+
+**Batch Comparison Feature**:
+- Poredi više dokumenata simultano
+- Analizira price differences, supplier variations
+- Identificira anomalije i sumnjive pattern-e
+- Generiše actionable recommendations
+- Kreira comparison report kao novi dokument
+
+### Komunikacijski Flow
+
+#### OpenWebUI RAG Flow:
+```
+File → Upload API → Text Extraction → Chunking → 
+Vector Embedding → ChromaDB Storage → 
+Query Processing → Context Retrieval → LLM Generation
+```
+
+#### LM Studio Direct Flow:
+```
+File → Read Content → Add Instructions → 
+Send to LM Studio → LLM Processing → JSON Response
+```
+
+### Konfiguracija
+
+**OpenWebUI Setup**:
+1. URL: `http://localhost:8080`
+2. API Key: Generiši u Settings → Account → API Keys
+3. Authentication: Bearer token
+
+**LM Studio Setup**:
+1. URL: `http://10.39.35.136:1234` 
+2. Model: Učitaj bilo koji model
+3. No authentication required
+
+### File Processing Modi Comparison
+
+| Mode | OCR | Coordinates | Images | Speed | Best For |
+|------|-----|-------------|--------|--------|----------|
+| **Vision** | ✅ | ✅ | ✅ | Slow | Complex PDFs, scanned docs |
+| **Spatial** | ✅ | ✅ | ❌ | Medium | Text-based PDFs |
+| **OpenWebUI** | ✅ | ✅ | ❌ | Medium | RAG analysis |
+| **Direct LM Studio** | ❌ | ❌ | ❌ | **Fast** | Text files, simple docs |
+
+### Business Use Cases
+
+**1. Vendor Price Analysis**
+- Upload multiple quotes → Batch comparison
+- Identify best pricing and terms
+- Spot anomalies or pricing errors
+
+**2. Contract Analysis** 
+- Compare supplier contracts
+- Extract key terms and conditions
+- Identify unusual clauses
+
+**3. Invoice Auditing**
+- Analyze monthly supplier invoices
+- Track pricing changes over time
+- Detect billing discrepancies
+
+**4. Project Cost Tracking**
+- Process all project-related invoices
+- Generate cost breakdown reports
+- Identify budget overruns
+
+### Integration Points
+
+**Tab Components**:
+- **AIFileProcessor** (`src/components/tabs/AIFileProcessor/`) - General file upload
+- **InvoiceProcessing** - Specific business document processing
+
+**Navigation Updates**:
+- Added "AI File Processor" tab
+- Added "OpenWebUI integracija" analysis mode
+- Added "LM Studio direktno" analysis mode
+
+### Current Challenge & Next Steps
+
+**Problem**: Trebamo direktno slanje file-a na LLM obradu bez preprocessing kroz lokalni app interface.
+
+**Current Status**:
+- ✅ LM Studio interface - radi direktno
+- ✅ OpenWebUI interface - radi direktno  
+- ❌ **Moj app** - još uvek ima preprocessing
+
+**Rešenje**: Potrebno je dodati "raw file upload" opciju koja:
+1. Uzme file direktno iz input-a
+2. Pošalje ga LM Studio-u bez OCR/parsing
+3. Prikaže raw LLM response
+4. Omogući follow-up questions
+
+**Implementation Plan**:
+1. Dodaj "Raw LLM Mode" u settings
+2. Bypass sve extraction funkcije
+3. Direktno proslijedi file content LM Studio-u
+4. Implementiraj conversation flow za follow-up questions
 
 ---
 
@@ -900,3 +1127,216 @@ This debugging journey resulted in a **production-ready, TypeScript-free hover s
 4. Keep development server running to catch errors early
 
 This comprehensive guide should help prevent and resolve most common issues encountered in this React 19 + Vite + Tailwind project.
+
+---
+
+## 🚀 LM Studio Integration & AI Parameter Control System
+
+### Complete LM Studio Model Parameter Integration (September 2025)
+
+#### 🎯 Manual Model Selection Implementation
+**CHANGE:** Removed all automatic model selection and fallbacks to give users complete control.
+
+**Before (Problematic Automatic Selection):**
+```javascript
+// Automatic fallbacks - users had no control
+model: settings.selectedModel || LM_STUDIO_CONFIG.MODEL_VISION
+model: settings.selectedModel || "local-model"
+
+// Automatic mode switching
+if (quickTableCheck && settings.analysisMode === AI_MODES.SPATIAL) {
+    suggestedAnalysisMode = AI_MODES.VISION; // Auto-switch
+}
+```
+
+**After (Complete User Control):**
+```javascript
+// Manual selection only - no fallbacks
+model: settings.selectedModel
+
+// No automatic mode switching
+if (quickTableCheck && settings.analysisMode === AI_MODES.SPATIAL) {
+    console.log('Table detected - korisnik je odabrao prostornu analizu');
+    // Poštujemo korisnikov izbor
+}
+```
+
+#### 🛠️ Comprehensive Model Parameters System
+Added 20+ LM Studio parameters with full UI control:
+
+**Core Parameters:**
+- `temperature` (0.0-2.0) - Creativity vs consistency
+- `max_tokens` (1-8000) - Response length limit  
+- `top_p` (0.0-1.0) - Nucleus sampling
+- `top_k` (1-100) - Top-k sampling
+- `repeat_penalty` (0.8-1.3) - Repetition control
+
+**Advanced Parameters:**
+- `frequency_penalty` / `presence_penalty` - Content diversity
+- `mirostat` / `mirostat_eta` / `mirostat_tau` - Dynamic sampling
+- `seed` - Reproducible outputs
+- `num_ctx` - Context window size
+- And many more...
+
+**UI Preset System:**
+```javascript
+// Quick configuration presets
+🎯 Precizno (faktual): { temperature: 0.1, top_p: 0.9, repeat_penalty: 1.1 }
+⚖️ Balansirano: { temperature: 0.7, top_p: 0.95, repeat_penalty: 1.05 }  
+🎨 Kreativno: { temperature: 1.2, top_p: 0.98, repeat_penalty: 1.0 }
+```
+
+#### 🔧 API Integration Points Updated
+**Files Modified:**
+1. **InvoiceProcessing/index.jsx** - Main UI and settings
+2. **aiIntegrationService.js** - Service layer parameter passing
+
+**Key API Updates:**
+```javascript
+// Service method now accepts custom parameters
+async processWithLMStudio(file, prompt, onProgress, modelParams = {}) {
+    const requestBody = {
+        model: modelParams.selectedModel,
+        temperature: modelParams.temperature,
+        // ... all 20+ parameters
+    };
+}
+
+// Component calls with parameters
+const result = await aiIntegrationService.processWithLMStudio(
+    file, prompt, progressCallback, settings.modelParams
+);
+```
+
+### 🛡️ Enhanced Error Handling & Chunk Processing
+
+#### JSON Parsing Resilience System
+**PROBLEM:** LM Studio returning malformed JSON causing parse failures.
+
+**SOLUTION:** Multi-strategy parsing with automatic repair:
+
+```javascript
+// Strategy 1: Code block extraction (```json...```)
+const codeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+
+// Strategy 2: JSON object boundary detection  
+const jsonMatch = content.match(/\{[\s\S]*?\}(?=\s*$|\s*\n\s*[^}])/);
+
+// Strategy 3: Manual boundary detection (first { to last })
+const firstBrace = content.indexOf('{');
+const lastBrace = content.lastIndexOf('}');
+
+// Automatic JSON repair
+const cleanedJSON = jsonString
+    .replace(/,(\s*[}\]])/g, '$1')                                    // Remove trailing commas
+    .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')  // Quote unquoted keys  
+    .replace(/:\s*'([^']*)'/g, ': "$1"')                             // Fix single quotes
+    .trim();
+```
+
+#### API Endpoint Duplication Fix
+**PROBLEM:** `POST /v1/chat/completions/v1/chat/completions` - duplicated paths.
+
+**SOLUTION:** Use endpoint directly without path concatenation:
+```javascript
+// Before (WRONG)
+fetch(`${settings.lmStudioEndpoint}/v1/chat/completions`, ...)
+
+// After (CORRECT)  
+fetch(settings.lmStudioEndpoint, ...)
+```
+
+#### Comprehensive Fallback Strategy
+1. **JSON Parsing** (85% confidence) - Primary with cleaning
+2. **Regex Extraction** (40% confidence) - Fallback for parse failures
+3. **Empty Result** (10% confidence) - Last resort with debug data
+
+### 🎨 UI/UX Improvements
+
+#### Settings Panel Enhancements
+- **Manual Model Selection** - Clear dropdown with all available models
+- **Parameter Controls** - Sliders, inputs, and toggles for all parameters
+- **Quick Presets** - One-click configurations for common use cases  
+- **Real-time Feedback** - Parameter changes apply immediately
+- **Visual Grouping** - Organized by functionality (core, advanced, sampling, etc.)
+
+#### Updated Navigation Labels
+```javascript
+// Removed misleading automatic suggestions
+"Vizualna analiza (VLM - Preporučeno)" → "Vizualna analiza (VLM)"
+"Analiza koordinata (LLM - Stari način)" → "Analiza koordinata (LLM)"
+
+// Updated settings descriptions
+"Automatski odabir modela" → "Ručni odabir modela - potpuna kontrola korisnika"
+```
+
+### 🚨 Critical Debugging Patterns
+
+#### Model Selection Validation
+```javascript
+// Always check model selection before API calls
+if (!settings.selectedModel) {
+    console.error('⚠️ No model selected by user');
+    throw new Error('Korisnik mora odabrati model u postavkama');
+}
+```
+
+#### API Response Structure Validation  
+```javascript
+// Validate LM Studio response structure
+if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+    console.error('❌ Unexpected API response structure:', data);
+    // Handle gracefully with fallbacks
+}
+```
+
+#### Enhanced Logging for Troubleshooting
+```javascript
+// Comprehensive debugging logs
+console.log('🔍 LM Studio API Response:', JSON.stringify(data, null, 2));
+console.log('🤖 Using model:', settings.selectedModel);
+console.log(`🧩 Processing chunk ${chunkIndex}/${totalChunks}, tokens: ~${tokens}`);
+```
+
+### 📊 Performance & Memory Optimizations
+
+#### OOM Prevention with Chunking
+- **Document Chunking** - Split large documents to prevent memory issues
+- **Conservative Token Limits** - 2000 token chunks for stable processing
+- **Memory Profile Detection** - Automatic context window adjustment
+- **Graceful OOM Handling** - Fallback to regex when memory errors occur
+
+#### Chunk Processing Optimization
+```javascript
+// Memory-conscious chunk processing
+const contextWindow = settings._dynamicContextWindow || MEMORY_PROFILES[settings.memoryProfile].maxTokens;
+const documentChunks = chunkDocumentForAnalysis(extractedData, contextWindow);
+
+if (documentChunks.length > 1) {
+    console.log(`📄 Processing ${documentChunks.length} chunks to prevent OOM`);
+}
+```
+
+### 🔧 Maintenance Notes
+
+#### Settings State Management
+- **Nested Parameter Updates** - Use `updateSetting('modelParams.temperature', value)`
+- **Preset Applications** - Use `updateMultipleModelParams()` for batch updates
+- **State Persistence** - Parameters preserved across component rerenders
+
+#### Error Recovery Patterns
+- **API Failures** - Always provide fallback processing methods
+- **Parse Failures** - Multi-strategy extraction with regex fallbacks  
+- **Model Issues** - Clear user guidance for configuration problems
+- **Memory Issues** - Automatic chunking and graceful degradation
+
+### 🎯 Best Practices Established
+
+1. **No Automatic Model Selection** - User must explicitly choose models
+2. **Comprehensive Parameter Control** - All LM Studio parameters accessible via UI
+3. **Robust Error Handling** - Multiple fallback strategies for all failure modes
+4. **Clear User Feedback** - Informative progress messages and error explanations
+5. **Memory-Safe Processing** - Automatic chunking prevents OOM crashes
+6. **Debug-Friendly Logging** - Comprehensive console output for troubleshooting
+
+This system provides users with **complete control** over AI model behavior while maintaining **robust error handling** and **optimal performance** even with challenging documents and API responses.

@@ -1,6 +1,6 @@
 {
   "version": "5.0",
-  "exportDate": "2025-08-22T20:38:36.380244Z",
+  "exportDate": "2025-08-30T23:14:43.987Z",
   "meta": {
     "schemaName": "project.unified",
     "schemaVersion": "5.0.0",
@@ -336,8 +336,8 @@
                 "name": "Ivan S.",
                 "email": "ivan@example.com"
               },
-              "plannedStart": "2025-08-20",
-              "plannedEnd": "2025-08-23",
+              "plannedStart": "2025-08-21",
+              "plannedEnd": "2025-08-27",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -351,8 +351,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-19",
+              "plannedEnd": "2025-08-23",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -366,8 +366,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-09-02",
-              "plannedEnd": "2025-09-03",
+              "plannedStart": "2025-08-17",
+              "plannedEnd": "2025-08-18",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -476,8 +476,8 @@
                 "name": "Marko P.",
                 "email": "marko@example.com"
               },
-              "plannedStart": "2025-08-16",
-              "plannedEnd": "2025-08-16",
+              "plannedStart": "2025-08-18",
+              "plannedEnd": "2025-08-23",
               "actualStart": "2025-08-16",
               "actualEnd": "2025-08-16",
               "progress": 100,
@@ -506,8 +506,8 @@
                 "name": "Ivan S.",
                 "email": "ivan@example.com"
               },
-              "plannedStart": "2025-08-20",
-              "plannedEnd": "2025-08-23",
+              "plannedStart": "2025-08-19",
+              "plannedEnd": "2025-08-31",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -521,8 +521,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-23",
+              "plannedEnd": "2025-09-02",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -536,8 +536,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-09-02",
-              "plannedEnd": "2025-09-03",
+              "plannedStart": "2025-08-29",
+              "plannedEnd": "2025-09-06",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -647,7 +647,7 @@
                 "email": "marko@example.com"
               },
               "plannedStart": "2025-08-16",
-              "plannedEnd": "2025-08-16",
+              "plannedEnd": "2025-08-17",
               "actualStart": "2025-08-16",
               "actualEnd": "2025-08-16",
               "progress": 100,
@@ -676,8 +676,8 @@
                 "name": "Ivan S.",
                 "email": "ivan@example.com"
               },
-              "plannedStart": "2025-08-20",
-              "plannedEnd": "2025-08-23",
+              "plannedStart": "2025-08-26",
+              "plannedEnd": "2025-08-29",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -691,8 +691,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-27",
+              "plannedEnd": "2025-09-02",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -855,8 +855,8 @@
                 "name": "Ivan S.",
                 "email": "ivan@example.com"
               },
-              "plannedStart": "2025-08-20",
-              "plannedEnd": "2025-08-23",
+              "plannedStart": "2025-08-26",
+              "plannedEnd": "2025-08-29",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -870,8 +870,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-27",
+              "plannedEnd": "2025-08-30",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -1040,8 +1040,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-28",
+              "plannedEnd": "2025-09-01",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -1085,6 +1085,391 @@
           "type": "create",
           "title": "Projekt kreiran",
           "details": ""
+        },
+        {
+          "id": "h-meq86r6k-1wxf6n",
+          "date": "2025-08-24T21:53:55.484Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Ugradnja - PZ-02"
+        },
+        {
+          "id": "h-meq8nduv-66f0mw",
+          "date": "2025-08-24T22:06:51.367Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Proizvodnja - PZ-01"
+        },
+        {
+          "id": "h-meq8nfh7-y9908i",
+          "date": "2025-08-24T22:06:53.468Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Proizvodnja - PZ-01"
+        },
+        {
+          "id": "h-meq8nhhs-50a1pr",
+          "date": "2025-08-24T22:06:56.080Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Nabava - PZ-01"
+        },
+        {
+          "id": "h-meq8njp2-57zhrx",
+          "date": "2025-08-24T22:06:58.934Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8nl91-fcd4ho",
+          "date": "2025-08-24T22:07:00.949Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Ugradnja - PZ-02"
+        },
+        {
+          "id": "h-meq8nmu3-5bdofj",
+          "date": "2025-08-24T22:07:03.003Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8nozr-fvwymn",
+          "date": "2025-08-24T22:07:05.799Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Nabava - PZ-02"
+        },
+        {
+          "id": "h-meq8pnuj-104ln7",
+          "date": "2025-08-24T22:08:37.627Z",
+          "type": "novi",
+          "title": "Novi: Općenito",
+          "details": "Pozicija: PZ-04"
+        },
+        {
+          "id": "h-meq8szji-fmaq6d",
+          "date": "2025-08-24T22:11:12.750Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Nabava - PZ-02"
+        },
+        {
+          "id": "h-meq8t14m-a97apw",
+          "date": "2025-08-24T22:11:14.806Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8t6b0-1vm6ie",
+          "date": "2025-08-24T22:11:21.516Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8vzus-ca3msw",
+          "date": "2025-08-24T22:13:33.124Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8w1fh-ro9wu3",
+          "date": "2025-08-24T22:13:35.165Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8w30w-xi8k38",
+          "date": "2025-08-24T22:13:37.232Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8w4kr-dhoktt",
+          "date": "2025-08-24T22:13:39.243Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq8w8mv-42n6ot",
+          "date": "2025-08-24T22:13:44.503Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-meq9jhx7-rk9voe",
+          "date": "2025-08-24T22:31:49.627Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-meq9jjiz-edgwvt",
+          "date": "2025-08-24T22:31:51.707Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-meq9jl2v-bc66mj",
+          "date": "2025-08-24T22:31:53.719Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-meq9jpyh-6bkoh0",
+          "date": "2025-08-24T22:32:00.041Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-meq9jriz-isr280",
+          "date": "2025-08-24T22:32:02.075Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-meq9ki0s-kh1w7q",
+          "date": "2025-08-24T22:32:36.412Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Čelični okvir FEA D45-001 - Prodaja - PZ-03"
+        },
+        {
+          "id": "h-meq9kk43-hsrppq",
+          "date": "2025-08-24T22:32:39.123Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Nabava - PZ-01"
+        },
+        {
+          "id": "h-meq9klzh-akr4op",
+          "date": "2025-08-24T22:32:41.549Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Nabava - PZ-01"
+        },
+        {
+          "id": "h-meq9ktx7-0vwih2",
+          "date": "2025-08-24T22:32:51.835Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Ugradnja - PZ-01"
+        },
+        {
+          "id": "h-meqcafc0-jk5owu",
+          "date": "2025-08-24T23:48:45.216Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Ugradnja - PZ-01"
+        },
+        {
+          "id": "h-meqcagw2-5o7me6",
+          "date": "2025-08-24T23:48:47.234Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Ugradnja - PZ-01"
+        },
+        {
+          "id": "h-meqcaih2-bu2v07",
+          "date": "2025-08-24T23:48:49.286Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Ugradnja - PZ-01"
+        },
+        {
+          "id": "h-meqcak7z-j9uvtn",
+          "date": "2025-08-24T23:48:51.551Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Ugradnja - PZ-01"
+        },
+        {
+          "id": "h-meqcaltt-wwziyz",
+          "date": "2025-08-24T23:48:53.633Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Ugradnja - PZ-01"
+        },
+        {
+          "id": "h-meqcao2o-q7z8er",
+          "date": "2025-08-24T23:48:56.544Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-mer6w9w3-uu0qna",
+          "date": "2025-08-25T14:05:33.075Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Aluminijski L profil 40x20x3mm L=6m - Ugradnja - PZ-01"
+        },
+        {
+          "id": "h-mer7hi1a-4lrkus",
+          "date": "2025-08-25T14:22:03.406Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Čelični okvir FEA D45-001 - Nabava - PZ-03"
+        },
+        {
+          "id": "h-merh79mv-ko2uvv",
+          "date": "2025-08-25T18:54:02.119Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Okov i spojni elementi - Nabava - PZ-04"
+        },
+        {
+          "id": "h-merh7eaz-seagyf",
+          "date": "2025-08-25T18:54:08.171Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-merh7gkm-7hitgd",
+          "date": "2025-08-25T18:54:11.110Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-merh7i66-thjn4k",
+          "date": "2025-08-25T18:54:13.182Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Montaža kompletne stijene - Proizvodnja - PZ-05"
+        },
+        {
+          "id": "h-merh7jr1-rv62l4",
+          "date": "2025-08-25T18:54:15.229Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Čelični okvir FEA D45-001 - Proizvodnja - PZ-03"
+        },
+        {
+          "id": "h-merh7lh4-kt6ilo",
+          "date": "2025-08-25T18:54:17.464Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Čelični okvir FEA D45-001 - Proizvodnja - PZ-03"
+        },
+        {
+          "id": "h-merh7njn-xh6ut2",
+          "date": "2025-08-25T18:54:20.147Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-merh7p3a-ot6mcp",
+          "date": "2025-08-25T18:54:22.150Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Montaža kompletne stijene - Proizvodnja - PZ-05"
+        },
+        {
+          "id": "h-merh7qmx-qwoh4f",
+          "date": "2025-08-25T18:54:24.153Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-merhb1go-q8uj95",
+          "date": "2025-08-25T18:56:58.152Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Okov i spojni elementi - Proizvodnja - PZ-04"
+        },
+        {
+          "id": "h-merhb8es-f9gsxd",
+          "date": "2025-08-25T18:57:07.156Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Okov i spojni elementi - Proizvodnja - PZ-04"
+        },
+        {
+          "id": "h-merhb9z9-j15my8",
+          "date": "2025-08-25T18:57:09.189Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Okov i spojni elementi - Proizvodnja - PZ-04"
+        },
+        {
+          "id": "h-metrkmd6-gyu335",
+          "date": "2025-08-27T09:19:53.658Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Proizvodnja - PZ-02"
+        },
+        {
+          "id": "h-metrko0z-9yx4nk",
+          "date": "2025-08-27T09:19:55.811Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Ugradnja - PZ-02"
+        },
+        {
+          "id": "h-metrlc00-n9psyx",
+          "date": "2025-08-27T09:20:26.880Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-metrlw16-7pq8ry",
+          "date": "2025-08-27T09:20:52.842Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-metrlxoj-jjie28",
+          "date": "2025-08-27T09:20:54.979Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Prodaja - PZ-02"
+        },
+        {
+          "id": "h-meuefvgn-h3ai89",
+          "date": "2025-08-27T20:00:03.335Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Ugradnja - PZ-02"
+        },
+        {
+          "id": "h-meuefx24-k589kf",
+          "date": "2025-08-27T20:00:05.404Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Nabava - PZ-02"
+        },
+        {
+          "id": "h-meuefyn9-upxh5e",
+          "date": "2025-08-27T20:00:07.461Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Nabava - PZ-02"
+        },
+        {
+          "id": "h-meueg1en-7hl752",
+          "date": "2025-08-27T20:00:11.039Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Stakleni panel 6-6.4mm, kaljeno/laminirano - Nabava - PZ-02"
         }
       ],
       "dataCache": {
@@ -1364,8 +1749,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-28",
+              "plannedEnd": "2025-08-29",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -1534,8 +1919,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-27",
+              "plannedEnd": "2025-08-30",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -1704,8 +2089,8 @@
                 "name": "Sara L.",
                 "email": "sara@example.com"
               },
-              "plannedStart": "2025-08-24",
-              "plannedEnd": "2025-08-28",
+              "plannedStart": "2025-08-26",
+              "plannedEnd": "2025-08-27",
               "actualStart": null,
               "actualEnd": null,
               "progress": 0,
@@ -1749,6 +2134,69 @@
           "type": "create",
           "title": "Projekt kreiran",
           "details": ""
+        },
+        {
+          "id": "h-merhb31n-m2bssq",
+          "date": "2025-08-25T18:57:00.203Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Fasadni modul CW-50 segment A - Proizvodnja - ZP-01"
+        },
+        {
+          "id": "h-merhb4nh-fu4k8k",
+          "date": "2025-08-25T18:57:02.285Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Fasadni modul CW-50 segment A - Proizvodnja - ZP-01"
+        },
+        {
+          "id": "h-merhb67i-uv1uaq",
+          "date": "2025-08-25T18:57:04.302Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Servis i atesti - Proizvodnja - ZP-03"
+        },
+        {
+          "id": "h-merhbeap-df3834",
+          "date": "2025-08-25T18:57:14.785Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Klizni sistem HS-76 - Proizvodnja - ZP-02"
+        },
+        {
+          "id": "h-merhbhih-mrtygt",
+          "date": "2025-08-25T18:57:18.953Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Fasadni modul CW-50 segment A - Proizvodnja - ZP-01"
+        },
+        {
+          "id": "h-merhbjr2-ct5ily",
+          "date": "2025-08-25T18:57:21.854Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Servis i atesti - Proizvodnja - ZP-03"
+        },
+        {
+          "id": "h-merhblay-s0aihw",
+          "date": "2025-08-25T18:57:23.866Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Klizni sistem HS-76 - Proizvodnja - ZP-02"
+        },
+        {
+          "id": "h-merhbna4-3ta8z8",
+          "date": "2025-08-25T18:57:26.428Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Fasadni modul CW-50 segment A - Proizvodnja - ZP-01"
+        },
+        {
+          "id": "h-merhbott-7nkpzz",
+          "date": "2025-08-25T18:57:28.433Z",
+          "type": "promjena",
+          "title": "Promijenjeno trajanje",
+          "details": "Klizni sistem HS-76 - Proizvodnja - ZP-02"
         }
       ],
       "dataCache": {
@@ -1758,5 +2206,5 @@
       }
     }
   ],
-  "activeProjectId": "PRJ-2025-0101"
+  "activeProjectId": "ALL_PROJECTS"
 }

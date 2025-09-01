@@ -1,0 +1,418 @@
+{
+  "version": "5.1.2",
+  "exportDate": "2025-08-30T12:34:56.789Z",
+  "meta": {
+    "schemaName": "project.unified",
+    "schemaVersion": "5.1",
+    "modules": {
+      "employogram": "2.1.0",
+      "floor": "1.8.3",
+      "billing": "3.2.1",
+      "docs": "1.5.7"
+    }
+  },
+  "users": [
+    {
+      "id": "user-001",
+      "name": "Marko Petrović",
+      "email": "marko.petrovic@aluminum.hr",
+      "role": "voditelj",
+      "capacity": {
+        "hoursPerDay": 8,
+        "workDays": ["Mon", "Tue", "Wed", "Thu", "Fri"]
+      },
+      "skills": ["management", "planning", "quality_control"],
+      "colorA": "#2563eb",
+      "colorB": "#3b82f6",
+      "active": true
+    },
+    {
+      "id": "user-002", 
+      "name": "Ana Knežević",
+      "email": "ana.knezevic@aluminum.hr",
+      "role": "planer",
+      "capacity": {
+        "hoursPerDay": 8,
+        "workDays": ["Mon", "Tue", "Wed", "Thu", "Fri"]
+      },
+      "skills": ["project_planning", "scheduling", "resource_allocation"],
+      "colorA": "#059669",
+      "colorB": "#10b981",
+      "active": true
+    },
+    {
+      "id": "user-003",
+      "name": "Tomislav Horvat",
+      "email": "tomislav.horvat@aluminum.hr", 
+      "role": "CNC",
+      "capacity": {
+        "hoursPerDay": 8,
+        "workDays": ["Mon", "Tue", "Wed", "Thu", "Fri"]
+      },
+      "skills": ["cnc_programming", "precision_cutting", "quality_check"],
+      "colorA": "#dc2626",
+      "colorB": "#ef4444",
+      "active": true
+    },
+    {
+      "id": "user-004",
+      "name": "Petra Babić",
+      "email": "petra.babic@aluminum.hr",
+      "role": "fabricator", 
+      "capacity": {
+        "hoursPerDay": 7,
+        "workDays": ["Mon", "Tue", "Wed", "Thu", "Fri"]
+      },
+      "skills": ["welding", "assembly", "finishing"],
+      "colorA": "#7c2d12",
+      "colorB": "#a3662f",
+      "active": true
+    },
+    {
+      "id": "user-005",
+      "name": "Josip Novak",
+      "email": "josip.novak@aluminum.hr",
+      "role": "monter",
+      "capacity": {
+        "hoursPerDay": 8,
+        "workDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+      },
+      "skills": ["installation", "measurement", "customer_service"],
+      "colorA": "#7c3aed",
+      "colorB": "#8b5cf6",
+      "active": true
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj-2025-001",
+      "name": "Poslovni kompleks Zadar",
+      "orderNo": "ZD-2025-0234",
+      "client": {
+        "name": "Zadar Development d.o.o.",
+        "oib": "12345678901",
+        "address": "Ulica kralja Zvonimira 15, 23000 Zadar"
+      },
+      "currency": "EUR",
+      "people": ["user-001", "user-002", "user-003", "user-004"],
+      "positions": [
+        {
+          "id": "pos-001",
+          "title": "Aluminijski fasadni paneli - zgrada A",
+          "descriptions": {
+            "short": "Fasadni paneli za glavnu zgradu",
+            "long": "Kompletni sustav aluminijskih fasadnih panela za poslovni kompleks uključujući nosače, panele i završne elemente",
+            "technical": "RAL 7016 antracit siva, debljina 3mm, kompozitni paneli s AL okvirom"
+          },
+          "komadi": [
+            {
+              "id": "komad-001",
+              "label": "Fasadni panel 1200x600",
+              "qty": 145,
+              "documents": [
+                {
+                  "id": "doc-001",
+                  "title": "Panel specifikacija", 
+                  "path": "/docs/panels/spec-1200x600.pdf",
+                  "version": "1.2",
+                  "tags": ["specification", "technical"]
+                }
+              ]
+            },
+            {
+              "id": "komad-002",
+              "label": "Uglovi završni L profil",
+              "qty": 87,
+              "documents": []
+            }
+          ],
+          "posovi": [
+            {
+              "id": "posa-001",
+              "name": "Sjeverni dio zgrade A",
+              "segments": [
+                {
+                  "id": "seg-001",
+                  "name": "Prizemlje",
+                  "notes": "Posebna pažnja kod ulaza"
+                },
+                {
+                  "id": "seg-002", 
+                  "name": "Prvi kat",
+                  "notes": "Standardna montaža"
+                }
+              ],
+              "documents": []
+            }
+          ],
+          "processes": [
+            {
+              "name": "Projektiranje",
+              "status": "Završeno",
+              "owner": {
+                "id": "user-002",
+                "name": "Ana Knežević",
+                "email": "ana.knezevic@aluminum.hr"
+              },
+              "plannedStart": "2025-01-15",
+              "plannedEnd": "2025-02-10",
+              "actualStart": "2025-01-15",
+              "actualEnd": "2025-02-08",
+              "progress": 100,
+              "notes": "Završeno 2 dana ranije od planiranog"
+            },
+            {
+              "name": "Nabava materijala",
+              "status": "U tijeku", 
+              "owner": {
+                "id": "user-001",
+                "name": "Marko Petrović",
+                "email": "marko.petrovic@aluminum.hr"
+              },
+              "plannedStart": "2025-02-01",
+              "plannedEnd": "2025-02-25",
+              "actualStart": "2025-02-03",
+              "actualEnd": null,
+              "progress": 65,
+              "notes": "Čeka potvrdu dobavljača za specijalne profile"
+            },
+            {
+              "name": "CNC rezanje",
+              "status": "Čeka",
+              "owner": {
+                "id": "user-003",
+                "name": "Tomislav Horvat",
+                "email": "tomislav.horvat@aluminum.hr"
+              },
+              "plannedStart": "2025-02-20",
+              "plannedEnd": "2025-03-15",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Čeka dovršetak nabave"
+            },
+            {
+              "name": "Fabriciranje",
+              "status": "Čeka",
+              "owner": {
+                "id": "user-004",
+                "name": "Petra Babić",
+                "email": "petra.babic@aluminum.hr"
+              },
+              "plannedStart": "2025-03-10",
+              "plannedEnd": "2025-04-05",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            },
+            {
+              "name": "Montaža",
+              "status": "Čeka",
+              "owner": {
+                "id": "user-005",
+                "name": "Josip Novak",
+                "email": "josip.novak@aluminum.hr"
+              },
+              "plannedStart": "2025-04-01",
+              "plannedEnd": "2025-05-10",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": ""
+            }
+          ],
+          "materials": [
+            {
+              "sku": "AL-PANEL-1200-600",
+              "name": "Kompozitni aluminijski panel 1200x600mm",
+              "qty": 145,
+              "unit": "kom",
+              "price": 125.50
+            },
+            {
+              "sku": "AL-PROFILE-L-50",
+              "name": "L profil aluminijski 50x50x3mm",
+              "qty": 87,
+              "unit": "kom", 
+              "price": 18.75
+            }
+          ],
+          "tasks": [
+            {
+              "id": "task-001",
+              "title": "Izrada radioničkih crteža",
+              "status": "Završeno",
+              "assigneeId": "user-002",
+              "start": "2025-01-15",
+              "end": "2025-01-25"
+            },
+            {
+              "id": "task-002", 
+              "title": "Narudžba aluminijskih profila",
+              "status": "U tijeku",
+              "assigneeId": "user-001",
+              "start": "2025-02-01",
+              "end": "2025-02-15"
+            }
+          ],
+          "comments": [
+            {
+              "author": "Marko Petrović",
+              "text": "Klijent je zahtijevao promjenu boje s RAL 9016 na RAL 7016",
+              "createdAt": "2025-01-20T14:30:00.000Z"
+            }
+          ],
+          "documents": [
+            {
+              "id": "doc-pos-001",
+              "title": "Tlocrt fasade zgrada A",
+              "path": "/docs/positions/pos-001-plan.pdf",
+              "version": "2.1",
+              "tags": ["plan", "facade", "building-a"]
+            }
+          ]
+        }
+      ],
+      "allocations": [
+        {
+          "id": "alloc-001",
+          "projectId": "proj-2025-001",
+          "taskId": "task-001",
+          "employeeId": "user-002",
+          "start": "2025-01-15",
+          "end": "2025-01-25",
+          "hoursPlanned": 80,
+          "hoursActual": 76,
+          "role": "planer",
+          "source": "manual",
+          "notes": "Glavni projekter za poziciju"
+        },
+        {
+          "id": "alloc-002",
+          "projectId": "proj-2025-001",
+          "taskId": "task-002", 
+          "employeeId": "user-001",
+          "start": "2025-02-01",
+          "end": "2025-02-15",
+          "hoursPlanned": 40,
+          "hoursActual": 25,
+          "role": "voditelj",
+          "source": "assistant",
+          "notes": "Koordinacija s dobavljačima"
+        }
+      ],
+      "floors": [
+        {
+          "id": "floor-001",
+          "name": "Tlocrt parcele kompleks Zadar",
+          "image": "/images/floors/zadar-complex-site.jpg",
+          "annotations": [
+            {
+              "id": "ann-001",
+              "type": "pin",
+              "data": {
+                "x": 150,
+                "y": 200,
+                "label": "Zgrada A - glavna pozicija",
+                "color": "#2563eb"
+              }
+            },
+            {
+              "id": "ann-002",
+              "type": "box",
+              "data": {
+                "x": 120,
+                "y": 170,
+                "width": 60,
+                "height": 80,
+                "label": "Radna zona",
+                "color": "#059669"
+              }
+            }
+          ],
+          "grid": true,
+          "gridSize": 10
+        }
+      ],
+      "invoices": [
+        {
+          "id": "inv-001",
+          "date": "2025-02-15",
+          "dueDate": "2025-03-17",
+          "documentType": "advance",
+          "supplier": {
+            "name": "Aluminum Works d.o.o.",
+            "oib": "98765432109",
+            "address": "Industrijska 42, 10000 Zagreb",
+            "iban": "HR1234567890123456789",
+            "swift": "ZABAHR2X"
+          },
+          "buyer": {
+            "name": "Zadar Development d.o.o.",
+            "oib": "12345678901",
+            "address": "Ulica kralja Zvonimira 15, 23000 Zadar"
+          },
+          "items": [
+            {
+              "position": 1,
+              "code": "AL-PANEL-1200-600",
+              "description": "Kompozitni aluminijski panel 1200x600mm RAL 7016",
+              "quantity": 145,
+              "unit": "kom",
+              "price": 125.50,
+              "total": 18197.50
+            },
+            {
+              "position": 2,
+              "code": "AL-PROFILE-L-50",
+              "description": "L profil aluminijski 50x50x3mm",
+              "quantity": 87,
+              "unit": "kom",
+              "price": 18.75,
+              "total": 1631.25
+            }
+          ],
+          "totals": {
+            "subtotal": 19828.75,
+            "vat": 4957.19,
+            "total": 24785.94
+          },
+          "orderNumber": "ZD-2025-0234",
+          "reference": "Avans 40% - Pozicija fasadni paneli"
+        }
+      ],
+      "history": [
+        {
+          "timestamp": "2025-01-10T09:00:00.000Z",
+          "actor": "user-001",
+          "action": "project_created",
+          "payload": {
+            "projectName": "Poslovni kompleks Zadar",
+            "client": "Zadar Development d.o.o."
+          }
+        },
+        {
+          "timestamp": "2025-01-15T08:30:00.000Z",
+          "actor": "user-002",
+          "action": "planning_started",
+          "payload": {
+            "positionId": "pos-001",
+            "estimatedDuration": "26 dana"
+          }
+        },
+        {
+          "timestamp": "2025-02-08T16:45:00.000Z",
+          "actor": "user-002", 
+          "action": "planning_completed",
+          "payload": {
+            "positionId": "pos-001",
+            "actualDuration": "24 dana",
+            "variance": "-2 dana"
+          }
+        }
+      ]
+    }
+  ],
+  "activeProjectId": "proj-2025-001"
+}
