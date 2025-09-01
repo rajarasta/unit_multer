@@ -401,6 +401,74 @@ const reconstructSpatialText = (elements) => {
     return reconstructedText.trim();
 };
 
+// Robust JSON extraction from VLM responses (handles malformed JSON)
+const extractJSONFromVLMResponse = (content) => {
+  const strategies = [
+    // Strategy 1: Clean markdown wrapping
+    () => {
+      let cleaned = content.trim();
+      if (cleaned.startsWith("```json")) {
+        cleaned = cleaned.substring(7);
+      }
+      if (cleaned.endsWith("```")) {
+        cleaned = cleaned.substring(0, cleaned.length - 3);
+      }
+      return JSON.parse(cleaned.trim());
+    },
+    
+    // Strategy 2: Extract first complete JSON object
+    () => {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      throw new Error('No JSON object found');
+    },
+    
+    // Strategy 3: Find JSON between specific markers
+    () => {
+      const startIndex = content.indexOf('{');
+      const lastIndex = content.lastIndexOf('}');
+      if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+        const jsonStr = content.substring(startIndex, lastIndex + 1);
+        return JSON.parse(jsonStr);
+      }
+      throw new Error('No valid JSON boundaries found');
+    },
+    
+    // Strategy 4: Fix common JSON issues and retry
+    () => {
+      let fixed = content
+        .replace(/```json\s*/g, '')
+        .replace(/```\s*/g, '')
+        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+        .replace(/([{,]\s*)(\w+):/g, '$1"$2":') // Quote unquoted keys
+        .trim();
+      
+      const startIndex = fixed.indexOf('{');
+      const lastIndex = fixed.lastIndexOf('}');
+      if (startIndex !== -1 && lastIndex !== -1) {
+        fixed = fixed.substring(startIndex, lastIndex + 1);
+      }
+      
+      return JSON.parse(fixed);
+    }
+  ];
+  
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const result = strategies[i]();
+      console.log(`✅ JSON extraction successful using strategy ${i + 1}`);
+      return result;
+    } catch (e) {
+      console.warn(`❌ Strategy ${i + 1} failed:`, e.message);
+    }
+  }
+  
+  console.error('🚨 All JSON extraction strategies failed');
+  return null;
+};
+
 
 /** ======================== MAIN COMPONENT ======================== */
 export default function InvoiceProcesser() {
@@ -735,34 +803,14 @@ export default function InvoiceProcesser() {
       const result = await response.json();
       const content = result?.choices?.[0]?.message?.content || '';
 
-      try {
-         // Clean potential markdown wrapping (e.g., ```json ... ```) which local models sometimes add
-         let jsonContent = content.trim();
-         if (jsonContent.startsWith("```json")) {
-             jsonContent = jsonContent.substring(7);
-         }
-         if (jsonContent.endsWith("```")) {
-             jsonContent = jsonContent.substring(0, jsonContent.length - 3);
-         }
-
-        const parsedData = JSON.parse(jsonContent);
-        // High confidence for visual analysis
-        return normalizeAnalysisData(parsedData, 'VLM (Vizualno)', 0.97);
-
-      } catch (e) {
-        // ... (JSON parsing fallback logic)
-        console.error('VLM returned invalid JSON:', e);
-         // Manual extraction fallback if cleaning didn't work
-         const jsonMatch = content.match(/\{[\s\S]*\}/);
-         if (jsonMatch) {
-             try {
-                const parsedData = JSON.parse(jsonMatch[0]);
-                return normalizeAnalysisData(parsedData, 'VLM (Vizualno - Fallback)', 0.92);
-            } catch (e2) {
-                console.error('Manual extraction failed:', e2);
-            }
-         }
-        throw new Error('Invalid VLM response format');
+      // Robust JSON extraction from VLM response
+      const extractedJSON = extractJSONFromVLMResponse(content);
+      if (extractedJSON) {
+        return normalizeAnalysisData(extractedJSON, 'VLM (Vizualno)', 0.97);
+      } else {
+        console.error('🚨 VLM JSON extraction failed completely');
+        console.log('📄 Raw VLM response (first 1000 chars):', content.substring(0, 1000) + '...');
+        throw new Error('No valid JSON found in VLM response. Check console for raw output.');
       }
 
     } catch (err) {

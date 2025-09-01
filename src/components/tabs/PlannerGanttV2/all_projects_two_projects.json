@@ -1,0 +1,2810 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-08-31T23:41:33Z",
+  "meta": {
+    "schemaName": "project.unified",
+    "schemaVersion": "5.0.0"
+  },
+  "projects": [
+    {
+      "id": "PRL-ALU-001",
+      "name": "Praonica rublja LIBENS – ALU bravarija",
+      "client": {
+        "name": "Valamar Riviera d.d.",
+        "contact": "Stancija Kaligari 1, Poreč",
+        "email": "info@valamar.com"
+      },
+      "created": "2025-08-31T22:27:28Z",
+      "owner": {
+        "id": "u1",
+        "name": "Ivan S.",
+        "email": "ivan@example.com"
+      },
+      "gantt": {
+        "lane": "planning"
+      },
+      "floorplan": null,
+      "positions": [
+        {
+          "id": "PZ-01",
+          "title": "Stakleni panel 6–6.4 mm, kaljeno/laminirano – Prodaja",
+          "llmData": {},
+          "descriptions": {
+            "short": "Prozor ALU, dvoslojno staklo",
+            "long": "Stakleni panel 6–6.4 mm, kaljeno/laminirano – Prodaja. U sklopu objekta PRAONICA RUBLJA LIBENS. Planiranje prema troškovniku (faza planiranja).",
+            "technical": "Profili: ALU; Prema ACM/EN normama; Površinska obrada RAL; Brtvljenje EPDM."
+          },
+          "documents": [],
+          "tasks": [
+            {
+              "id": "PZ-01-t1",
+              "title": "Uskladiti rokove s izvođačem radova",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-09-05",
+              "refs": []
+            },
+            {
+              "id": "PZ-01-t2",
+              "title": "Planirati termin dizalice i pristup",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-12",
+              "refs": []
+            },
+            {
+              "id": "PZ-01-t3",
+              "title": "Provjeriti dostupnost ključnih materijala",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-09-04",
+              "refs": []
+            },
+            {
+              "id": "PZ-01-t4",
+              "title": "Sigurnosni i zaštitni plan",
+              "status": "todo",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-09-07",
+              "refs": []
+            }
+          ],
+          "comments": [
+            {
+              "id": "PZ-01-c1",
+              "author": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "date": "2025-09-03T10:00:00Z",
+              "text": "Kickoff bilješka: faza planiranja po troškovniku. Potrebna potvrda mjera na licu mjesta.",
+              "refs": []
+            }
+          ],
+          "materials": [],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-09-02",
+              "plannedEnd": "2025-09-04",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-01-PRO-st1",
+                  "title": "Nepotpune specifikacije kupca",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-09-02",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-PRO-st2",
+                  "title": "Neusklađen budžet s očekivanjima",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-09-03",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-PRO-st3",
+                  "title": "Moguća promjena obima radova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-09-03",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-09-04",
+              "plannedEnd": "2025-09-07",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-01-TEH-st1",
+                  "title": "Kolizija s elektro/vodovod instalacijama",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-09-04",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-TEH-st2",
+                  "title": "Nejasan detalj spoja profila i zida",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-09-05",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-TEH-st3",
+                  "title": "Provjera nosivosti i dilatacija",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-09-06",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-09-07",
+              "plannedEnd": "2025-09-14",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-01-NAB-st1",
+                  "title": "Rizik kašnjenja stakla",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-09-08",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-NAB-st2",
+                  "title": "Nedostupnost profila u željenoj boji",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-09-10",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-NAB-st3",
+                  "title": "Trošak i termin transporta",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-09-12",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-14",
+              "plannedEnd": "2025-09-19",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-01-PRO-st1",
+                  "title": "Greške pri krojenju profila",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-15",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-PRO-st2",
+                  "title": "Nedostatak okova na skladištu",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-16",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-PRO-st3",
+                  "title": "Kalibracija strojeva prije serije",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-17",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-19",
+              "plannedEnd": "2025-09-22",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-01-UGR-st1",
+                  "title": "Vremenski uvjeti (kiša/vlaga)",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-19",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-UGR-st2",
+                  "title": "Kolizija s drugim izvođačima",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-20",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-01-UGR-st3",
+                  "title": "Rezervacija dizalice i pristup",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-21",
+                  "refs": []
+                }
+              ]
+            }
+          ],
+          "gantt": {
+            "lane": "planning"
+          }
+        },
+        {
+          "id": "PZ-02",
+          "title": "ALU prozor s kip-otvaranjem",
+          "llmData": {},
+          "descriptions": {
+            "short": "Prozor ALU, RAL 7016",
+            "long": "ALU prozor s kip-otvaranjem. U sklopu objekta PRAONICA RUBLJA LIBENS. Planiranje prema troškovniku (faza planiranja).",
+            "technical": "Profili: ALU; Prema ACM/EN normama; Površinska obrada RAL; Brtvljenje EPDM."
+          },
+          "documents": [],
+          "tasks": [
+            {
+              "id": "PZ-02-t1",
+              "title": "Uskladiti rokove s izvođačem radova",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-09-06",
+              "refs": []
+            },
+            {
+              "id": "PZ-02-t2",
+              "title": "Planirati termin dizalice i pristup",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-13",
+              "refs": []
+            },
+            {
+              "id": "PZ-02-t3",
+              "title": "Provjeriti dostupnost ključnih materijala",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-09-05",
+              "refs": []
+            },
+            {
+              "id": "PZ-02-t4",
+              "title": "Sigurnosni i zaštitni plan",
+              "status": "todo",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-09-08",
+              "refs": []
+            }
+          ],
+          "comments": [
+            {
+              "id": "PZ-02-c1",
+              "author": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "date": "2025-09-04T10:00:00Z",
+              "text": "Kickoff bilješka: faza planiranja po troškovniku. Potrebna potvrda mjera na licu mjesta.",
+              "refs": []
+            }
+          ],
+          "materials": [],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-09-03",
+              "plannedEnd": "2025-09-05",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-02-PRO-st1",
+                  "title": "Nepotpune specifikacije kupca",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-09-03",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-PRO-st2",
+                  "title": "Neusklađen budžet s očekivanjima",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-09-04",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-PRO-st3",
+                  "title": "Moguća promjena obima radova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-09-04",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-09-05",
+              "plannedEnd": "2025-09-08",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-02-TEH-st1",
+                  "title": "Kolizija s elektro/vodovod instalacijama",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-09-05",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-TEH-st2",
+                  "title": "Nejasan detalj spoja profila i zida",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-09-06",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-TEH-st3",
+                  "title": "Provjera nosivosti i dilatacija",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-09-07",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-09-08",
+              "plannedEnd": "2025-09-15",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-02-NAB-st1",
+                  "title": "Rizik kašnjenja stakla",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-09-09",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-NAB-st2",
+                  "title": "Nedostupnost profila u željenoj boji",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-09-11",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-NAB-st3",
+                  "title": "Trošak i termin transporta",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-09-13",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-15",
+              "plannedEnd": "2025-09-20",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-02-PRO-st1",
+                  "title": "Greške pri krojenju profila",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-16",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-PRO-st2",
+                  "title": "Nedostatak okova na skladištu",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-17",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-PRO-st3",
+                  "title": "Kalibracija strojeva prije serije",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-18",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-09-20",
+              "plannedEnd": "2025-09-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Plan po troškovniku, bez izvođenja.",
+              "subtasks": [
+                {
+                  "id": "PZ-02-UGR-st1",
+                  "title": "Vremenski uvjeti (kiša/vlaga)",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-20",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-UGR-st2",
+                  "title": "Kolizija s drugim izvođačima",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-21",
+                  "refs": []
+                },
+                {
+                  "id": "PZ-02-UGR-st3",
+                  "title": "Rezervacija dizalice i pristup",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-09-22",
+                  "refs": []
+                }
+              ]
+            }
+          ],
+          "gantt": {
+            "lane": "planning"
+          }
+        },
+        {
+          "id": "PZ-03-t2",
+          "title": "Planirati termin dizalice i pristup",
+          "status": "todo",
+          "assignee": {
+            "id": "u4",
+            "name": "Sara L.",
+            "email": "sara@example.com"
+          },
+          "due": "2025-09-14",
+          "refs": []
+        },
+        {
+          "id": "PZ-03-t3",
+          "title": "Provjeriti dostupnost ključnih materijala",
+          "status": "todo",
+          "assignee": {
+            "id": "u3",
+            "name": "Marko P.",
+            "email": "marko@example.com"
+          },
+          "due": "2025-09-06",
+          "refs": []
+        },
+        {
+          "id": "PZ-03-t4",
+          "title": "Sigurnosni i zaštitni plan",
+          "status": "todo",
+          "assignee": {
+            "id": "u2",
+            "name": "Ana K.",
+            "email": "ana@example.com"
+          },
+          "due": "2025-09-09",
+          "refs": []
+        }
+      ],
+      "comments": [
+        {
+          "id": "PZ-03-c1",
+          "author": {
+            "id": "u3",
+            "name": "Marko P.",
+            "email": "marko@example.com"
+          },
+          "date": "2025-09-05T10:00:00Z",
+          "text": "Kickoff bilješka: faza planiranja po troškovniku. Potrebna potvrda mjera na licu mjesta.",
+          "refs": []
+        }
+      ],
+      "materials": [],
+      "processes": [
+        {
+          "name": "Prodaja",
+          "status": "Čeka",
+          "owner": {
+            "id": "u1",
+            "name": "Ivan S.",
+            "email": "ivan@example.com"
+          },
+          "plannedStart": "2025-09-04",
+          "plannedEnd": "2025-09-06",
+          "actualStart": null,
+          "actualEnd": null,
+          "progress": 0,
+          "notes": "Plan po troškovniku, bez izvođenja.",
+          "subtasks": [
+            {
+              "id": "PZ-03-PRO-st1",
+              "title": "Nepotpune specifikacije kupca",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-09-04",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-PRO-st2",
+              "title": "Neusklađen budžet s očekivanjima",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-09-05",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-PRO-st3",
+              "title": "Moguća promjena obima radova",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-09-05",
+              "refs": []
+            }
+          ]
+        },
+        {
+          "name": "Teh. priprema",
+          "status": "Čeka",
+          "owner": {
+            "id": "u2",
+            "name": "Ana K.",
+            "email": "ana@example.com"
+          },
+          "plannedStart": "2025-09-06",
+          "plannedEnd": "2025-09-09",
+          "actualStart": null,
+          "actualEnd": null,
+          "progress": 0,
+          "notes": "Plan po troškovniku, bez izvođenja.",
+          "subtasks": [
+            {
+              "id": "PZ-03-TEH-st1",
+              "title": "Kolizija s elektro/vodovod instalacijama",
+              "status": "todo",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-09-06",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-TEH-st2",
+              "title": "Nejasan detalj spoja profila i zida",
+              "status": "todo",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-09-07",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-TEH-st3",
+              "title": "Provjera nosivosti i dilatacija",
+              "status": "todo",
+              "assignee": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "due": "2025-09-08",
+              "refs": []
+            }
+          ]
+        },
+        {
+          "name": "Nabava",
+          "status": "Čeka",
+          "owner": {
+            "id": "u3",
+            "name": "Marko P.",
+            "email": "marko@example.com"
+          },
+          "plannedStart": "2025-09-09",
+          "plannedEnd": "2025-09-16",
+          "actualStart": null,
+          "actualEnd": null,
+          "progress": 0,
+          "notes": "Plan po troškovniku, bez izvođenja.",
+          "subtasks": [
+            {
+              "id": "PZ-03-NAB-st1",
+              "title": "Rizik kašnjenja stakla",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-09-10",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-NAB-st2",
+              "title": "Nedostupnost profila u željenoj boji",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-09-12",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-NAB-st3",
+              "title": "Trošak i termin transporta",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-09-14",
+              "refs": []
+            }
+          ]
+        },
+        {
+          "name": "Proizvodnja",
+          "status": "Čeka",
+          "owner": {
+            "id": "u4",
+            "name": "Sara L.",
+            "email": "sara@example.com"
+          },
+          "plannedStart": "2025-09-16",
+          "plannedEnd": "2025-09-21",
+          "actualStart": null,
+          "actualEnd": null,
+          "progress": 0,
+          "notes": "Plan po troškovniku, bez izvođenja.",
+          "subtasks": [
+            {
+              "id": "PZ-03-PRO-st1",
+              "title": "Greške pri krojenju profila",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-17",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-PRO-st2",
+              "title": "Nedostatak okova na skladištu",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-18",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-PRO-st3",
+              "title": "Kalibracija strojeva prije serije",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-19",
+              "refs": []
+            }
+          ]
+        },
+        {
+          "name": "Ugradnja",
+          "status": "Čeka",
+          "owner": {
+            "id": "u4",
+            "name": "Sara L.",
+            "email": "sara@example.com"
+          },
+          "plannedStart": "2025-09-21",
+          "plannedEnd": "2025-09-24",
+          "actualStart": null,
+          "actualEnd": null,
+          "progress": 0,
+          "notes": "Plan po troškovniku, bez izvođenja.",
+          "subtasks": [
+            {
+              "id": "PZ-03-UGR-st1",
+              "title": "Vremenski uvjeti (kiša/vlaga)",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-21",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-UGR-st2",
+              "title": "Kolizija s drugim izvođačima",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-22",
+              "refs": []
+            },
+            {
+              "id": "PZ-03-UGR-st3",
+              "title": "Rezervacija dizalice i pristup",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-09-23",
+              "refs": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UKZ-ALU-002",
+      "name": "Uredski kompleks – Zapad (staklene fasade)",
+      "client": {
+        "name": "TechEstate d.o.o.",
+        "contact": "Ulica Inovacija 12, Zagreb",
+        "email": "kontakt@techestate.hr"
+      },
+      "created": "2025-08-31T23:41:33Z",
+      "owner": {
+        "id": "u2",
+        "name": "Ana K.",
+        "email": "ana@example.com"
+      },
+      "gantt": {
+        "start": "2025-10-06",
+        "zoom": "day"
+      },
+      "floorplan": null,
+      "positions": [
+        {
+          "id": "FAS-01",
+          "title": "Fasadna stijena – modul A",
+          "llmData": {
+            "summary": "Fasada modul A"
+          },
+          "descriptions": {
+            "short": "Fasada modul A",
+            "long": "Fasadna stijena – modul A. Projekt mock – planiranje.",
+            "technical": "EN 1090; EPDM; RAL 9005."
+          },
+          "documents": [
+            {
+              "id": "DOC-FAS-01-01",
+              "name": "FAS-01_nacrt.pdf",
+              "type": "application/pdf",
+              "size": "120 KB",
+              "uploadDate": "2025-08-31T23:41:33Z",
+              "isImage": false,
+              "path": "file:///D:/Mock/FAS-01_nacrt.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "FAS-01-t1",
+              "title": "Usuglasiti rokove s glavnim izvođačem",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-10-10",
+              "refs": []
+            },
+            {
+              "id": "FAS-01-t2",
+              "title": "Rezervacija dizalice",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-10-15",
+              "refs": []
+            },
+            {
+              "id": "FAS-01-t3",
+              "title": "Provjera skladišta materijala",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-10-11",
+              "refs": []
+            }
+          ],
+          "comments": [
+            {
+              "id": "FAS-01-c1",
+              "author": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "date": "2025-10-07T10:00:00Z",
+              "text": "Kickoff bilješka; provjeriti dilatacije.",
+              "refs": []
+            }
+          ],
+          "materials": [],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-10-06",
+              "plannedEnd": "2025-10-09",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-01-PRO-st1",
+                  "title": "Nepotpuni input investitora",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-06",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-PRO-st2",
+                  "title": "Nedefinirane garancije",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-07",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-PRO-st3",
+                  "title": "Promjena opsega",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-08",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-10-09",
+              "plannedEnd": "2025-10-13",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-01-TEH-st1",
+                  "title": "Kolizija s instalacijama",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-10",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-TEH-st2",
+                  "title": "Detalj praga nejasan",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-11",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-TEH-st3",
+                  "title": "Dodatna statika",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-12",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-10-13",
+              "plannedEnd": "2025-10-19",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-01-NAB-st1",
+                  "title": "Kašnjenje profila",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-14",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-NAB-st2",
+                  "title": "Dostupnost stakla",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-16",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-NAB-st3",
+                  "title": "Transport i rokovi",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-17",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-19",
+              "plannedEnd": "2025-10-25",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-01-PRO-st1",
+                  "title": "Kalibracija strojeva",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-20",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-PRO-st2",
+                  "title": "Nedostatak okova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-22",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-PRO-st3",
+                  "title": "Kvaliteta reza",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-23",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-25",
+              "plannedEnd": "2025-10-29",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-01-UGR-st1",
+                  "title": "Vremenski uvjeti",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-26",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-UGR-st2",
+                  "title": "Koordinacija drugih radova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-27",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-01-UGR-st3",
+                  "title": "Rezervacija dizalice",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-28",
+                  "refs": []
+                }
+              ]
+            }
+          ],
+          "gantt": {
+            "lane": "planning"
+          }
+        },
+        {
+          "id": "FAS-02",
+          "title": "Fasadna stijena – modul B",
+          "llmData": {
+            "summary": "Fasada modul B"
+          },
+          "descriptions": {
+            "short": "Fasada modul B",
+            "long": "Fasadna stijena – modul B. Projekt mock – planiranje.",
+            "technical": "EN 1090; EPDM; RAL 9005."
+          },
+          "documents": [
+            {
+              "id": "DOC-FAS-02-01",
+              "name": "FAS-02_nacrt.pdf",
+              "type": "application/pdf",
+              "size": "120 KB",
+              "uploadDate": "2025-08-31T23:41:33Z",
+              "isImage": false,
+              "path": "file:///D:/Mock/FAS-02_nacrt.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "FAS-02-t1",
+              "title": "Usuglasiti rokove s glavnim izvođačem",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-10-11",
+              "refs": []
+            },
+            {
+              "id": "FAS-02-t2",
+              "title": "Rezervacija dizalice",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-10-16",
+              "refs": []
+            },
+            {
+              "id": "FAS-02-t3",
+              "title": "Provjera skladišta materijala",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-10-12",
+              "refs": []
+            }
+          ],
+          "comments": [
+            {
+              "id": "FAS-02-c1",
+              "author": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "date": "2025-10-08T10:00:00Z",
+              "text": "Kickoff bilješka; provjeriti dilatacije.",
+              "refs": []
+            }
+          ],
+          "materials": [],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-10-07",
+              "plannedEnd": "2025-10-10",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-02-PRO-st1",
+                  "title": "Nepotpuni input investitora",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-07",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-PRO-st2",
+                  "title": "Nedefinirane garancije",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-08",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-PRO-st3",
+                  "title": "Promjena opsega",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-09",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-10-10",
+              "plannedEnd": "2025-10-14",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-02-TEH-st1",
+                  "title": "Kolizija s instalacijama",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-11",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-TEH-st2",
+                  "title": "Detalj praga nejasan",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-12",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-TEH-st3",
+                  "title": "Dodatna statika",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-13",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-10-14",
+              "plannedEnd": "2025-10-20",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-02-NAB-st1",
+                  "title": "Kašnjenje profila",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-15",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-NAB-st2",
+                  "title": "Dostupnost stakla",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-17",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-NAB-st3",
+                  "title": "Transport i rokovi",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-18",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-20",
+              "plannedEnd": "2025-10-26",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-02-PRO-st1",
+                  "title": "Kalibracija strojeva",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-21",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-PRO-st2",
+                  "title": "Nedostatak okova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-23",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-PRO-st3",
+                  "title": "Kvaliteta reza",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-24",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-26",
+              "plannedEnd": "2025-10-30",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "FAS-02-UGR-st1",
+                  "title": "Vremenski uvjeti",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-27",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-UGR-st2",
+                  "title": "Koordinacija drugih radova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-28",
+                  "refs": []
+                },
+                {
+                  "id": "FAS-02-UGR-st3",
+                  "title": "Rezervacija dizalice",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-29",
+                  "refs": []
+                }
+              ]
+            }
+          ],
+          "gantt": {
+            "lane": "planning"
+          }
+        },
+        {
+          "id": "VR-01",
+          "title": "Ulazna vrata – dvokrilna",
+          "llmData": {
+            "summary": "Vrata dvokrilna s panikom"
+          },
+          "descriptions": {
+            "short": "Vrata dvokrilna s panikom",
+            "long": "Ulazna vrata – dvokrilna. Projekt mock – planiranje.",
+            "technical": "EN 1090; EPDM; RAL 9005."
+          },
+          "documents": [
+            {
+              "id": "DOC-VR-01-01",
+              "name": "VR-01_nacrt.pdf",
+              "type": "application/pdf",
+              "size": "120 KB",
+              "uploadDate": "2025-08-31T23:41:33Z",
+              "isImage": false,
+              "path": "file:///D:/Mock/VR-01_nacrt.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "VR-01-t1",
+              "title": "Usuglasiti rokove s glavnim izvođačem",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-10-12",
+              "refs": []
+            },
+            {
+              "id": "VR-01-t2",
+              "title": "Rezervacija dizalice",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-10-17",
+              "refs": []
+            },
+            {
+              "id": "VR-01-t3",
+              "title": "Provjera skladišta materijala",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-10-13",
+              "refs": []
+            }
+          ],
+          "comments": [
+            {
+              "id": "VR-01-c1",
+              "author": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "date": "2025-10-09T10:00:00Z",
+              "text": "Kickoff bilješka; provjeriti dilatacije.",
+              "refs": []
+            }
+          ],
+          "materials": [],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-10-08",
+              "plannedEnd": "2025-10-11",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "VR-01-PRO-st1",
+                  "title": "Nepotpuni input investitora",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-08",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-PRO-st2",
+                  "title": "Nedefinirane garancije",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-09",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-PRO-st3",
+                  "title": "Promjena opsega",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-10",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-10-11",
+              "plannedEnd": "2025-10-15",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "VR-01-TEH-st1",
+                  "title": "Kolizija s instalacijama",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-12",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-TEH-st2",
+                  "title": "Detalj praga nejasan",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-13",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-TEH-st3",
+                  "title": "Dodatna statika",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-14",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-10-15",
+              "plannedEnd": "2025-10-21",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "VR-01-NAB-st1",
+                  "title": "Kašnjenje profila",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-16",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-NAB-st2",
+                  "title": "Dostupnost stakla",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-18",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-NAB-st3",
+                  "title": "Transport i rokovi",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-19",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-21",
+              "plannedEnd": "2025-10-27",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "VR-01-PRO-st1",
+                  "title": "Kalibracija strojeva",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-22",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-PRO-st2",
+                  "title": "Nedostatak okova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-24",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-PRO-st3",
+                  "title": "Kvaliteta reza",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-25",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-27",
+              "plannedEnd": "2025-10-31",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "VR-01-UGR-st1",
+                  "title": "Vremenski uvjeti",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-28",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-UGR-st2",
+                  "title": "Koordinacija drugih radova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-29",
+                  "refs": []
+                },
+                {
+                  "id": "VR-01-UGR-st3",
+                  "title": "Rezervacija dizalice",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-30",
+                  "refs": []
+                }
+              ]
+            }
+          ],
+          "gantt": {
+            "lane": "planning"
+          }
+        },
+        {
+          "id": "OG-01",
+          "title": "Staklena ograda – terasa",
+          "llmData": {
+            "summary": "Ograda, laminirano staklo"
+          },
+          "descriptions": {
+            "short": "Ograda, laminirano staklo",
+            "long": "Staklena ograda – terasa. Projekt mock – planiranje.",
+            "technical": "EN 1090; EPDM; RAL 9005."
+          },
+          "documents": [
+            {
+              "id": "DOC-OG-01-01",
+              "name": "OG-01_nacrt.pdf",
+              "type": "application/pdf",
+              "size": "120 KB",
+              "uploadDate": "2025-08-31T23:41:33Z",
+              "isImage": false,
+              "path": "file:///D:/Mock/OG-01_nacrt.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "OG-01-t1",
+              "title": "Usuglasiti rokove s glavnim izvođačem",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-10-13",
+              "refs": []
+            },
+            {
+              "id": "OG-01-t2",
+              "title": "Rezervacija dizalice",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-10-18",
+              "refs": []
+            },
+            {
+              "id": "OG-01-t3",
+              "title": "Provjera skladišta materijala",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-10-14",
+              "refs": []
+            }
+          ],
+          "comments": [
+            {
+              "id": "OG-01-c1",
+              "author": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "date": "2025-10-10T10:00:00Z",
+              "text": "Kickoff bilješka; provjeriti dilatacije.",
+              "refs": []
+            }
+          ],
+          "materials": [],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-10-09",
+              "plannedEnd": "2025-10-12",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "OG-01-PRO-st1",
+                  "title": "Nepotpuni input investitora",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-09",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-PRO-st2",
+                  "title": "Nedefinirane garancije",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-10",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-PRO-st3",
+                  "title": "Promjena opsega",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-11",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-10-12",
+              "plannedEnd": "2025-10-16",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "OG-01-TEH-st1",
+                  "title": "Kolizija s instalacijama",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-13",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-TEH-st2",
+                  "title": "Detalj praga nejasan",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-14",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-TEH-st3",
+                  "title": "Dodatna statika",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-15",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-10-16",
+              "plannedEnd": "2025-10-22",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "OG-01-NAB-st1",
+                  "title": "Kašnjenje profila",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-17",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-NAB-st2",
+                  "title": "Dostupnost stakla",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-19",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-NAB-st3",
+                  "title": "Transport i rokovi",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-20",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-22",
+              "plannedEnd": "2025-10-28",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "OG-01-PRO-st1",
+                  "title": "Kalibracija strojeva",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-23",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-PRO-st2",
+                  "title": "Nedostatak okova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-25",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-PRO-st3",
+                  "title": "Kvaliteta reza",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-26",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-28",
+              "plannedEnd": "2025-11-01",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "OG-01-UGR-st1",
+                  "title": "Vremenski uvjeti",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-29",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-UGR-st2",
+                  "title": "Koordinacija drugih radova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-30",
+                  "refs": []
+                },
+                {
+                  "id": "OG-01-UGR-st3",
+                  "title": "Rezervacija dizalice",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-31",
+                  "refs": []
+                }
+              ]
+            }
+          ],
+          "gantt": {
+            "lane": "planning"
+          }
+        },
+        {
+          "id": "NAD-01",
+          "title": "Nadstrešnica – staklo/čelik",
+          "llmData": {
+            "summary": "Nadstrešnica inox nosači"
+          },
+          "descriptions": {
+            "short": "Nadstrešnica inox nosači",
+            "long": "Nadstrešnica – staklo/čelik. Projekt mock – planiranje.",
+            "technical": "EN 1090; EPDM; RAL 9005."
+          },
+          "documents": [
+            {
+              "id": "DOC-NAD-01-01",
+              "name": "NAD-01_nacrt.pdf",
+              "type": "application/pdf",
+              "size": "120 KB",
+              "uploadDate": "2025-08-31T23:41:33Z",
+              "isImage": false,
+              "path": "file:///D:/Mock/NAD-01_nacrt.pdf"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "NAD-01-t1",
+              "title": "Usuglasiti rokove s glavnim izvođačem",
+              "status": "todo",
+              "assignee": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "due": "2025-10-14",
+              "refs": []
+            },
+            {
+              "id": "NAD-01-t2",
+              "title": "Rezervacija dizalice",
+              "status": "todo",
+              "assignee": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "due": "2025-10-19",
+              "refs": []
+            },
+            {
+              "id": "NAD-01-t3",
+              "title": "Provjera skladišta materijala",
+              "status": "todo",
+              "assignee": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "due": "2025-10-15",
+              "refs": []
+            }
+          ],
+          "comments": [
+            {
+              "id": "NAD-01-c1",
+              "author": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "date": "2025-10-11T10:00:00Z",
+              "text": "Kickoff bilješka; provjeriti dilatacije.",
+              "refs": []
+            }
+          ],
+          "materials": [],
+          "processes": [
+            {
+              "name": "Prodaja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u1",
+                "name": "Ivan S.",
+                "email": "ivan@example.com"
+              },
+              "plannedStart": "2025-10-10",
+              "plannedEnd": "2025-10-13",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "NAD-01-PRO-st1",
+                  "title": "Nepotpuni input investitora",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-10",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-PRO-st2",
+                  "title": "Nedefinirane garancije",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-11",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-PRO-st3",
+                  "title": "Promjena opsega",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u1",
+                    "name": "Ivan S.",
+                    "email": "ivan@example.com"
+                  },
+                  "due": "2025-10-12",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Teh. priprema",
+              "status": "Čeka",
+              "owner": {
+                "id": "u2",
+                "name": "Ana K.",
+                "email": "ana@example.com"
+              },
+              "plannedStart": "2025-10-13",
+              "plannedEnd": "2025-10-17",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "NAD-01-TEH-st1",
+                  "title": "Kolizija s instalacijama",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-14",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-TEH-st2",
+                  "title": "Detalj praga nejasan",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-15",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-TEH-st3",
+                  "title": "Dodatna statika",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u2",
+                    "name": "Ana K.",
+                    "email": "ana@example.com"
+                  },
+                  "due": "2025-10-16",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Nabava",
+              "status": "Čeka",
+              "owner": {
+                "id": "u3",
+                "name": "Marko P.",
+                "email": "marko@example.com"
+              },
+              "plannedStart": "2025-10-17",
+              "plannedEnd": "2025-10-23",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "NAD-01-NAB-st1",
+                  "title": "Kašnjenje profila",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-18",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-NAB-st2",
+                  "title": "Dostupnost stakla",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-20",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-NAB-st3",
+                  "title": "Transport i rokovi",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u3",
+                    "name": "Marko P.",
+                    "email": "marko@example.com"
+                  },
+                  "due": "2025-10-21",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Proizvodnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-23",
+              "plannedEnd": "2025-10-29",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "NAD-01-PRO-st1",
+                  "title": "Kalibracija strojeva",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-24",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-PRO-st2",
+                  "title": "Nedostatak okova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-26",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-PRO-st3",
+                  "title": "Kvaliteta reza",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-27",
+                  "refs": []
+                }
+              ]
+            },
+            {
+              "name": "Ugradnja",
+              "status": "Čeka",
+              "owner": {
+                "id": "u4",
+                "name": "Sara L.",
+                "email": "sara@example.com"
+              },
+              "plannedStart": "2025-10-29",
+              "plannedEnd": "2025-11-02",
+              "actualStart": null,
+              "actualEnd": null,
+              "progress": 0,
+              "notes": "Planirano; bez izvršenja.",
+              "subtasks": [
+                {
+                  "id": "NAD-01-UGR-st1",
+                  "title": "Vremenski uvjeti",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-30",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-UGR-st2",
+                  "title": "Koordinacija drugih radova",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-10-31",
+                  "refs": []
+                },
+                {
+                  "id": "NAD-01-UGR-st3",
+                  "title": "Rezervacija dizalice",
+                  "status": "todo",
+                  "assignee": {
+                    "id": "u4",
+                    "name": "Sara L.",
+                    "email": "sara@example.com"
+                  },
+                  "due": "2025-11-01",
+                  "refs": []
+                }
+              ]
+            }
+          ],
+          "gantt": {
+            "lane": "planning"
+          }
+        }
+      ],
+      "history": [],
+      "dataCache": {}
+    }
+  ],
+  "activeProjectId": "PRL-ALU-001",
+  "people": [
+    {
+      "id": "u1",
+      "name": "Ivan S.",
+      "email": "ivan@example.com"
+    },
+    {
+      "id": "u2",
+      "name": "Ana K.",
+      "email": "ana@example.com"
+    },
+    {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    {
+      "id": "u4",
+      "name": "Sara L.",
+      "email": "sara@example.com"
+    }
+  ]
+}
