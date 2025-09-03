@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import html2canvas from "html2canvas";
+import ProjectDataService from '../../../services/ProjectDataService';
 import {
   Upload,
   Download,
@@ -182,6 +183,42 @@ function FloorManagerComponent() {
   const pageRef = useRef(null);
   const fileImageRef = useRef(null);
   const fileJsonRef = useRef(null);
+
+  // Load data from backend on component mount
+  useEffect(() => {
+    const loadFloorData = async () => {
+      try {
+        const floorData = await ProjectDataService.getFloorData();
+        if (floorData && floorData.projects && floorData.projects.length > 0) {
+          // Use the first project or find the active one
+          const activeProject = floorData.projects.find(p => p.id === floorData.activeProjectId) || floorData.projects[0];
+          
+          // Transform the backend data to match the FloorManagement structure
+          if (activeProject.positions) {
+            const transformedProject = {
+              id: activeProject.id,
+              name: activeProject.name || 'Projekt',
+              floors: activeProject.floorplan?.floors || [
+                { id: "f1", name: "Prizemlje", paper: "A3", orientation: "portrait", image: null }
+              ],
+              currentFloorId: activeProject.floorplan?.currentFloorId || "f1",
+              positions: activeProject.positions.map(pos => ({
+                id: pos.id,
+                title: pos.title,
+                pieces: pos.pieces || []
+              }))
+            };
+            setProject(transformedProject);
+            console.log('✅ Loaded floor data from backend');
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load floor data from backend, using default:', error);
+      }
+    };
+
+    loadFloorData();
+  }, []);
 
   const currentFloor = useMemo(() => project.floors.find((f) => f.id === project.currentFloorId) ?? project.floors[0], [project]);
   

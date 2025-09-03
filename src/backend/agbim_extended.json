@@ -1,0 +1,486 @@
+{
+  "version": "6.0",
+  "exportDate": "2025-09-03T15:08:00.000Z",
+  "meta": {
+    "schemaName": "project.unified.dispatch",
+    "schemaVersion": "6.0.0"
+  },
+  "projects": [
+    {
+      "id": "ZErU46IjfLOOUsoxiPy1a",
+      "name": "Demo Aluminum Project - Extended",
+      "orderNo": "ORD-2025-001",
+      "client": "Aluminum Solutions d.o.o.",
+      "currency": "EUR",
+      "status": "active",
+      "startDate": "2025-01-15",
+      "endDate": "2025-06-30",
+      "tasks": [],
+      "positions": [
+        {
+          "id": "pos_001",
+          "tag": "PZ-001",
+          "title": "Prozor dvostruki 120x150cm",
+          "level": "Prizemlje",
+          "zone": "Ured A",
+          "type": "Prozor",
+          "subtype": "window",
+          "qty": 4,
+          "status": "završeno",
+          "coords": {"x": 100, "y": 200},
+          "description": "Dvostruki prozor s termoizolacijskim staklom, bijela RAL 9016",
+          "dimensions": "120x150cm",
+          "material": "Aluminij 6060",
+          "color": "RAL 9016",
+          "specifications": {
+            "glazing": "4-16-4mm termoizolacijsko",
+            "frame": "Termoprekidni profil",
+            "hardware": "MACO multimatic",
+            "installation": "Vanjska montaža"
+          },
+          "processData": {
+            "comments": ["Potreban specijalni dizajn za terasu"],
+            "documents": [
+              {"id": "doc1", "name": "Tehnički crtež", "type": "PDF", "url": "/docs/prozor_120x150.pdf"},
+              {"id": "doc2", "name": "Specifikacija stakla", "type": "PDF", "url": "/docs/staklo_spec.pdf"}
+            ],
+            "tasks": []
+          },
+          "floorManagement": {
+            "location": {"floor": "Prizemlje", "room": "Ured A", "wall": "Južna"},
+            "installation": {
+              "spremno": true,
+              "montirano": true,
+              "ostakljeno": true,
+              "brtvljenje": true,
+              "dodaci": true,
+              "zavrseno": true,
+              "blokirano": false,
+              "reklamacija": false
+            }
+          },
+          "dispatch": {
+            "ready": true,
+            "reserved": 0,
+            "shipped": 0,
+            "remaining": 4,
+            "lastShipped": null,
+            "warnings": []
+          },
+          "pieces": [
+            {"id": "p1", "name": "Ram vanjski", "dimensions": "120x150", "material": "Aluminij 6060", "status": "completed"},
+            {"id": "p2", "name": "Ram unutarnji", "dimensions": "116x146", "material": "Aluminij 6060", "status": "completed"},
+            {"id": "p3", "name": "Staklo termo", "dimensions": "114x144", "material": "4-16-4mm", "status": "completed"},
+            {"id": "p4", "name": "Kovanje", "dimensions": "set", "material": "Inox", "status": "completed"}
+          ],
+          "created": "2025-01-15T08:00:00.000Z",
+          "updated": "2025-09-03T10:30:00.000Z"
+        },
+        {
+          "id": "pos_002",
+          "tag": "PZ-002", 
+          "title": "Ulazna vrata 90x210cm",
+          "level": "Prizemlje",
+          "zone": "Glavni ulaz",
+          "type": "Vrata",
+          "subtype": "door",
+          "qty": 1,
+          "status": "u_radu",
+          "coords": {"x": 50, "y": 50},
+          "description": "Sigurnosna ulazna vrata s termoprekinutim profilom",
+          "dimensions": "90x210cm",
+          "material": "Aluminij 6060 + sendvič panel",
+          "color": "RAL 7016",
+          "specifications": {
+            "security": "RC2 sigurnosna klasa",
+            "insulation": "Termoprekidni profil",
+            "lock": "3-točkovni sigurnosni sistem",
+            "threshold": "Niskopražni sistem"
+          },
+          "processData": {
+            "comments": ["Čeka dostavu sigurnosne brave"],
+            "documents": [
+              {"id": "doc3", "name": "Sigurnosni certifikat", "type": "PDF", "url": "/docs/security_cert.pdf"}
+            ],
+            "tasks": [
+              {"id": "t1", "description": "Naruči sigurnosnu bravu", "status": "pending", "assignee": "Marko P."}
+            ]
+          },
+          "floorManagement": {
+            "location": {"floor": "Prizemlje", "room": "Ulaz", "wall": "Istočna"},
+            "installation": {
+              "spremno": true,
+              "montirano": false,
+              "ostakljeno": false,
+              "brtvljenje": false,
+              "dodaci": false,
+              "zavrseno": false,
+              "blokirano": true,
+              "reklamacija": false
+            }
+          },
+          "dispatch": {
+            "ready": false,
+            "reserved": 0,
+            "shipped": 0,
+            "remaining": 1,
+            "lastShipped": null,
+            "warnings": ["Nedostaje sigurnosna brava"]
+          },
+          "pieces": [
+            {"id": "d1", "name": "Okvir vrata", "dimensions": "90x210", "material": "Aluminij 6060", "status": "in_progress"},
+            {"id": "d2", "name": "Krilo vrata", "dimensions": "86x206", "material": "Sendvič panel", "status": "pending"},
+            {"id": "d3", "name": "Brava sigurnosna", "dimensions": "set", "material": "Čelik", "status": "pending"}
+          ],
+          "created": "2025-01-15T08:00:00.000Z",
+          "updated": "2025-09-03T14:20:00.000Z"
+        },
+        {
+          "id": "pos_003",
+          "tag": "PZ-003",
+          "title": "Roletna električna 200x180cm", 
+          "level": "Prvi kat",
+          "zone": "Spavaća soba",
+          "type": "Roletna",
+          "subtype": "roller",
+          "qty": 2,
+          "status": "planiran",
+          "coords": {"x": 150, "y": 100},
+          "description": "Aluminijska roletna s električnim pogonom i daljinskim upravljanjem",
+          "dimensions": "200x180cm",
+          "material": "Aluminij + PU pjena",
+          "color": "RAL 8017",
+          "specifications": {
+            "motor": "Somfy Oximo RTS 10/17",
+            "control": "RTS daljinski + zidni prekidač",
+            "insulation": "PU pjena izolacija",
+            "profiles": "55mm aluminijske lamele"
+          },
+          "processData": {
+            "comments": ["Čeka odobrenje elektroinstalacije"],
+            "documents": [],
+            "tasks": [
+              {"id": "t2", "description": "Pripremi elektroinstalaciju", "status": "pending", "assignee": "Ivan E."}
+            ]
+          },
+          "floorManagement": {
+            "location": {"floor": "Prvi kat", "room": "Spavaća", "wall": "Zapadna"},
+            "installation": {
+              "spremno": false,
+              "montirano": false,
+              "ostakljeno": false,
+              "brtvljenje": false,
+              "dodaci": false,
+              "zavrseno": false,
+              "blokirano": false,
+              "reklamacija": false
+            }
+          },
+          "dispatch": {
+            "ready": false,
+            "reserved": 0,
+            "shipped": 0,
+            "remaining": 2,
+            "lastShipped": null,
+            "warnings": ["Nedostaje elektroinstalacija"]
+          },
+          "pieces": [
+            {"id": "r1", "name": "Lamele", "dimensions": "200x180", "material": "Aluminij", "status": "planned"},
+            {"id": "r2", "name": "Motor", "dimensions": "kompakt", "material": "Električni", "status": "planned"},
+            {"id": "r3", "name": "Vodilice", "dimensions": "180cm", "material": "Aluminij", "status": "planned"}
+          ],
+          "created": "2025-01-15T08:00:00.000Z",
+          "updated": "2025-09-03T09:15:00.000Z"
+        },
+        {
+          "id": "pos_004",
+          "tag": "PZ-004",
+          "title": "Balkonska ograda s prozorom",
+          "level": "Prvi kat",
+          "zone": "Balkon A",
+          "type": "Ograda",
+          "subtype": "railing", 
+          "qty": 1,
+          "status": "završeno",
+          "coords": {"x": 200, "y": 150},
+          "description": "Staklena balkonska ograda s integriranim kliznim prozorom",
+          "dimensions": "300x110cm",
+          "material": "Aluminij 6060 + ESG staklo",
+          "color": "RAL 7021",
+          "specifications": {
+            "glass": "8mm ESG sigurnosno staklo",
+            "height": "110cm sigurnosna visina",
+            "sliding": "Klizni sistem za čišćenje",
+            "drainage": "Integrirani odvodni sistem"
+          },
+          "processData": {
+            "comments": ["Prošao sigurnosni test"],
+            "documents": [
+              {"id": "doc4", "name": "Statička analiza", "type": "PDF", "url": "/docs/static_analysis.pdf"}
+            ],
+            "tasks": []
+          },
+          "floorManagement": {
+            "location": {"floor": "Prvi kat", "room": "Balkon A", "wall": "Perimetar"},
+            "installation": {
+              "spremno": true,
+              "montirano": true,
+              "ostakljeno": true,
+              "brtvljenje": true,
+              "dodaci": true,
+              "zavrseno": true,
+              "blokirano": false,
+              "reklamacija": false
+            }
+          },
+          "dispatch": {
+            "ready": true,
+            "reserved": 0,
+            "shipped": 0,
+            "remaining": 1,
+            "lastShipped": null,
+            "warnings": []
+          },
+          "pieces": [
+            {"id": "b1", "name": "Okvir ograde", "dimensions": "300x110", "material": "Aluminij 6060", "status": "completed"},
+            {"id": "b2", "name": "Staklo sigurnosno", "dimensions": "290x100", "material": "8mm ESG", "status": "completed"},
+            {"id": "b3", "name": "Klizni element", "dimensions": "100x110", "material": "Aluminij", "status": "completed"}
+          ],
+          "created": "2025-01-15T08:00:00.000Z",
+          "updated": "2025-09-03T11:45:00.000Z"
+        }
+      ],
+      "dispatches": [
+        {
+          "id": "dispatch_001",
+          "documentNumber": "OTPR-20250903-0001",
+          "status": "draft",
+          "createdAt": "2025-09-03T15:00:00.000Z",
+          "updatedAt": "2025-09-03T15:00:00.000Z",
+          "createdBy": "user_demo",
+          "items": [],
+          "recipient": {
+            "name": "Gradilište Demo",
+            "address": "Zadarska 42, Zagreb",
+            "contact": "Ana Novak",
+            "phone": "+385 98 123 4567"
+          },
+          "transport": {
+            "plannedDate": "2025-09-04T08:00:00.000Z",
+            "method": "truck",
+            "driver": null,
+            "vehicle": null,
+            "route": null
+          },
+          "documents": [],
+          "notes": ""
+        }
+      ],
+      "warehouse": {
+        "sections": [
+          {
+            "id": "sec_finished",
+            "name": "Gotovi proizvodi",
+            "description": "Skladište gotovih aluminijskih elemenata",
+            "capacity": 1000,
+            "occupied": 245,
+            "items": []
+          },
+          {
+            "id": "sec_raw",
+            "name": "Sirovine",
+            "description": "Aluminijski profili i komponente",
+            "capacity": 500,
+            "occupied": 387,
+            "items": []
+          },
+          {
+            "id": "sec_glass",
+            "name": "Staklo",
+            "description": "Različite vrste stakla i panela",
+            "capacity": 200,
+            "occupied": 156,
+            "items": []
+          }
+        ],
+        "movements": [],
+        "lastInventory": "2025-09-01T00:00:00.000Z"
+      },
+      "processes": [
+        {
+          "id": "proc_production",
+          "name": "Proizvodnja",
+          "description": "Proces proizvodnje aluminijskih elemenata",
+          "stages": ["design", "cutting", "assembly", "finishing", "quality_control"],
+          "activeItems": 23,
+          "completedToday": 8
+        },
+        {
+          "id": "proc_dispatch",
+          "name": "Otprema",
+          "description": "Proces pripreme i otpreme proizvoda",
+          "stages": ["preparation", "packing", "loading", "transport", "delivery"],
+          "activeItems": 5,
+          "completedToday": 2
+        },
+        {
+          "id": "proc_procurement", 
+          "name": "Nabava",
+          "description": "Proces nabave materijala i komponenti",
+          "stages": ["request", "quotation", "order", "delivery", "inspection"],
+          "activeItems": 12,
+          "completedToday": 4
+        }
+      ],
+      "materials": [
+        {
+          "id": "mat_alu_6060",
+          "name": "Aluminij 6060 profil",
+          "category": "profiles",
+          "unit": "m",
+          "stock": 2340,
+          "reserved": 456,
+          "available": 1884,
+          "minStock": 500,
+          "supplier": "Hydro Aluminium"
+        },
+        {
+          "id": "mat_glass_4164",
+          "name": "Termoizolacijsko staklo 4-16-4",
+          "category": "glazing", 
+          "unit": "m²",
+          "stock": 145,
+          "reserved": 23,
+          "available": 122,
+          "minStock": 50,
+          "supplier": "Guardian Glass"
+        },
+        {
+          "id": "mat_hardware_maco",
+          "name": "MACO kovanje set",
+          "category": "hardware",
+          "unit": "kom",
+          "stock": 87,
+          "reserved": 12,
+          "available": 75,
+          "minStock": 20,
+          "supplier": "MACO"
+        }
+      ],
+      "agbimEntries": [
+        {
+          "id": "agbim-1756871344307",
+          "timestamp": "2025-09-03T03:49:04.307Z",
+          "type": "agbim_field_data",
+          "source": "AGBIM Field Simulator",
+          "location": {"floor": "Prizemlje", "zone": "Ured A"},
+          "context": {
+            "projectId": "ZErU46IjfLOOUsoxiPy1a",
+            "positionId": "pos_001",
+            "lat": 45.8150,
+            "lng": 15.9819
+          },
+          "data": {
+            "transcript": "Prozor je gotov, dimenzije stakla su točne 500x600x2 mm.",
+            "actionItems": ["Dodaj komentar o dimenzijama stakla"],
+            "videoFindings": ["Kvaliteta montaže odlična"],
+            "imageAnalysis": {"objects": ["window", "glass", "frame"], "quality": "high"},
+            "audioAnalysis": {"clarity": "good", "language": "hr"},
+            "entities": {"positionId": "pos_001", "dimensions": "500x600x2"},
+            "goriona": "ladno",
+            "chatMessage": "Dimenzija stakla: 500x600x2 mm. Stavi u komentar."
+          },
+          "attachments": [
+            {
+              "name": "audio-2025-09-03T03-48-31-146Z.webm",
+              "type": "audio/webm",
+              "size": 204953,
+              "duration": 30,
+              "url": "/attachments/audio-2025-09-03T03-48-31-146Z.webm"
+            },
+            {
+              "name": "prozor_final.jpg",
+              "type": "image/jpeg", 
+              "size": 155301,
+              "duration": null,
+              "url": "/attachments/prozor_final.jpg"
+            }
+          ]
+        }
+      ],
+      "history": [
+        {
+          "id": "h-1756871344312",
+          "date": "2025-09-03T03:49:04.312Z",
+          "type": "agbim",
+          "title": "AGBIM terenska analiza",
+          "details": "Dimenzija stakla: 500x600x2 mm. Stavi u komentar.",
+          "userId": "agbim_system",
+          "positionId": "pos_001"
+        },
+        {
+          "id": "h-1756872000000",
+          "date": "2025-09-03T15:00:00.000Z", 
+          "type": "dispatch",
+          "title": "Kreirana nova otpremnica",
+          "details": "Otpremnica OTPR-20250903-0001 kreirana",
+          "userId": "user_demo",
+          "dispatchId": "dispatch_001"
+        }
+      ],
+      "chat": [
+        {
+          "id": "CHAT-mf3fu56o-t426s8",
+          "timestamp": "2025-09-03T03:49:04.320Z",
+          "authorId": "agbim_system",
+          "message": "🎙️ Multimodalni zapis s terena - pozicija pos_001",
+          "attachments": ["audio-2025-09-03T03-48-31-146Z.webm", "prozor_final.jpg"],
+          "agbimProcessing": {
+            "jobId": "agbim-1756871344307",
+            "goriona": "ladno",
+            "aiFindings": {
+              "transcript": "Prozor je gotov, dimenzije stakla su točne 500x600x2 mm.",
+              "summary": "Dimenzija stakla: 500x600x2 mm. Stavi u komentar.",
+              "actionItems": ["Dodaj komentar o dimenzijama stakla"],
+              "risks": [],
+              "imageFindings": ["Kvaliteta montaže odlična"],
+              "videoFindings": [],
+              "entities": {"positionId": "pos_001", "dimensions": "500x600x2"}
+            }
+          }
+        },
+        {
+          "id": "CHAT-dispatch-001",
+          "timestamp": "2025-09-03T15:00:00.000Z",
+          "authorId": "system",
+          "type": "dispatch_created",
+          "message": "📦 Kreirana nova otpremnica OTPR-20250903-0001",
+          "dispatchId": "dispatch_001"
+        }
+      ]
+    }
+  ],
+  "activeProjectId": "ZErU46IjfLOOUsoxiPy1a",
+  "system": {
+    "users": [
+      {
+        "id": "user_demo",
+        "name": "Demo User",
+        "role": "dispatcher",
+        "permissions": ["dispatch_create", "dispatch_modify", "warehouse_view"]
+      },
+      {
+        "id": "agbim_system", 
+        "name": "AGBIM System",
+        "role": "system",
+        "permissions": ["agbim_create", "chat_post"]
+      }
+    ],
+    "settings": {
+      "autoDispatchNumbers": true,
+      "defaultTransportMethod": "truck",
+      "warehouseIntegration": true,
+      "agbimIntegration": true
+    }
+  }
+}

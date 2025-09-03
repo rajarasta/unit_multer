@@ -6,11 +6,14 @@ import TabErrorBoundary from './components/TabErrorBoundary';
 import { useUserStore } from './store/useUserStore';
 import AuthPage from './components/auth/AuthPage';
 import ProfileSettings from './components/auth/ProfileSettings';
+import { LLMSessionProvider } from './components/tabs/LLMServerManager/llmSessionStore';
 // Lazy load all components (kao Å¡to veÄ‡ imaÅ¡)
 const MaterialsGrid = lazy(() => import('./components/tabs/MaterialsGrid'));
 const GanttChart = lazy(() => import('./components/tabs/GanttChart'));
 const TimelineVisualization = lazy(() => import('./components/tabs/TimelineVisualization'));
 const InvoiceProcessing = lazy(() => import('./components/tabs/InvoiceProcessing'));
+const InvoiceProcessor2 = lazy(() => import('./components/tabs/InvoiceProcessor2'));
+const InvoiceProcessorV2Simple = lazy(() => import('./components/tabs/InvoiceProcessorV2Simple'));
 const FloorManagement = lazy(() => import('./components/tabs/FloorManagement'));
 const DocumentsProccessor = lazy(() => import('./components/tabs/DocumentsProccessor'));
 const Reports = lazy(() => import('./components/tabs/Reports'));
@@ -49,10 +52,16 @@ const BarcodeScanner = lazy(() => import('./components/tabs/BarcodeScanner'));
  * SEARCH_TAGS: #lazy-loading #ai-file-processor #file-upload #react-lazy
  */
 const AIFileProcessor = lazy(() => import('./components/tabs/AIFileProcessor'));
+const Chat = lazy(() => import('./components/tabs/Chat'));
+const LLMServerManager = lazy(() => import('./components/tabs/LLMServerManager'));
 const Circus = lazy(() => import('./components/tabs/Circus'));
 const UserManagement = lazy(() => import('./components/tabs/UserManagement'));
 const Employogram = lazy(() => import('./components/tabs/PlannerGanttV2'));
-
+const AgbimFieldSimulatorTab = lazy(() => import('./components/tabs/AgbimFieldSimulatorTab'));
+const TaskHub = lazy(() => import('./components/tabs/TaskHub'));
+const DispatchTab = lazy(() => import('./components/tabs/DispatchTab'));
+const AccountingTab = lazy(() => import('./components/tabs/AccountingTab'));
+const VoiceTab = lazy(() => import('./components/tabs/VoiceTab'));
 
 
 // Loading component
@@ -104,6 +113,10 @@ export default function App() {
       switch (activeTab) {
         case 'invoice':
           return <InvoiceProcessing />;
+        case 'invoice2':
+          return <InvoiceProcessor2 />;
+        case 'invoice-simple':
+          return <InvoiceProcessorV2Simple />;
         case 'floorplan':
           return <FloorManagement />;
         case 'proccessor':
@@ -112,13 +125,6 @@ export default function App() {
           return <PlannerGantt />;
         case 'asistent':
           return <Asistent />;
-        /* 
-         * CHANGE: 2025-09-01 - Added AI Inference case to router switch
-         * WHY: Routes 'ai-inference' key to AIInference component
-         * IMPACT: Enables AI Inference tab to render when selected in navigation
-         * AUTHOR: Claude Code Assistant
-         * SEARCH_TAGS: #routing #ai-inference #switch-case
-         */
         case 'ai-inference':
           return <AIInference />;
         /* 
@@ -139,13 +145,42 @@ export default function App() {
          */
         case 'ai-file-processor':
           return <AIFileProcessor />;
+        case 'chat':
+          return <Chat />;
+        case 'llm-server':
+          return <LLMServerManager />;
         case 'circus':
           return <Circus />;
         case 'users':
           return <UserManagement />;
         case 'employogram':
           return <Employogram />;
-        case 'home':
+        case 'agbim-field':
+          return <AgbimFieldSimulatorTab />;
+        case 'hover':
+          return <FsHoverPreview />;
+        case 'animations':
+          return <AnimationPlayground />;
+        case 'reports':
+          return <Reports />;
+        case 'warehouse':
+          return <Warehouse />;
+        case 'showcase':
+          return <ShowcasePanel />;
+        case 'fluent':
+          return <FluentHoverPeek />;
+        case 'BoQ':
+          return <BoQReaderAnalyzer />;
+        case 'ProjectView':
+          return <ProjectView />;
+        case 'task-hub':
+          return <TaskHub />;
+        case 'dispatch':
+          return <DispatchTab />;
+        case 'accounting':
+          return <AccountingTab />;
+        case 'voice':
+          return <VoiceTab />;
         default:
           return <HomeContent />;
       }
@@ -160,10 +195,10 @@ export default function App() {
   };
 
   return (
-    <>
+    <LLMSessionProvider>
       {/* Global error boundary */}
       <ErrorBoundary 
-      fallbackMessage="Aplikacija je naiÅ¡la na greÅ¡ku. Molimo osvjeÅ¾ite stranicu."
+      fallbackMessage="Aplikacija je naišla na grešku. Molimo osvježite stranicu."
       onReset={() => setActiveTab('home')}
     >
       <MainLayout
@@ -181,7 +216,7 @@ export default function App() {
       {showProfileSettings && (
         <ProfileSettings onClose={() => setShowProfileSettings(false)} />
       )}
-    </>
+    </LLMSessionProvider>
   );
 }
 

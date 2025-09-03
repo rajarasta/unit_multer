@@ -13,7 +13,7 @@ import {
   FolderPlus, GitBranch, Shuffle, BarChart3
 } from 'lucide-react';
 
-import ProjectDataService from './ProjectDataService.js';
+import ProjectDataService from '../../../services/ProjectDataService.js';
 import TaskHoverCardRedesign from './hoverTab2.jsx';
 import JsonStorageService from './JsonStorageService.js';
 import { useProjectStore } from '../../../store/useProjectStore';
@@ -1840,7 +1840,7 @@ export default function PlannerGanttTab() {
         setLoading(true);
         
         // Try to load from ProjectDataService first
-        let projectData = await projectService.loadAllProjects();
+        let projectData = await projectService.getGanttData();
         
         // If no data exists, create from current Zustand project
         if (!projectData || !projectData.projects || projectData.projects.length === 0) {
@@ -1898,7 +1898,7 @@ export default function PlannerGanttTab() {
 
       try {
         // Reload fresh data from service
-        const freshData = await projectService.loadAllProjects();
+        const freshData = await projectService.getGanttData();
         setData(freshData);
       } catch (err) {
         console.error('Failed to reload data after change:', err);
@@ -1918,7 +1918,7 @@ export default function PlannerGanttTab() {
 
     const handleStorageChange = async () => {
       try {
-        const freshData = await projectService.loadAllProjects();
+        const freshData = await projectService.getGanttData();
         setData(freshData);
       } catch (err) {
         console.error('Failed to sync data:', err);
@@ -3125,7 +3125,7 @@ export default function PlannerGanttTab() {
               setError(null);
               setLoading(true);
               // Retry loading
-              projectService.loadAllProjects().then(setData).catch(setError).finally(() => setLoading(false));
+              projectService.getGanttData().then(setData).catch(setError).finally(() => setLoading(false));
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >

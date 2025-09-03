@@ -42,6 +42,9 @@ const AI_MODES = {
     OPENWEBUI: 'openwebui', // Uses OpenWebUI integration
     LMSTUDIO_DIRECT: 'lmstudio_direct', // Direct file upload to LM Studio (bypass OCR)
     BACKEND: 'backend', // Send to backend service (complete preprocessing bypass)
+    AGENT: 'agent', // Send to PDF Agent with tool-calling LLMs (FastAPI orchestrator)
+    DIRECT_PROMPT: 'direct_prompt', // Direct file + prompt → JSON (no agent, no tools)
+    STRUCTURED_TEXT: 'structured_text', // OCR/parsing + structured prompt → CUDA LLM (optimized)
 };
 
 // Memory optimization profiles for different system configurations
@@ -101,6 +104,38 @@ const LM_STUDIO_CONFIG = {
   // Legacy model references (for backwards compatibility)
   MODEL_SPATIAL: 'openai/gpt-oss-20b',
   MODEL_VISION: 'VLM-Model (e.g., LLaVA/Qwen-VL)',
+};
+
+/* 
+ * CHANGE: 2025-09-01 - Added CUDA-optimized LLM configuration for structured text processing
+ * WHY: Enable high-performance local LLM processing with CUDA acceleration and model aliases
+ * IMPACT: Provides optimal configuration for RTX 4060 GPU with structured prompts
+ * AUTHOR: Claude Code Assistant
+ * SEARCH_TAGS: #cuda-optimization #structured-text #model-alias #api-key
+ */
+const CUDA_LLM_CONFIG = {
+  // Default endpoint for CUDA-optimized server (using existing llama.cpp server on port 8000)
+  endpoint: 'http://127.0.0.1:8000/v1/chat/completions',
+  
+  // Model alias configuration (instead of full path)
+  modelAlias: 'gpt-oss-20b',
+  fullModelPath: 'E:\\Modeli\\gpt-oss-20b-MXFP4.gguf',
+  
+  // Security and performance settings
+  apiKey: 'local-key',
+  contextWindow: 16384, // Extended context for structured documents
+  
+  // CUDA optimization parameters
+  gpuLayers: -1, // All layers on GPU
+  //flashAttention: true, // Flash attention for speed
+  batchThreads: 8, // Optimal for RTX 4060
+  
+  // Analysis-specific settings
+  temperature: 0.1, // Low for structured analysis
+  maxTokens: 1200,  // Sufficient for JSON responses
+  
+  // Server launch command template
+  serverCommand: `python -m llama_cpp.server --model "{modelPath}" --model_alias {alias} --host 127.0.0.1 --port 8000 --api_key {apiKey} --n_ctx {contextWindow} --n_gpu_layers {gpuLayers} --flash_attn {flashAttn} --n_threads {threads}`,
 };
 
 /* 
@@ -818,7 +853,7 @@ export default function InvoiceProcesser() {
     modelParams: {
       // Core Generation Parameters
       temperature: 0.1,        // Randomness (0.0-2.0) - lower = more focused/deterministic
-      max_tokens: 2000,        // Maximum tokens to generate
+      max_tokens: 16000,        // Maximum tokens to generate
       top_p: 0.9,             // Nucleus sampling (0.0-1.0) - probability mass cutoff
       top_k: 50,              // Top-k sampling (1-100) - consider only top K tokens
       
@@ -838,7 +873,7 @@ export default function InvoiceProcesser() {
       mirostat_eta: 0.1,      // Mirostat learning rate
       
       // Control & Output
-      seed: -1,               // Random seed (-1 for random, fixed number for reproducible)
+      seed: 42,               // Random seed (-1 for random, fixed number for reproducible)
       stop: [],               // Stop sequences (array of strings to stop generation)
       stream: false,          // Whether to stream response (true/false)
       
@@ -851,7 +886,29 @@ export default function InvoiceProcesser() {
       ignore_eos: false,      // Ignore end of sequence token (continue past EOS)
       logit_bias: {},         // Logit bias adjustments (token_id: bias_value)
       grammar: '',            // Grammar constraints (BNF grammar string)
-      json_schema: null       // JSON schema for structured output
+      json_schema: {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          artikl: { type: "string" },
+          opis:   { type: "string" },
+          kolicina: { type: "number" },
+          cijena_bez_pdv: { type: "number" },
+          pdv_posto: { type: "number" },
+          ukupno_s_pdv: { type: "number" }
+        },
+        required: ["artikl","kolicina","cijena_bez_pdv"]
+      }
+    },
+    suma_s_pdv: { type: "number" }
+  },
+  required: ["items"]
+}
+       // JSON schema for structured output
     }
   });
 
@@ -2363,32 +2420,28 @@ VAŽNO:
    * PERFORMANCE_NOTE: Completely offloads file processing to server backend
    */
   const analyzeWithBackend = useCallback(async (file) => {
-    updateProgress('Šalje dokument na backend server za obradu...', 30);
+    updateProgress('Šalje goli file na backend server za obradu...', 30);
 
     try {
-      // Create FormData to send file to backend
+      // Create FormData to send RAW file to backend - no browser preprocessing
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('analysisType', 'invoice');
-      formData.append('language', 'hr');
+      formData.append('file', file); // Send file as-is without any processing
+      formData.append('max_pages', '3'); // Basic parameter only
       
       /* 
-       * CHUNK: Backend Service Communication
-       * PURPOSE: Send file to backend service for complete server-side processing
-       * COMPLEXITY: Medium - API integration with error handling
-       * INTEGRATION_POINT: Requires backend service at /api/analyze-document
+       * CHUNK: Raw File Backend Communication
+       * PURPOSE: Send unprocessed file directly to backend for complete server-side handling
+       * COMPLEXITY: Low - minimal client processing, maximum server control
+       * INTEGRATION_POINT: Agent server handles everything server-side
        */
-      updateProgress('Backend server procesira dokument...', 60);
+      updateProgress('Backend server obrađuje goli file...', 60);
       
-      // TODO: Replace with actual backend URL from configuration
-      const BACKEND_URL = settings.backendUrl || 'http://localhost:3001';
+      // Use Agent server as raw file processor
+      const BACKEND_URL = settings.agentUrl || 'http://127.0.0.1:7001';
       
-      const response = await fetch(`${BACKEND_URL}/api/analyze-document`, {
+      const response = await fetch(`${BACKEND_URL}/agent/analyze-file`, {
         method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json'
-        }
+        body: formData // Raw FormData, no headers manipulation
       });
 
       if (!response.ok) {
@@ -2470,6 +2523,241 @@ VAŽNO:
       }
     }
   }, [updateProgress, analyzeWithRegex, normalizeAnalysisData, settings]);
+
+  /* 
+   * CHANGE: 2025-09-01 - Added PDF Agent integration with tool-calling orchestration
+   * WHY: Enable autonomous AI agent decision-making for optimal PDF processing path
+   * IMPACT: Agent automatically chooses between text extraction and vision analysis
+   * AUTHOR: Claude Code Assistant
+   * SEARCH_TAGS: #pdf-agent #tool-calling #autonomous-processing #llm-orchestration
+   */
+  const analyzeWithAgent = useCallback(async (file) => {
+    updateProgress('Šalje dokument na PDF Agent za autonomnu obradu...', 20);
+
+    try {
+      // Create FormData to send file to agent server
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('max_pages', '3'); // Default for most invoices
+      
+      updateProgress('Agent analizira dokument i bira najbolju strategiju...', 40);
+      
+      // Agent server URL (FastAPI on port 7001)
+      const AGENT_URL = settings.agentUrl || 'http://127.0.0.1:7001';
+      
+      const response = await fetch(`${AGENT_URL}/agent/analyze-file`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`Agent server error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      updateProgress('Agent analiza uspješno završena!', 90);
+
+      // Agent already returns normalized, validated JSON
+      if (result && result.documentType) {
+        return normalizeAnalysisData(result, 'PDF Agent (Auto-Tool Selection)', 0.95);
+      } else {
+        throw new Error(result.error || 'Agent processing failed - invalid result format');
+      }
+
+    } catch (err) {
+      console.error('🤖 PDF Agent analysis failed:', err);
+      
+      let errorMessage = 'PDF Agent nedostupan';
+      let fallbackMessage = 'Prebacujem na lokalni LM Studio...';
+      
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage = `PDF Agent server (${settings.agentUrl || 'http://127.0.0.1:7001'}) nije pokrenut`;
+        fallbackMessage = 'Pokrenuti: start_agent_stack.bat ili python agent_server.py';
+      } else if (err.message.includes('Connection refused')) {
+        errorMessage = 'Agent server ili lokalni LLM modeli nisu dostupni';
+        fallbackMessage = 'Provjeriti TEXT LLM (port 8000) i VISION LLM (port 8001)';
+      } else if (err.message.includes('500')) {
+        errorMessage = 'Agent interna greška (vjerojajtno LLM problem)';
+        fallbackMessage = 'Provjeriti agent_server.py logove';
+      }
+      
+      updateProgress(`${errorMessage}. ${fallbackMessage}`, 75);
+      
+      // Fallback to direct LM Studio processing
+      if (settings.fallbackToLMStudio !== false) {
+        updateProgress('Fallback: pokušavam direktno s LM Studio...', 80);
+        try {
+          return await analyzeDirectlyWithLMStudio(file);
+        } catch (fallbackErr) {
+          console.error('Fallback to LM Studio also failed:', fallbackErr);
+        }
+      }
+      
+      // Ultimate fallback with clear agent setup instructions
+      return normalizeAnalysisData({
+        documentType: 'other',
+        documentNumber: 'AGENT-ERR-' + Date.now().toString().slice(-6),
+        date: new Date().toISOString().split('T')[0],
+        supplier: { 
+          name: 'PDF Agent setup potreban', 
+          address: 'python agent_server.py (port 7001)', 
+          oib: 'TEXT LLM na portu 8000', 
+          iban: 'VISION LLM na portu 8001' 
+        },
+        buyer: { 
+          name: 'start_agent_stack.bat', 
+          address: 'ili individualno pokretanje servisa', 
+          oib: '' 
+        },
+        items: [{
+          position: 1,
+          description: `Agent greška: ${errorMessage}`,
+          quantity: 1,
+          unit: 'setup',
+          unitPrice: 0,
+          totalPrice: 0
+        }],
+        totals: { subtotal: 0, vatAmount: 0, totalAmount: 0 }
+      }, 'PDF Agent Setup Required', 0.1);
+    }
+  }, [updateProgress, analyzeDirectlyWithLMStudio, normalizeAnalysisData, settings]);
+
+  /* 
+   * CHANGE: 2025-09-01 - Added Direct Prompt mode for simple file + prompt → JSON
+   * WHY: Bypass all agent orchestration, send raw file with system prompt for structured output
+   * IMPACT: Minimal overhead, direct LLM communication, user controls prompt completely
+   * AUTHOR: Claude Code Assistant
+   * SEARCH_TAGS: #direct-prompt #no-agent #simple-llm #structured-json
+   */
+  const analyzeWithDirectPrompt = useCallback(async (file) => {
+    updateProgress('Šalje file direktno sa custom promptom za JSON odgovor...', 20);
+
+    try {
+      // Use selected LLM endpoint
+      const endpoint = settings.lmStudioEndpoint || 'http://10.39.35.136:1234/v1/chat/completions';
+      const selectedModel = settings.selectedModel || 'local-model';
+
+      // Create system prompt for structured JSON output
+      const systemPrompt = `You are a Croatian invoice/document analyzer. Extract information from the provided document and return ONLY a valid JSON object with this exact structure:
+
+{
+  "documentType": "invoice|quote|delivery_note",
+  "documentNumber": "document number or null",
+  "date": "YYYY-MM-DD or null", 
+  "dueDate": "YYYY-MM-DD or null",
+  "currency": "currency or null",
+  "supplier": {
+    "name": "supplier name or null",
+    "address": "supplier address or null", 
+    "oib": "supplier OIB or null",
+    "iban": "supplier IBAN or null"
+  },
+  "buyer": {
+    "name": "buyer name or null",
+    "address": "buyer address or null",
+    "oib": "buyer OIB or null", 
+    "iban": "buyer IBAN or null"
+  },
+  "items": [
+    {
+      "position": 1,
+      "code": "item code or null",
+      "description": "item description", 
+      "quantity": 1.0,
+      "unit": "unit",
+      "unitPrice": 0.0,
+      "discountPercent": 0.0,
+      "totalPrice": 0.0
+    }
+  ],
+  "totals": {
+    "subtotal": 0.0,
+    "vatAmount": 0.0, 
+    "totalAmount": 0.0
+  }
+}
+
+Return ONLY the JSON object, no additional text or explanations.`;
+
+      updateProgress('LLM obrađuje file sa strukturiranim promptom...', 50);
+
+      // Read file content as text (works for PDF, TXT, etc.)
+      const fileContent = await file.text();
+      
+      const payload = {
+        model: selectedModel,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user", 
+            content: `Analyze this document and extract the information as JSON:\n\n${fileContent}`
+          }
+        ],
+        temperature: 0.1, // Low temperature for structured output
+        max_tokens: 2000,
+        response_format: { type: "json_object" } // Force JSON output if supported
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.lmStudioApiKey || 'not-needed'}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`LLM request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      updateProgress('Direct prompt analiza završena!', 90);
+
+      const llmResponse = result.choices?.[0]?.message?.content;
+      if (!llmResponse) {
+        throw new Error('No response from LLM');
+      }
+
+      // Parse JSON response
+      let parsedData;
+      try {
+        parsedData = JSON.parse(llmResponse);
+      } catch (parseError) {
+        // Try to extract JSON from response if wrapped in text
+        const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('LLM response is not valid JSON');
+        }
+      }
+
+      return normalizeAnalysisData(parsedData, 'Direct Prompt LLM', 0.85);
+
+    } catch (err) {
+      console.error('💬 Direct prompt analysis failed:', err);
+      
+      let errorMessage = 'Direct prompt analiza neuspješna';
+      let fallbackMessage = 'Prebacujem na regex analizu...';
+      
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage = `LLM server (${settings.lmStudioEndpoint}) nije dostupan`;
+        fallbackMessage = 'Provjeriti LLM server connection';
+      } else if (err.message.includes('not valid JSON')) {
+        errorMessage = 'LLM nije vratio valjan JSON format';
+        fallbackMessage = 'Možda treba prilagoditi prompt ili model';
+      }
+      
+      updateProgress(`❌ ${errorMessage}. ${fallbackMessage}`, 100);
+      
+      // NO FALLBACK - Let the error be visible for debugging
+      throw new Error(`Direct Prompt Analysis Failed: ${errorMessage}`);
+    }
+  }, [updateProgress, settings]);
 
   // NEW: Batch Document Comparison with LM Studio
   const compareBatchDocumentsWithLMStudio = useCallback(async (files) => {
@@ -2908,18 +3196,36 @@ VAŽNO:
              * AUTHOR: Claude Code Assistant
              * SEARCH_TAGS: #backend-mode #analysis-routing #memory-bypass
              */
+            // Debug: Log selected analysis mode for troubleshooting
+            console.log(`🎯 Analysis Mode Selected: ${settings.analysisMode}`);
+            console.log(`🔧 Available Modes:`, AI_MODES);
+            
             // Determine which analysis method to use based on settings and available data
-            if (settings.analysisMode === AI_MODES.BACKEND) {
+            if (settings.analysisMode === AI_MODES.DIRECT_PROMPT) {
+                // Direct file + prompt → JSON (no agent, no tools)
+                analysis = await analyzeWithDirectPrompt(file);
+            } else if (settings.analysisMode === AI_MODES.AGENT) {
+                // Use PDF Agent with tool-calling orchestration
+                analysis = await analyzeWithAgent(file);
+            } else if (settings.analysisMode === AI_MODES.BACKEND) {
                 // Use Backend server (complete preprocessing bypass)
                 analysis = await analyzeWithBackend(file);
             } else if (settings.analysisMode === AI_MODES.OPENWEBUI) {
                 // Use OpenWebUI integration
                 analysis = await analyzeWithOpenWebUI(extractedData);
+            } else if (settings.analysisMode === AI_MODES.STRUCTURED_TEXT) {
+                // Use CUDA-optimized structured text extraction + LLM
+                console.log(`🚀 CUDA Mode Activated! Using STRUCTURED_TEXT with endpoint: ${settings.cudaLlmEndpoint || CUDA_LLM_CONFIG.endpoint}`);
+                analysis = await analyzeWithStructuredText(file);
             } else if (settings.analysisMode === AI_MODES.VISION && extractedData.images.length > 0) {
                 // Use user's selected Vision approach
                 analysis = await analyzeWithVLM(extractedData);
             } else {
                 // Use the existing Spatial approach (or if Vision is selected but no images exist)
+                console.log(`⚠️ Using SPATIAL analysis (default fallback) with mode: ${settings.analysisMode}`);
+                console.log(`📡 Spatial will use endpoint: ${settings.lmStudioEndpoint || 'http://10.39.35.136:1234'}`);
+                console.log(`💡 To use CUDA server, select 'Strukturirani tekst + CUDA LLM (optimiziran)' in dropdown!`);
+                
                 if (settings.analysisMode === AI_MODES.VISION && extractedData.images.length === 0) {
                     console.warn("Vizualni mod odabran, ali nema slika (npr. Excel/Text). Prebacujem na prostornu analizu.");
                 }
@@ -2951,8 +3257,199 @@ VAŽNO:
       status: 'processed',
       documentType: analysis.documentType || 'other',
     };
-  }, [extractStructuredData, settings, llmStatus, analyzeWithSpatial, analyzeWithVLM, analyzeWithOpenWebUI, analyzeDirectlyWithLMStudio, analyzeWithBackend, analyzeWithRegex, createPreview, assessDocumentContext]);
+  }, [extractStructuredData, settings, llmStatus, analyzeWithSpatial, analyzeWithVLM, analyzeWithOpenWebUI, analyzeDirectlyWithLMStudio, analyzeWithBackend, analyzeWithAgent, analyzeWithDirectPrompt, analyzeWithRegex, createPreview, assessDocumentContext]);
 
+  /* 
+   * CHANGE: 2025-09-01 - Added analyzeWithStructuredText function for CUDA-optimized processing
+   * WHY: Enable high-performance structured text extraction + LLM analysis with CUDA acceleration
+   * IMPACT: Combines existing OCR/parsing with optimized CUDA LLM for best performance
+   * AUTHOR: Claude Code Assistant
+   * SEARCH_TAGS: #structured-text #cuda-optimization #text-extraction #model-alias
+   */
+  const analyzeWithStructuredText = useCallback(async (file) => {
+    updateProgress('Extracting structured text...', 10);
+
+    try {
+      // Use existing PDF extraction logic
+      const structuredData = await extractStructuredData(file);
+      updateProgress('Structured text extracted, sending to CUDA LLM...', 40);
+
+      // Prepare structured prompt with extracted text and coordinates
+      const structuredTextPrompt = `
+STRUCTURED DOCUMENT ANALYSIS
+============================
+
+RAW TEXT CONTENT:
+${structuredData.rawText}
+
+COORDINATE-BASED ELEMENTS (X, Y positions):
+${structuredData.elements.map(el => 
+  `[${el.x}, ${el.y}] ${el.text} (page ${el.page})`
+).join('\n')}
+
+DOCUMENT STATISTICS:
+- Total pages: ${structuredData.images.length}
+- Text elements: ${structuredData.elements.length}
+- Estimated complexity: ${structuredData.elements.length > 100 ? 'High' : structuredData.elements.length > 50 ? 'Medium' : 'Low'}
+
+ANALYSIS INSTRUCTIONS:
+Extract the key business information from this Croatian document and return ONLY a valid JSON object.
+Use the coordinate information to understand document structure and layout.
+Focus on accuracy for Croatian business documents (invoices, quotes, delivery notes).
+      `;
+
+      // Create system prompt for Croatian business documents
+      const systemPrompt = `You are a Croatian business document expert with advanced OCR interpretation skills.
+Use the structured text and coordinate information to extract precise business data.
+Always return valid JSON with the exact structure provided.
+Pay attention to coordinate positions to understand document layout and field relationships.`;
+
+      // Prepare CUDA LLM request using user settings or defaults
+      const endpoint = settings.cudaLlmEndpoint || CUDA_LLM_CONFIG.endpoint;
+      const modelAlias = settings.cudaModelAlias || CUDA_LLM_CONFIG.modelAlias;
+      const apiKey = settings.cudaApiKey || CUDA_LLM_CONFIG.apiKey;
+      
+      const payload = {
+        model: modelAlias,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: structuredTextPrompt }
+        ],
+        temperature: CUDA_LLM_CONFIG.temperature,
+        max_tokens: CUDA_LLM_CONFIG.maxTokens,
+        response_format: { type: 'json_object' }
+      };
+
+      updateProgress('Sending to CUDA-optimized LLM...', 60);
+
+      // Send to CUDA LLM server
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`CUDA LLM server error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      updateProgress('Processing CUDA LLM response...', 80);
+
+      // Extract and parse JSON response
+      let analysisResult;
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('No response content from CUDA LLM');
+      }
+
+      // Try to parse JSON response with multiple fallback strategies
+      try {
+        analysisResult = JSON.parse(content);
+      } catch (parseError) {
+        console.warn('⚠️ Direct JSON parse failed, trying extraction strategies...', parseError.message);
+        
+        // Strategy 1: Extract JSON from code blocks
+        const codeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          try {
+            analysisResult = JSON.parse(codeBlockMatch[1]);
+          } catch (codeBlockError) {
+            console.warn('Code block JSON parsing failed:', codeBlockError.message);
+          }
+        }
+        
+        // Strategy 2: Find JSON object boundaries
+        if (!analysisResult) {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              // Try to clean common JSON issues before parsing
+              let cleanedJson = jsonMatch[0]
+                .replace(/,(\s*[}\]])/g, '$1')                       // Remove trailing commas
+                .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')  // Quote unquoted keys
+                .replace(/:\s*'([^']*)'/g, ': "$1"')               // Fix single quotes
+                .replace(/,\s*}/g, '}')                            // Remove trailing comma before }
+                .replace(/,\s*]/g, ']');                           // Remove trailing comma before ]
+              
+              analysisResult = JSON.parse(cleanedJson);
+            } catch (cleanError) {
+              console.warn('Cleaned JSON parsing failed:', cleanError.message);
+            }
+          }
+        }
+        
+        // Strategy 3: Try to find first and last braces for object extraction
+        if (!analysisResult) {
+          const firstBrace = content.indexOf('{');
+          const lastBrace = content.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            try {
+              const extractedJson = content.substring(firstBrace, lastBrace + 1);
+              let cleanedJson = extractedJson
+                .replace(/,(\s*[}\]])/g, '$1')
+                .replace(/,\s*}/g, '}')
+                .replace(/,\s*]/g, ']');
+              
+              analysisResult = JSON.parse(cleanedJson);
+            } catch (extractError) {
+              console.warn('Extracted JSON parsing failed:', extractError.message);
+            }
+          }
+        }
+        
+        // If all strategies failed, throw error
+        if (!analysisResult) {
+          console.error('All JSON parsing strategies failed. Raw content:', content);
+          throw new Error(`No valid JSON found in response. Original error: ${parseError.message}`);
+        }
+      }
+
+      updateProgress('Analysis complete!', 100);
+
+      // Normalize and return result
+      return {
+        ...normalizeAnalysisData(analysisResult, 'CUDA Structured Text', 0.9),
+        processingMethod: 'CUDA-optimized structured text extraction',
+        extractionStats: {
+          pages: structuredData.images.length,
+          textElements: structuredData.elements.length,
+          modelUsed: modelAlias,
+          contextWindow: CUDA_LLM_CONFIG.contextWindow
+        }
+      };
+
+    } catch (err) {
+      console.error('💡 Structured text analysis failed:', err);
+      
+      let errorMessage = 'CUDA structured text analysis failed';
+      let fallbackMessage = 'Switching to spatial analysis...';
+      
+      if (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED')) {
+        const usedEndpoint = settings.cudaLlmEndpoint || CUDA_LLM_CONFIG.endpoint;
+        errorMessage = `🚨 CUDA LLM server (${usedEndpoint}) not running or unreachable`;
+        fallbackMessage = '🔧 Run start_cuda_llm.bat to launch CUDA server, or check endpoint configuration';
+      } else if (err.message.includes('not valid JSON') || err.message.includes('No valid JSON')) {
+        errorMessage = '🔍 CUDA LLM returned malformed JSON';
+        fallbackMessage = '⚙️ Try adjusting prompt temperature or model parameters';
+      } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+        errorMessage = '🔐 CUDA LLM authentication failed';
+        fallbackMessage = '🗝️ Check API key configuration (default: local-key)';
+      } else if (err.message.includes('500') || err.message.includes('Internal Server Error')) {
+        errorMessage = '⚠️ CUDA LLM server internal error';
+        fallbackMessage = '🔄 Restart CUDA server or check model loading status';
+      }
+      
+      updateProgress(`❌ ${errorMessage}. ${fallbackMessage}`, 100);
+      
+      // NO FALLBACK - Let the error be visible for debugging
+      throw new Error(`CUDA Structured Text Analysis Failed: ${errorMessage}`);
+    }
+  }, [extractStructuredData, updateProgress, normalizeAnalysisData, settings]);
 
   // Process multiple files (Main loop with error handling)
   /* 
@@ -4446,21 +4943,30 @@ function SettingsPanel({ settings, onSettingsChange, onClose, llmStatus, availab
                                     onChange={(e) => updateSetting('analysisMode', e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
                                 >
-                                    <option value={AI_MODES.VISION}>Vizualna analiza (VLM)</option>
-                                    <option value={AI_MODES.SPATIAL}>Analiza koordinata (LLM)</option>
-                                    <option value={AI_MODES.OPENWEBUI}>OpenWebUI integracija (Upload + RAG)</option>
-                                    <option value={AI_MODES.LMSTUDIO_DIRECT}>LM Studio direktno (bez OCR)</option>
-                                    <option value={AI_MODES.BACKEND}>Backend server (bez obrade u pregledniku)</option>
+                                    <option value={AI_MODES.STRUCTURED_TEXT}>🚀 CUDA LLM (127.0.0.1:8000) - Strukturirani tekst</option>
+                                    <option value={AI_MODES.DIRECT_PROMPT}>💬 Direct Prompt (korisni endpoint)</option>
+                                    <option value={AI_MODES.AGENT}>🤖 PDF Agent (7001 → 8000+8002)</option>
+                                    <option value={AI_MODES.VISION}>👁️ VLM (10.39.35.136:1234) - Vizualna analiza</option>
+                                    <option value={AI_MODES.SPATIAL}>📐 Spatial (10.39.35.136:1234) - Koordinate</option>
+                                    <option value={AI_MODES.OPENWEBUI}>🌐 OpenWebUI (localhost:8080) - RAG</option>
+                                    <option value={AI_MODES.LMSTUDIO_DIRECT}>📤 LM Studio (10.39.35.136:1234) - Direktno</option>
+                                    <option value={AI_MODES.BACKEND}>⚙️ Backend (3001) - Server obrada</option>
                                 </select>
                                 <p className='text-xs text-gray-500 mt-2'>
-                                    {settings.analysisMode === AI_MODES.VISION
+                                    {settings.analysisMode === AI_MODES.STRUCTURED_TEXT
+                                        ? `⚡ OCR/parsing + CUDA-optimiziran LLM: koristi postojeće text extraction funkcije i šalje strukturirani tekst s koordinatama na lokalni CUDA LLM (model alias gpt-oss-20b, port 8000).`
+                                        : settings.analysisMode === AI_MODES.DIRECT_PROMPT
+                                        ? `💬 Jednostavno: šalje file + system prompt direktno na LLM za structured JSON. Bez agenta, bez tools - samo prompt → odgovor.`
+                                        : settings.analysisMode === AI_MODES.AGENT
+                                        ? `🤖 PDF Agent autonomno bira između text i vision analize. Potrebno: TEXT LLM (port 8000) + VISION LLM (port 8002) + Agent server (port 7001).`
+                                        : settings.analysisMode === AI_MODES.VISION
                                         ? `🎯 Koristi odabrani model iz liste. VLM model (npr. Qwen-VL, LLaVA) u LM Studio.`
                                         : settings.analysisMode === AI_MODES.OPENWEBUI
                                         ? `🎯 Koristi odabrani model iz liste. Šalje dokument u OpenWebUI za RAG analizu.`
                                         : settings.analysisMode === AI_MODES.LMSTUDIO_DIRECT
                                         ? `🎯 Koristi odabrani model iz liste. Direktno šalje file u LM Studio - preskače OCR.`
                                         : settings.analysisMode === AI_MODES.BACKEND
-                                        ? `🎯 Koristi odabrani model iz liste. Šalje dokument na backend server.`
+                                        ? `📤 Šalje goli file direktno na server - zero browser obrada. Agent server obrađuje sve.`
                                         : `🎯 Koristi odabrani model iz liste. Analiza koordinata s prostornim podacima.`
                                     }
                                 </p>
@@ -4512,6 +5018,119 @@ function SettingsPanel({ settings, onSettingsChange, onClose, llmStatus, availab
                                 </p>
                                 <div className='text-xs text-amber-600 mt-1'>
                                     <strong>Napomena:</strong> Backend servis trenutno ne postoji - implementiraj na portu 3001 ili promijeni URL.
+                                </div>
+                            </div>
+                        )}
+
+                        {/* NEW: CUDA LLM Configuration (shown when STRUCTURED_TEXT mode is selected) */}
+                        {settings.analysisMode === AI_MODES.STRUCTURED_TEXT && (
+                            <div className='pt-3 border-t border-gray-200'>
+                                <label className="text-sm font-medium block mb-2">
+                                    ⚡ CUDA LLM Konfiguracija
+                                </label>
+                                
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs text-gray-600 block mb-1">Server URL</label>
+                                        <input
+                                            type="text"
+                                            value={settings.cudaLlmEndpoint || CUDA_LLM_CONFIG.endpoint}
+                                            onChange={(e) => updateSetting('cudaLlmEndpoint', e.target.value)}
+                                            placeholder="http://127.0.0.1:8000/v1/chat/completions"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs text-gray-600 block mb-1">Model Alias</label>
+                                        <input
+                                            type="text"
+                                            value={settings.cudaModelAlias || CUDA_LLM_CONFIG.modelAlias}
+                                            onChange={(e) => updateSetting('cudaModelAlias', e.target.value)}
+                                            placeholder="gpt-oss-20b"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs text-gray-600 block mb-1">API Key</label>
+                                        <input
+                                            type="password"
+                                            value={settings.cudaApiKey || CUDA_LLM_CONFIG.apiKey}
+                                            onChange={(e) => updateSetting('cudaApiKey', e.target.value)}
+                                            placeholder="local-key"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <p className='text-xs text-gray-500 mt-2'>
+                                    CUDA LLM server konfiguracija. Pokretaj sa: <code className="bg-gray-100 px-1 rounded">start_cuda_llm.bat</code>
+                                </p>
+                                <div className='text-xs text-blue-600 mt-1'>
+                                    <strong>Performanse:</strong> Koristi postojeći OCR/parsing + CUDA-ubrzani LLM za optimalne rezultate.
+                                </div>
+                                
+                                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                                    <strong>🚀 CUDA Setup:</strong>
+                                    <ol className="list-decimal list-inside mt-1 space-y-1 text-gray-600">
+                                        <li>Pokreni <code>start_cuda_llm.bat</code> (instalira CUDA wheel i pokreće server)</li>
+                                        <li>Server će se pokrenuti na portu 8000 s modelom alias "gpt-oss-20b"</li>
+                                        <li>Provjeri da model path u .bat file-u odgovara vašem modelu</li>
+                                        <li>GPU layers: -1 (svi layeri na GPU), Context: 16K tokena</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* NEW: PDF Agent Settings */}
+                        {settings.analysisMode === AI_MODES.AGENT && (
+                            <div className='pt-3 border-t border-gray-200'>
+                                <label className="text-sm font-medium block mb-2">
+                                    🤖 PDF Agent Konfiguracija
+                                </label>
+                                
+                                <div className="space-y-3">
+                                    {/* Agent Server URL */}
+                                    <div>
+                                        <label className="text-xs font-medium block mb-1">Agent Server URL</label>
+                                        <input
+                                            type="text"
+                                            value={settings.agentUrl || 'http://127.0.0.1:7001'}
+                                            onChange={(e) => updateSetting('agentUrl', e.target.value)}
+                                            placeholder="http://127.0.0.1:7001"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                        />
+                                        <p className='text-xs text-gray-500 mt-1'>FastAPI agent server (port 7001)</p>
+                                    </div>
+
+                                    {/* Setup Instructions */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+                                        <div className="font-medium text-blue-800 mb-2">📋 Setup Instrukcije:</div>
+                                        <div className="space-y-1 text-blue-700">
+                                            <div><strong>1. Pokreni agent stack:</strong> start_agent_stack.bat</div>
+                                            <div><strong>2. TEXT LLM:</strong> http://127.0.0.1:8000</div>
+                                            <div><strong>3. VISION LLM:</strong> http://127.0.0.1:8001</div>
+                                            <div><strong>4. Agent API:</strong> http://127.0.0.1:7001</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Fallback Option */}
+                                    <div>
+                                        <label className="flex items-center space-x-2 text-xs">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.fallbackToLMStudio !== false}
+                                                onChange={(e) => updateSetting('fallbackToLMStudio', e.target.checked)}
+                                                className="rounded border-gray-300"
+                                            />
+                                            <span>Fallback na LM Studio ako agent nije dostupan</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className='text-xs text-amber-600 mt-2'>
+                                    <strong>Napomena:</strong> Agent autonomno bira između text i vision analize na osnovu sadržaja dokumenta.
                                 </div>
                             </div>
                         )}

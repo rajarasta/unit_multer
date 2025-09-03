@@ -10,6 +10,10 @@ class AgbimDataService {
     this.cacheTimestamp = null;
     this.cacheTimeout = 2000; // 2 seconds cache
     
+    // Add dispatch-specific endpoints
+    this.dispatchEndpoint = 'http://localhost:3001/api/dispatch';
+    this.warehouseEndpoint = 'http://localhost:3001/api/warehouse';
+    
     // Clear oversized localStorage on startup
     this.performStartupCleanup();
   }
@@ -293,6 +297,291 @@ class AgbimDataService {
    */
   async importFull(data) {
     return this.writeJson(data);
+  }
+
+  // ==================== DISPATCH OPERATIONS ====================
+
+  /**
+   * Create new dispatch
+   */
+  async createDispatch(projectId, dispatchData) {
+    try {
+      const data = await this.loadJson();
+      const project = data.projects?.find(p => p.id === projectId);
+      
+      if (!project) {
+        throw new Error(`Project ${projectId} not found`);
+      }
+
+      if (!project.dispatches) {
+        project.dispatches = [];
+      }
+
+      // Generate dispatch ID and document number
+      const dispatchId = `dispatch_${Date.now()}`;
+      const documentNumber = `OTPR-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${String(project.dispatches.length + 1).padStart(4, '0')}`;
+
+      const newDispatch = {
+        id: dispatchId,
+        documentNumber,
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'user_demo',
+        items: [],
+        recipient: dispatchData.recipient || {},
+        transport: dispatchData.transport || {},
+        documents: [],
+        notes: dispatchData.notes || '',
+        ...dispatchData
+      };
+
+      project.dispatches.push(newDispatch);
+      
+      // Update history
+      if (!project.history) project.history = [];
+      project.history.push({
+        id: `h_${Date.now()}`,
+        date: new Date().toISOString(),
+        type: 'dispatch',
+        title: 'Kreirana nova otpremnica',
+        details: `Otpremnica ${documentNumber} kreirana`,
+        userId: 'user_demo',
+        dispatchId: dispatchId
+      });
+
+      await this.writeJson(data);
+      console.log(`📦 Created dispatch ${documentNumber}`);
+      return newDispatch;
+    } catch (error) {
+      console.error('Error creating dispatch:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update existing dispatch
+   */
+  async updateDispatch(projectId, dispatchId, updates) {
+    try {
+      const data = await this.loadJson();
+      const project = data.projects?.find(p => p.id === projectId);
+      
+      if (!project) {
+        throw new Error(`Project ${projectId} not found`);
+      }
+
+      const dispatch = project.dispatches?.find(d => d.id === dispatchId);
+      if (!dispatch) {
+        throw new Error(`Dispatch ${dispatchId} not found`);
+      }
+
+      Object.assign(dispatch, updates, {
+        updatedAt: new Date().toISOString()
+      });
+
+      await this.writeJson(data);
+      console.log(`📦 Updated dispatch ${dispatch.documentNumber}`);
+      return dispatch;
+    } catch (error) {
+      console.error('Error updating dispatch:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add items to dispatch
+   */
+  async addItemsToDispatch(projectId, dispatchId, items) {
+    try {
+      const data = await this.loadJson();
+      const project = data.projects?.find(p => p.id === projectId);
+      
+      if (!project) {
+        throw new Error(`Project ${projectId} not found`);
+      }
+
+      const dispatch = project.dispatches?.find(d => d.id === dispatchId);
+      if (!dispatch) {
+        throw new Error(`Dispatch ${dispatchId} not found`);
+      }
+
+      // Add or update items
+      items.forEach(newItem => {
+        const existingIndex = dispatch.items.findIndex(item => item.positionId === newItem.positionId);
+        if (existingIndex >= 0) {
+          // Update existing item
+          dispatch.items[existingIndex].quantity += newItem.quantity;
+          dispatch.items[existingIndex].updatedAt = new Date().toISOString();
+        } else {
+          // Add new item
+          dispatch.items.push({
+            id: `item_${Date.now()}_${newItem.positionId}`,
+            positionId: newItem.positionId,
+            positionTitle: newItem.position?.title || newItem.positionTitle,
+            quantity: newItem.quantity,
+            plannedQty: newItem.plannedQty || newItem.quantity,
+            status: 'ready',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      });
+
+      // Update position dispatch status
+      items.forEach(item => {
+        const position = project.positions?.find(p => p.id === item.positionId);
+        if (position && position.dispatch) {
+          position.dispatch.reserved += item.quantity;
+          position.dispatch.remaining = Math.max(0, position.dispatch.remaining - item.quantity);
+        }
+      });
+
+      dispatch.updatedAt = new Date().toISOString();
+      await this.writeJson(data);
+      
+      console.log(`📦 Added ${items.length} items to dispatch ${dispatch.documentNumber}`);
+      return dispatch;
+    } catch (error) {
+      console.error('Error adding items to dispatch:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Confirm dispatch (change status to confirmed)
+   */
+  async confirmDispatch(projectId, dispatchId) {
+    try {
+      const dispatch = await this.updateDispatch(projectId, dispatchId, {
+        status: 'confirmed',
+        confirmedAt: new Date().toISOString()
+      });
+
+      // Update position quantities
+      const data = await this.loadJson();
+      const project = data.projects?.find(p => p.id === projectId);
+      
+      if (project && dispatch.items) {
+        dispatch.items.forEach(item => {
+          const position = project.positions?.find(p => p.id === item.positionId);
+          if (position && position.dispatch) {
+            position.dispatch.shipped += item.quantity;
+            position.dispatch.reserved -= item.quantity;
+            position.dispatch.lastShipped = new Date().toISOString();
+          }
+        });
+
+        // Add to history
+        project.history.push({
+          id: `h_${Date.now()}`,
+          date: new Date().toISOString(),
+          type: 'dispatch',
+          title: 'Otprema potvrđena',
+          details: `Otpremnica ${dispatch.documentNumber} potvrđena - ${dispatch.items.length} stavki`,
+          userId: 'user_demo',
+          dispatchId: dispatchId
+        });
+
+        await this.writeJson(data);
+      }
+
+      console.log(`✅ Confirmed dispatch ${dispatch.documentNumber}`);
+      return dispatch;
+    } catch (error) {
+      console.error('Error confirming dispatch:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all dispatches for project
+   */
+  async getDispatches(projectId) {
+    try {
+      const data = await this.loadJson();
+      const project = data.projects?.find(p => p.id === projectId);
+      return project?.dispatches || [];
+    } catch (error) {
+      console.error('Error getting dispatches:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Update project (enhanced version)
+   */
+  async updateProject(projectId, updates) {
+    try {
+      const data = await this.loadJson();
+      const projectIndex = data.projects?.findIndex(p => p.id === projectId);
+      
+      if (projectIndex >= 0) {
+        // Update existing project
+        data.projects[projectIndex] = {
+          ...data.projects[projectIndex],
+          ...updates,
+          updated: new Date().toISOString()
+        };
+      } else {
+        // Add new project
+        if (!data.projects) data.projects = [];
+        data.projects.push({
+          ...updates,
+          id: projectId,
+          created: new Date().toISOString(),
+          updated: new Date().toISOString()
+        });
+      }
+
+      await this.writeJson(data);
+      console.log(`💾 Updated project ${projectId}`);
+      return data.projects[projectIndex >= 0 ? projectIndex : data.projects.length - 1];
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+  }
+
+  // ==================== WAREHOUSE OPERATIONS ====================
+
+  /**
+   * Update warehouse stock
+   */
+  async updateWarehouseStock(projectId, movements) {
+    try {
+      const data = await this.loadJson();
+      const project = data.projects?.find(p => p.id === projectId);
+      
+      if (!project) {
+        throw new Error(`Project ${projectId} not found`);
+      }
+
+      if (!project.warehouse) {
+        project.warehouse = { sections: [], movements: [] };
+      }
+
+      // Add movements
+      movements.forEach(movement => {
+        project.warehouse.movements.push({
+          id: `mov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date().toISOString(),
+          type: movement.type, // 'in', 'out', 'transfer'
+          positionId: movement.positionId,
+          quantity: movement.quantity,
+          section: movement.section,
+          notes: movement.notes || '',
+          userId: 'user_demo'
+        });
+      });
+
+      await this.writeJson(data);
+      console.log(`📦 Updated warehouse with ${movements.length} movements`);
+      return project.warehouse;
+    } catch (error) {
+      console.error('Error updating warehouse:', error);
+      throw error;
+    }
   }
 }
 

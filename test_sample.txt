@@ -1,0 +1,23 @@
+RAČUN BR. 2025-001
+
+DATUM: 01.09.2025
+DOSPJEVA: 15.09.2025
+
+DOBAVLJAČ:
+ABC Aluminijum d.o.o.
+Zagrebačka 123, Zagreb
+OIB: 12345678901
+
+KUPAC:
+XYZ Građevina d.o.o.
+Splitska 456, Split
+OIB: 98765432109
+
+STAVKE:
+1. Aluminijski profil 40x40x2mm - 10 m x 25,50 kn = 255,00 kn
+2. Vijci M6x20 - 100 kom x 0,50 kn = 50,00 kn
+3. Rad - 5 sati x 80,00 kn = 400,00 kn
+
+UKUPNO: 705,00 kn
+PDV (25%): 176,25 kn
+SVEUKUPNO: 881,25 kn

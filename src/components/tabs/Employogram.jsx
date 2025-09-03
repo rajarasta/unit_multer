@@ -3,9 +3,10 @@ import { useProjectStore } from "../../store/useProjectStore";
 import { useUserStore } from '../../store/useUserStore';
 import ProjectDataService from "../../store/ProjectDataService.js";
 import TaskHoverCardRedesign from "./hoverTab2.jsx";
+import { analyzeDocumentGoogle } from "../../services/CloudLLMService.js";
 import {
   Users, Layers, CalendarDays, ChevronDown, ChevronLeft, ChevronRight,
-  Grid3X3 as Grid3x3, Group, Columns3, AlertTriangle, Search,
+  Grid3X3 as Grid3x3, Group, Columns3, AlertTriangle, Search, MessageSquare,
 } from "lucide-react";
 
 /**
@@ -68,6 +69,7 @@ export default function EmployogramTab(){
   const [search, setSearch] = useState("");
   const [groupMode, setGroupMode] = useState("project-process-position");
   const [hover, setHover] = useState(null); // {task, x, y}
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const scrollRef = useRef(null);
 
@@ -227,6 +229,73 @@ export default function EmployogramTab(){
   const [hoverTask, setHoverTask] = useState(null);
   const [hoverXY, setHoverXY] = useState({x:0,y:0});
 
+  const handleAnalyzeEmployee = async (emp) => {
+    if (isAnalyzing) return;
+
+    setIsAnalyzing(true);
+    
+    try {
+      const employeeTasks = columns.tasks.filter(t => 
+        t.ownerName && employeeByName.get(t.ownerName)?.id === emp.id
+      );
+
+      const analysisText = `Analiziraj zaposlenika: ${emp.name}\n\nBroj zadataka: ${employeeTasks.length}\nZadaci:\n${employeeTasks.map(t => `- ${t.title} (${t.positionTitle}): ${t.start || 'N/A'} - ${t.end || 'N/A'}`).join('\n')}\n\nStatus rada i preopterećenost:`;
+      
+      const response = await analyzeDocumentGoogle({
+        prompt: `Analiziraj rad zaposlenika na osnovu podataka o zadacima. Daj kratku procjenu rada, preopterećenosti i preporuke. Odgovori kratko na hrvatskom jeziku.`,
+        files: [new File([new Blob([analysisText], { type: 'text/plain' })], 'employee_analysis.txt', { type: 'text/plain' })]
+      });
+
+      const analysisResult = response?.data?.analysisResult || response?.text || 'Analiza dovršena';
+      
+      const switchToChat = () => {
+        const chatEvent = new CustomEvent('switchToTab', {
+          detail: { 
+            tab: 'Chat',
+            data: {
+              message: `Analiza za ${emp.name}:\n\n${analysisResult}`,
+              context: {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                projectId: activeProjectId,
+                analysisType: 'employee_workload'
+              }
+            }
+          }
+        });
+        
+        window.dispatchEvent(chatEvent);
+      };
+      
+      switchToChat();
+      
+    } catch (error) {
+      console.error('Analysis error:', error);
+      
+      const switchToChat = () => {
+        const chatEvent = new CustomEvent('switchToTab', {
+          detail: { 
+            tab: 'Chat',
+            data: {
+              message: `Greška pri analizi za ${emp.name}. Molimo pokušajte ponovno.`,
+              context: {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                error: error.message
+              }
+            }
+          }
+        });
+        
+        window.dispatchEvent(chatEvent);
+      };
+      
+      switchToChat();
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   function openHover(e, task){
     const rect = scrollRef.current?.getBoundingClientRect();
     const x = (e?.clientX||0) - (rect?.left||0) + 16;
@@ -283,16 +352,26 @@ export default function EmployogramTab(){
           <div className="h-10 border-b flex items-center px-3 text-xs text-slate-500">Zaposlenici</div>
           <div className="overflow-auto" style={{maxHeight: "calc(100% - 40px)"}}>
             {employees.map(emp => (
-              <div key={emp.id} className="h-10 flex items-center px-3 border-b justify-between">
+              <div key={emp.id} className="h-10 flex items-center px-3 border-b justify-between group hover:bg-slate-100/50 transition-colors">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-6 rounded" style={{background: pillGradient(emp.colorA, emp.colorB)}} />
                   <div className="text-sm font-medium text-slate-700 truncate">{emp.name}</div>
                 </div>
-                {conflictByEmp.get(emp.id) > 0 && (
-                  <div className="text-[11px] text-rose-600 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> {conflictByEmp.get(emp.id)}
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {conflictByEmp.get(emp.id) > 0 && (
+                    <div className="text-[11px] text-rose-600 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> {conflictByEmp.get(emp.id)}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => handleAnalyzeEmployee(emp)}
+                    disabled={isAnalyzing}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-600 hover:text-blue-800 disabled:opacity-50 p-1"
+                    title="Analiziraj rad zaposlenika"
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 OpenAI Multimodal & Tool Calling Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">🚀 OpenAI Responses API Test</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Tool Calling Test -->
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h2 class="text-xl font-semibold text-blue-900 mb-4">🔧 Tool Calling Test</h2>
+                <textarea 
+                    id="toolPrompt" 
+                    class="w-full p-3 border rounded-lg mb-3"
+                    rows="3"
+                    placeholder="Enter prompt for tool calling test..."
+                >Calculate the cost for aluminum windows for a 100m² house, search for similar projects, and create a quote for customer 'ABC Construction'</textarea>
+                
+                <button 
+                    onclick="testToolCalling()" 
+                    id="toolBtn"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                >
+                    🔧 Test Tool Calling
+                </button>
+                
+                <div id="toolResult" class="mt-4 p-3 bg-white rounded border hidden">
+                    <h3 class="font-semibold mb-2">Results:</h3>
+                    <pre id="toolOutput" class="text-sm bg-gray-100 p-2 rounded overflow-auto max-h-64"></pre>
+                </div>
+            </div>
+
+            <!-- Multimodal Test -->
+            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h2 class="text-xl font-semibold text-green-900 mb-4">🖼️ Multimodal Test</h2>
+                <textarea 
+                    id="multimodalPrompt" 
+                    class="w-full p-3 border rounded-lg mb-3"
+                    rows="2"
+                    placeholder="Enter prompt for image analysis..."
+                >Analyze this construction document and extract key information</textarea>
+                
+                <input 
+                    type="file" 
+                    id="imageUpload" 
+                    accept="image/*"
+                    multiple
+                    class="w-full p-2 border rounded-lg mb-3"
+                >
+                
+                <button 
+                    onclick="testMultimodal()" 
+                    id="multimodalBtn"
+                    class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
+                >
+                    🖼️ Test Multimodal
+                </button>
+                
+                <div id="multimodalResult" class="mt-4 p-3 bg-white rounded border hidden">
+                    <h3 class="font-semibold mb-2">Results:</h3>
+                    <pre id="multimodalOutput" class="text-sm bg-gray-100 p-2 rounded overflow-auto max-h-64"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agentic Workflow Test -->
+        <div class="mt-6 bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <h2 class="text-xl font-semibold text-purple-900 mb-4">🤖 Agentic Workflow Test</h2>
+            <textarea 
+                id="agenticPrompt" 
+                class="w-full p-3 border rounded-lg mb-3"
+                rows="3"
+                placeholder="Enter complex task for agentic workflow..."
+            >Analyze uploaded construction plans, create a comprehensive project estimate with materials and labor, generate a work schedule, create BOM, and check Croatian compliance standards</textarea>
+            
+            <input 
+                type="file" 
+                id="agenticImageUpload" 
+                accept="image/*"
+                multiple
+                class="w-full p-2 border rounded-lg mb-3"
+            >
+            
+            <button 
+                onclick="testAgenticWorkflow()" 
+                id="agenticBtn"
+                class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700"
+            >
+                🤖 Run Agentic Workflow
+            </button>
+            
+            <div id="agenticResult" class="mt-4 p-3 bg-white rounded border hidden">
+                <h3 class="font-semibold mb-2">Workflow Results:</h3>
+                <div id="agenticSummary" class="mb-3 text-sm"></div>
+                <pre id="agenticOutput" class="text-sm bg-gray-100 p-2 rounded overflow-auto max-h-64"></pre>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="mt-6 p-3 rounded-lg hidden">
+            <div id="statusText"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api/llm';
+        
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            status.className = `mt-6 p-3 rounded-lg ${type === 'error' ? 'bg-red-100 text-red-800' : type === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`;
+            statusText.textContent = message;
+            status.classList.remove('hidden');
+            
+            setTimeout(() => status.classList.add('hidden'), 5000);
+        }
+        
+        async function testToolCalling() {
+            const btn = document.getElementById('toolBtn');
+            const result = document.getElementById('toolResult');
+            const output = document.getElementById('toolOutput');
+            const prompt = document.getElementById('toolPrompt').value;
+            
+            if (!prompt.trim()) {
+                showStatus('Please enter a prompt', 'error');
+                return;
+            }
+            
+            btn.textContent = '⏳ Testing...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE}/tool-calling-test`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, enable_tools: true })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.classList.remove('hidden');
+                    output.textContent = JSON.stringify(data, null, 2);
+                    showStatus(`Tool calling completed: ${data.tool_calls_executed} tools in ${data.iterations} iterations`, 'success');
+                } else {
+                    throw new Error(data.error || 'API error');
+                }
+            } catch (error) {
+                showStatus(`Tool calling error: ${error.message}`, 'error');
+            } finally {
+                btn.textContent = '🔧 Test Tool Calling';
+                btn.disabled = false;
+            }
+        }
+        
+        async function testMultimodal() {
+            const btn = document.getElementById('multimodalBtn');
+            const result = document.getElementById('multimodalResult');
+            const output = document.getElementById('multimodalOutput');
+            const prompt = document.getElementById('multimodalPrompt').value;
+            const fileInput = document.getElementById('imageUpload');
+            
+            if (!prompt.trim()) {
+                showStatus('Please enter a prompt', 'error');
+                return;
+            }
+            
+            btn.textContent = '⏳ Processing...';
+            btn.disabled = true;
+            
+            try {
+                const images = [];
+                
+                if (fileInput.files.length > 0) {
+                    for (const file of fileInput.files) {
+                        const base64 = await fileToBase64(file);
+                        images.push({
+                            data: base64.split(',')[1],
+                            mimeType: file.type
+                        });
+                    }
+                }
+                
+                const response = await fetch(`${API_BASE}/multimodal-test`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, images })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.classList.remove('hidden');
+                    output.textContent = JSON.stringify(data, null, 2);
+                    showStatus(`Multimodal processing completed with ${images.length} images`, 'success');
+                } else {
+                    throw new Error(data.error || 'API error');
+                }
+            } catch (error) {
+                showStatus(`Multimodal error: ${error.message}`, 'error');
+            } finally {
+                btn.textContent = '🖼️ Test Multimodal';
+                btn.disabled = false;
+            }
+        }
+        
+        async function testAgenticWorkflow() {
+            const btn = document.getElementById('agenticBtn');
+            const result = document.getElementById('agenticResult');
+            const summary = document.getElementById('agenticSummary');
+            const output = document.getElementById('agenticOutput');
+            const prompt = document.getElementById('agenticPrompt').value;
+            const fileInput = document.getElementById('agenticImageUpload');
+            
+            if (!prompt.trim()) {
+                showStatus('Please enter a prompt', 'error');
+                return;
+            }
+            
+            btn.textContent = '⏳ Running Workflow...';
+            btn.disabled = true;
+            
+            try {
+                const images = [];
+                
+                if (fileInput.files.length > 0) {
+                    for (const file of fileInput.files) {
+                        const base64 = await fileToBase64(file);
+                        images.push({
+                            data: base64.split(',')[1],
+                            mimeType: file.type
+                        });
+                    }
+                }
+                
+                const response = await fetch(`${API_BASE}/agentic-workflow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, images, enable_tools: true })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.classList.remove('hidden');
+                    
+                    // Show workflow summary
+                    summary.innerHTML = `
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div class="bg-blue-100 p-2 rounded">
+                                <div class="text-lg font-bold text-blue-800">${data.iterations}</div>
+                                <div class="text-xs text-blue-600">Iterations</div>
+                            </div>
+                            <div class="bg-green-100 p-2 rounded">
+                                <div class="text-lg font-bold text-green-800">${data.tools_executed}</div>
+                                <div class="text-xs text-green-600">Tools Used</div>
+                            </div>
+                            <div class="bg-purple-100 p-2 rounded">
+                                <div class="text-lg font-bold text-purple-800">${data.images_processed}</div>
+                                <div class="text-xs text-purple-600">Images</div>
+                            </div>
+                            <div class="bg-orange-100 p-2 rounded">
+                                <div class="text-lg font-bold text-orange-800">${data.usage?.total_tokens || 0}</div>
+                                <div class="text-xs text-orange-600">Tokens</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    output.textContent = JSON.stringify(data, null, 2);
+                    showStatus(`Agentic workflow completed: ${data.tools_executed} tools in ${data.iterations} iterations`, 'success');
+                } else {
+                    throw new Error(data.error || 'API error');
+                }
+            } catch (error) {
+                showStatus(`Agentic workflow error: ${error.message}`, 'error');
+            } finally {
+                btn.textContent = '🤖 Run Agentic Workflow';
+                btn.disabled = false;
+            }
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // Show initial status
+        showStatus('Ready to test OpenAI Responses API with multimodal and tool calling capabilities!');
+    </script>
+</body>
+</html>

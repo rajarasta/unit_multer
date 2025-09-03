@@ -1,17 +1,20 @@
 {
-  "version": "5.0",
-  "exportDate": "2025-09-03T04:04:22.274Z",
+  "version": "6.0",
+  "exportDate": "2025-09-03T15:08:00.000Z",
   "meta": {
-    "schemaName": "project.unified",
-    "schemaVersion": "5.0.0"
+    "schemaName": "project.unified.dispatch",
+    "schemaVersion": "6.0.0"
   },
   "projects": [
     {
       "id": "ZErU46IjfLOOUsoxiPy1a",
-      "name": "Demo Aluminum Project",
-      "orderNo": "ORD-2024-001",
-      "client": "Demo Client d.o.o.",
+      "name": "Demo Aluminum Project - Integriran",
+      "orderNo": "ORD-2025-001",
+      "client": "Aluminum Solutions d.o.o.",
       "currency": "EUR",
+      "status": "active",
+      "startDate": "2025-01-15",
+      "endDate": "2025-06-30",
       "tasks": [],
       "positions": [
         {
@@ -305,8 +308,8 @@
           "title": "Fasadni paneli",
           "level": "",
           "zone": "",
-          "type": "Panel",
-          "qty": 4,
+          "type": "Panel", 
+          "qty": 40,
           "status": "Backlog",
           "coords": null,
           "processData": {
