@@ -7,15 +7,28 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "file-writer": "node file-writer.cjs",
+    "server": "node server.js",
+    "dev-full": "concurrently \"npm run file-server\" \"npm run dev\"",
+    "dev-with-api": "concurrently \"npm run server\" \"npm run dev\""
   },
   "dependencies": {
+    "@google/genai": "^1.16.0",
+    "@google/generative-ai": "^0.24.1",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "eslint-formatter-compact": "^8.40.0",
+    "express": "^5.1.0",
     "fast-xml-parser": "^5.2.5",
+    "formidable": "^3.5.4",
     "framer-motion": "^12.23.12",
     "fs-extra": "^11.3.1",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.539.0",
+    "multer": "^2.0.2",
+    "openai": "^5.19.1",
     "papaparse": "^5.5.3",
     "pdfjs-dist": "^5.4.54",
     "react": "^19.1.1",
@@ -38,5 +51,6 @@
     "tailwindcss": "^3.4.14",
     "typescript": "^5.9.2",
     "vite": "^7.1.2"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

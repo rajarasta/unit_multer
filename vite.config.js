@@ -13,6 +13,11 @@ export default defineConfig({
   },
   plugins: [react()],
   optimizeDeps: { include: ['pdfjs-dist'] },
+  server: {
+    proxy: {
+      "/api": "http://localhost:3001", // prosljeđuje API pozive backendu
+    },
+  },
 })
 
 
