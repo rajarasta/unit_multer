@@ -1,0 +1,1452 @@
+{
+  "version": "5.0",
+  "exportDate": "2025-09-03T04:04:22.274Z",
+  "meta": {
+    "schemaName": "project.unified",
+    "schemaVersion": "5.0.0"
+  },
+  "projects": [
+    {
+      "id": "ZErU46IjfLOOUsoxiPy1a",
+      "name": "Demo Aluminum Project",
+      "orderNo": "ORD-2024-001",
+      "client": "Demo Client d.o.o.",
+      "currency": "EUR",
+      "tasks": [],
+      "positions": [
+        {
+          "id": "PZ-01",
+          "tag": "PZ-01",
+          "title": "Glavni ulaz",
+          "level": "",
+          "zone": "",
+          "type": "Vrata",
+          "qty": 3,
+          "status": "Backlog",
+          "coords": null,
+          "processData": {
+            "comments": [],
+            "documents": [],
+            "tasks": []
+          },
+          "floorManagement": {
+            "location": null,
+            "installation": {
+              "spremno": false,
+              "montirano": false,
+              "ostakljeno": false,
+              "brtvljenje": false,
+              "dodaci": false,
+              "zavrseno": false,
+              "blokirano": false,
+              "reklamacija": false
+            }
+          },
+          "pieces": [
+            {
+              "id": 1,
+              "pieceNumber": 1,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 2,
+              "pieceNumber": 2,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 3,
+              "pieceNumber": 3,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            }
+          ],
+          "created": "2025-09-03T03:45:21.720Z",
+          "updated": "2025-09-03T03:45:21.720Z"
+        },
+        {
+          "id": "PZ-02",
+          "tag": "PZ-02",
+          "title": "Fasadni paneli",
+          "level": "",
+          "zone": "",
+          "type": "Panel",
+          "qty": 4,
+          "status": "Backlog",
+          "coords": null,
+          "processData": {
+            "comments": [],
+            "documents": [],
+            "tasks": []
+          },
+          "floorManagement": {
+            "location": null,
+            "installation": {
+              "spremno": false,
+              "montirano": false,
+              "ostakljeno": false,
+              "brtvljenje": false,
+              "dodaci": false,
+              "zavrseno": false,
+              "blokirano": false,
+              "reklamacija": false
+            }
+          },
+          "pieces": [
+            {
+              "id": 1,
+              "pieceNumber": 1,
+              "floor": "Prvi kat",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 2,
+              "pieceNumber": 2,
+              "floor": "Prvi kat",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 3,
+              "pieceNumber": 3,
+              "floor": "Prvi kat",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 4,
+              "pieceNumber": 4,
+              "floor": "Prvi kat",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            }
+          ],
+          "created": "2025-09-03T03:45:21.720Z",
+          "updated": "2025-09-03T03:45:21.720Z"
+        },
+        {
+          "id": "PZ-03",
+          "tag": "PZ-03",
+          "title": "Prozori",
+          "level": "",
+          "zone": "",
+          "type": "Prozor",
+          "qty": 6,
+          "status": "Backlog",
+          "coords": null,
+          "processData": {
+            "comments": [],
+            "documents": [],
+            "tasks": []
+          },
+          "floorManagement": {
+            "location": null,
+            "installation": {
+              "spremno": false,
+              "montirano": false,
+              "ostakljeno": false,
+              "brtvljenje": false,
+              "dodaci": false,
+              "zavrseno": false,
+              "blokirano": false,
+              "reklamacija": false
+            }
+          },
+          "pieces": [
+            {
+              "id": 1,
+              "pieceNumber": 1,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 2,
+              "pieceNumber": 2,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 3,
+              "pieceNumber": 3,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 4,
+              "pieceNumber": 4,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 5,
+              "pieceNumber": 5,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            },
+            {
+              "id": 6,
+              "pieceNumber": 6,
+              "floor": "Prizemlje",
+              "processData": {
+                "comments": [],
+                "documents": [],
+                "tasks": []
+              },
+              "montaza": {
+                "transport": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "ugradnja": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "stakljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "brtvljenje": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "dodaci": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "gotovo": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "reklamacija": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                },
+                "blokirano": {
+                  "status": false,
+                  "comments": [],
+                  "documents": [],
+                  "tasks": [],
+                  "timestamp": null
+                }
+              },
+              "legacyMontaza": {
+                "transport": false,
+                "ugradnja": false,
+                "stakljenje": false,
+                "brtvljenje": false,
+                "dodaci": false,
+                "gotovo": false,
+                "reklamacija": false,
+                "blokirano": false
+              },
+              "dimensions": null,
+              "material": null,
+              "color": null,
+              "notes": "",
+              "created": "2025-09-03T03:45:21.720Z",
+              "updated": "2025-09-03T03:45:21.720Z"
+            }
+          ],
+          "created": "2025-09-03T03:45:21.720Z",
+          "updated": "2025-09-03T03:45:21.720Z"
+        }
+      ],
+      "materials": [],
+      "agbimEntries": [
+        {
+          "id": "agbim-1756871344307",
+          "timestamp": "2025-09-03T03:49:04.307Z",
+          "type": "agbim_field_data",
+          "source": "AGBIM Field Simulator",
+          "location": {},
+          "context": {
+            "projectId": "ZErU46IjfLOOUsoxiPy1a",
+            "positionId": null,
+            "lat": null,
+            "lng": null
+          },
+          "data": {
+            "transcript": "",
+            "actionItems": [],
+            "videoFindings": [],
+            "imageAnalysis": {},
+            "audioAnalysis": {},
+            "entities": {},
+            "goriona": "ladno",
+            "chatMessage": "Dimenzija stakla: 500x600x2 mm. Stavi u komentar."
+          },
+          "attachments": [
+            {
+              "name": "audio-2025-09-03T03-48-31-146Z.webm",
+              "type": "audio/webm",
+              "size": 204953,
+              "duration": null
+            },
+            {
+              "name": "Snimka zaslona 2025-09-03 022031.png",
+              "type": "image/png",
+              "size": 155301,
+              "duration": null
+            },
+            {
+              "name": "Snimka zaslona 2025-09-03 022023.png",
+              "type": "image/png",
+              "size": 157548,
+              "duration": null
+            },
+            {
+              "name": "Snimka zaslona 2025-09-03 013240.png",
+              "type": "image/png",
+              "size": 104335,
+              "duration": null
+            },
+            {
+              "name": "Snimka zaslona 2025-09-03 013235.png",
+              "type": "image/png",
+              "size": 100545,
+              "duration": null
+            },
+            {
+              "name": "vrata_video.mp4",
+              "type": "video/mp4",
+              "size": 678376,
+              "duration": null
+            }
+          ]
+        },
+        {
+          "id": "agbim-1756871964423",
+          "timestamp": "2025-09-03T03:59:24.423Z",
+          "type": "agbim_field_data",
+          "source": "AGBIM Field Simulator",
+          "location": {},
+          "context": {
+            "projectId": "ZErU46IjfLOOUsoxiPy1a",
+            "positionId": "FZ1458A",
+            "lat": null,
+            "lng": null
+          },
+          "data": {
+            "transcript": "",
+            "actionItems": [],
+            "videoFindings": [],
+            "imageAnalysis": {},
+            "audioAnalysis": {},
+            "entities": {
+              "positionId": "FZ1458A"
+            },
+            "goriona": "ladno",
+            "chatMessage": "Treba zamjensko staklo 600x400x20 za poziciju FZ1458A."
+          },
+          "attachments": [
+            {
+              "name": "audio-2025-09-03T03-58-54-972Z.webm",
+              "type": "audio/webm",
+              "size": 288995,
+              "duration": null
+            },
+            {
+              "name": "vrata_video.mp4",
+              "type": "video/mp4",
+              "size": 678376,
+              "duration": null
+            }
+          ]
+        },
+        {
+          "id": "agbim-1756872262261",
+          "timestamp": "2025-09-03T04:04:22.261Z",
+          "type": "agbim_field_data",
+          "source": "AGBIM Field Simulator",
+          "location": {},
+          "context": {
+            "projectId": "ZErU46IjfLOOUsoxiPy1a",
+            "positionId": null,
+            "lat": null,
+            "lng": null
+          },
+          "data": {
+            "transcript": "",
+            "actionItems": [],
+            "videoFindings": [],
+            "imageAnalysis": {},
+            "audioAnalysis": {},
+            "entities": {},
+            "goriona": "ladno",
+            "chatMessage": "Treba naručiti 3 puknuta stakla za Nirs. Javiti."
+          },
+          "attachments": [
+            {
+              "name": "audio-2025-09-03T04-03-42-617Z.webm",
+              "type": "audio/webm",
+              "size": 343091,
+              "duration": null
+            },
+            {
+              "name": "Snimka zaslona 2025-09-01 220921.png",
+              "type": "image/png",
+              "size": 59293,
+              "duration": null
+            }
+          ]
+        }
+      ],
+      "history": [
+        {
+          "id": "h-1756871344312",
+          "date": "2025-09-03T03:49:04.312Z",
+          "type": "agbim",
+          "title": "AGBIM terenska analiza",
+          "details": "Dimenzija stakla: 500x600x2 mm. Stavi u komentar."
+        },
+        {
+          "id": "h-1756871964428",
+          "date": "2025-09-03T03:59:24.428Z",
+          "type": "agbim",
+          "title": "AGBIM terenska analiza",
+          "details": "Treba zamjensko staklo 600x400x20 za poziciju FZ1458A."
+        },
+        {
+          "id": "h-1756872262265",
+          "date": "2025-09-03T04:04:22.265Z",
+          "type": "agbim",
+          "title": "AGBIM terenska analiza",
+          "details": "Treba naručiti 3 puknuta stakla za Nirs. Javiti."
+        }
+      ],
+      "chat": [
+        {
+          "id": "CHAT-mf3fu56o-t426s8",
+          "timestamp": "2025-09-03T03:49:04.320Z",
+          "authorId": "agbim_system",
+          "message": "🎙️ Multimodalni zapis s terena",
+          "attachments": [
+            "audio-2025-09-03T03-48-31-146Z.webm",
+            "Snimka zaslona 2025-09-03 022031.png",
+            "Snimka zaslona 2025-09-03 022023.png",
+            "Snimka zaslona 2025-09-03 013240.png",
+            "Snimka zaslona 2025-09-03 013235.png",
+            "vrata_video.mp4"
+          ],
+          "agbimProcessing": {
+            "jobId": "agbim-1756871344307",
+            "goriona": "ladno",
+            "aiFindings": {
+              "transcript": "",
+              "summary": "Dimenzija stakla: 500x600x2 mm. Stavi u komentar.",
+              "actionItems": [],
+              "risks": [],
+              "imageFindings": [],
+              "videoFindings": [],
+              "entities": {}
+            }
+          }
+        },
+        {
+          "id": "CHAT-mf3g7fo5-7mt3tc",
+          "timestamp": "2025-09-03T03:59:24.437Z",
+          "authorId": "agbim_system",
+          "message": "🎙️ Multimodalni zapis s terena",
+          "attachments": [
+            "audio-2025-09-03T03-58-54-972Z.webm",
+            "vrata_video.mp4"
+          ],
+          "agbimProcessing": {
+            "jobId": "agbim-1756871964423",
+            "goriona": "ladno",
+            "aiFindings": {
+              "transcript": "",
+              "summary": "Treba zamjensko staklo 600x400x20 za poziciju FZ1458A.",
+              "actionItems": [],
+              "risks": [],
+              "imageFindings": [],
+              "videoFindings": [],
+              "entities": {
+                "positionId": "FZ1458A"
+              }
+            }
+          }
+        },
+        {
+          "id": "CHAT-mf3gdthe-kubugw",
+          "timestamp": "2025-09-03T04:04:22.274Z",
+          "authorId": "agbim_system",
+          "message": "🎙️ Multimodalni zapis s terena",
+          "attachments": [
+            "audio-2025-09-03T04-03-42-617Z.webm",
+            "Snimka zaslona 2025-09-01 220921.png"
+          ],
+          "agbimProcessing": {
+            "jobId": "agbim-1756872262261",
+            "goriona": "ladno",
+            "aiFindings": {
+              "transcript": "",
+              "summary": "Treba naručiti 3 puknuta stakla za Nirs. Javiti.",
+              "actionItems": [],
+              "risks": [],
+              "imageFindings": [],
+              "videoFindings": [],
+              "entities": {}
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "activeProjectId": "ZErU46IjfLOOUsoxiPy1a"
+}
