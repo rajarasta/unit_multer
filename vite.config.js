@@ -15,7 +15,11 @@ export default defineConfig({
   optimizeDeps: { include: ['pdfjs-dist'] },
   server: {
     proxy: {
-      "/api": "http://localhost:3001", // prosljeđuje API pozive backendu
+      "/api": {
+        target: "http://localhost:3000", // Voice server port
+        changeOrigin: true,
+        secure: false
+      }
     },
   },
 })

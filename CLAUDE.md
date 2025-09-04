@@ -1,26 +1,56 @@
-# CLAUDE.md - Aluminum Store UI Development Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-React 19 + Vite + Tailwind CSS aluminum fabrication management dashboard with modular tab-based architecture.
+React 19 + Vite + Tailwind CSS aluminum fabrication management dashboard with modular tab-based architecture and comprehensive AI integrations.
 
-**Commands:** `npm run dev` | `npm run build` | `npm run lint` | `npm run preview`
+**Commands:** `npm run dev` | `npm run build` | `npm run lint` | `npm run preview` | `npm run file-writer` | `npm run server`
 
-## Architecture
-**Core:** `src/App.jsx` (router) | `src/components/layout/MainLayout.jsx` (layout) | `src/store/useProjectStore.js` (Zustand)
-**Tabs:** All in `src/components/tabs/` - MaterialsGrid, GanttChart, InvoiceProcessing, FloorManagement, ProjectView, etc.
-**Stack:** React 19, Vite, Tailwind v4, Zustand, fast-xml-parser, pdfjs-dist, tesseract.js, Framer Motion, Lucide React
+## Architecture Overview
 
-## Code Style & Conventions
-- Lazy loading: `React.lazy()` for all tab components
-- Functional components with hooks only
-- PascalCase components, camelCase utilities
-- **NO COMMENTS** unless explicitly requested
-- Props drilling through MainLayout for navigation
+### Core Application Structure
+- **Entry Point:** `src/main.jsx` → `src/App.jsx` (main router with lazy-loaded tabs)
+- **Layout System:** `src/components/layout/MainLayout.jsx` (sidebar + content wrapper)
+- **State Management:** `src/store/useProjectStore.js` (Zustand) + `src/store/useUserStore.js` (auth)
+- **Tab Architecture:** All modules in `src/components/tabs/` with React.lazy() loading
+- **Backend Services:** Two-tier system - `file-writer.cjs` (port 3001) + `server.js` (port 3002)
 
-## 🚨 CRITICAL BUG FIXES & STYLING GUIDE
+### Tech Stack
+- **Frontend:** React 19, Vite 7.1.2, Tailwind CSS 3.4.14
+- **State:** Zustand 5.0.8, Context providers for complex state
+- **Animations:** Framer Motion 12.23.12 with AnimatePresence
+- **AI Integration:** 
+  - `@google/genai` 1.16.0 (primary - Gemini)
+  - OpenAI SDK 5.19.1 (Whisper + GPT)
+- **Document Processing:** PDF.js 5.4.54, Tesseract.js 6.0.1, fast-xml-parser 5.2.5
+- **File Handling:** xlsx 0.18.5, multer 2.0.2, formidable 3.5.4
 
-### TypeScript → JavaScript Migration (PRIORITY #1)
-**PROBLEM:** TypeScript syntax in `.jsx` files = guaranteed build failure
+### Key Architecture Patterns
+
+#### Tab-Based Modular System
+```javascript
+// All tabs lazy-loaded in App.jsx
+const InvoiceProcessing = lazy(() => import('./components/tabs/InvoiceProcessing'));
+// Router switch in renderContent() maps activeTab to components
+// Each tab wrapped in TabErrorBoundary for isolation
+```
+
+#### Multi-Backend Architecture
+1. **file-writer.cjs (port 3001):** File persistence + OpenAI integration
+2. **server.js (port 3002):** Document registry + advanced AI routing
+3. **Vite proxy:** `/api` routes to localhost:3001
+
+#### AI Integration Layers
+- **Google Gemini:** `src/services/CloudLLMService.js` (Croatian document processing)
+- **OpenAI:** `server.js` + `file-writer.cjs` (Whisper + GPT-4o-mini)
+- **LM Studio:** `src/services/aiIntegrationService.js` (local LLM with 20+ parameters)
+- **OpenWebUI:** RAG system integration via `aiIntegrationService.js`
+
+## Code Style & Critical Conventions
+
+### TypeScript → JavaScript Migration (CRITICAL)
+**This codebase is JavaScript-only.** TypeScript syntax in `.jsx` files causes build failures:
 
 ```javascript
 // ❌ FATAL ERRORS - Remove immediately:
@@ -36,7 +66,38 @@ const position = mouseEvent.target;
 };
 ```
 
-**Error Detection:**
+### Component Conventions
+- **Functional components only** with hooks
+- **PascalCase components:** `InvoiceProcessor2`
+- **camelCase utilities:** `parseLogikalXml`
+- **NO COMMENTS** unless explicitly requested
+- **Lazy loading mandatory** for all tab components
+- **Error boundaries:** TabErrorBoundary wraps each tab
+
+### Event System Architecture
+```javascript
+// Cross-tab communication via window events
+window.addEventListener('switchToTab', handleTabSwitch);
+window.addEventListener('media-ai:switch-to-chat', handleMediaAISwitchToChat);
+window.addEventListener('media-ai:post-to-chat', handlePostToChat);
+```
+
+## Development Workflow
+
+### Command Usage
+```bash
+npm run dev              # Vite dev server (port 5186)
+npm run build            # Production build
+npm run lint             # ESLint check
+npm run preview          # Preview production build
+
+# Backend Services
+npm run file-writer      # File persistence + OpenAI (port 3001)
+npm run server          # Document registry + AI routing (port 3002)
+npm run dev-full        # All services concurrently
+```
+
+### Error Detection Patterns
 ```bash
 npm run dev
 # Pattern A: "Missing semicolon" → Remove 'as const'
@@ -44,72 +105,54 @@ npm run dev
 # Pattern C: "ReferenceError: Type is not defined" → Remove type annotations
 ```
 
-### Hover System Implementation (PRIORITY #2)
-**Multi-level hover with precise UX control:**
+### Large File Handling
+```bash
+# Strategic reading for 4000+ line files
+Read file.jsx offset:1000 limit:200
 
+# Pattern searching
+Grep "useState<" --type js glob:"**/*.jsx"
+Grep "as const" --type js glob:"**/PlannerGantt/*.jsx"
+
+# Always run build after changes
+npm run dev # Must succeed before proceeding
+```
+
+## Critical Bug Patterns & Solutions
+
+### localStorage Quota Management
+**Problem:** QuotaExceededError when storing large AGBIM data
+**Solution:** Lightweight caching with size monitoring
 ```javascript
-// Master state pattern
+// AgbimDataService.js pattern
+const lightData = {
+  version: data.version,
+  projectCount: data.projects?.length || 0,
+  recentChats: data.projects?.map(p => ({
+    recentMessages: (p.chat || []).slice(-10) // Only last 10
+  }))
+};
+```
+
+### Hover System Implementation
+**Multi-level hover with precise UX control:**
+```javascript
 const [hoveredTask, setHoveredTask] = useState(null);
 const [hoverLevel, setHoverLevel] = useState(0); // 0=none, 1=small, 2=large
-const [isHoverExpanded, setIsHoverExpanded] = useState(false);
 const hoverLeaveTimerRef = useRef(null);
 
-const clearHoverTimer = useCallback(() => {
-  if (hoverLeaveTimerRef.current) {
-    clearTimeout(hoverLeaveTimerRef.current);
-    hoverLeaveTimerRef.current = null;
-  }
-}, []);
-
-// Task bar interaction
-const handleTaskHover = useCallback((task, element) => {
-  clearHoverTimer();
-  const rect = element.getBoundingClientRect();
-  setHoveredTask({ ...task, position: { x: rect.right + 10, y: rect.top } });
-  setHoverLevel(1);
-  setIsHoverExpanded(false);
-}, [clearHoverTimer]);
-
-const handleTaskLeave = useCallback(() => {
-  if (hoverLevel === 1) {
-    clearHoverTimer();
-    hoverLeaveTimerRef.current = setTimeout(() => {
-      if (hoverLevel === 1) {
-        setHoveredTask(null);
-        setHoverLevel(0);
-        setIsHoverExpanded(false);
-      }
-    }, 200); // 200ms = psychological sweet spot
-  }
-}, [hoverLevel, clearHoverTimer]);
+// 200ms delay = psychologically optimal
+hoverLeaveTimerRef.current = setTimeout(() => {
+  setHoveredTask(null);
+}, 200);
 ```
 
-**Critical CSS for hover cards:**
-```javascript
-const cardStyle = {
-  position: 'absolute',
-  zIndex: 20,
-  pointerEvents: 'auto', // CRITICAL: Must allow interaction
-  left: position.x,
-  top: position.y,
-};
-
-// ❌ BUGS to avoid:
-// fixed inset-0 z-10 pointer-events-none (covers screen)
-// pointer-events: 'none' (blocks interaction)
-```
-
-### State Management Anti-Patterns
+### useEffect Anti-Patterns
 ```javascript
 // ❌ DANGEROUS - Infinite loops:
 useEffect(() => {
   setHoverLevel(hoverLevel + 1); // Triggers self!
 }, [hoverLevel]);
-
-// ❌ DANGEROUS - Missing dependencies:
-useEffect(() => {
-  updatePosition(hoveredTask);
-}, []); // Missing hoveredTask!
 
 // ✅ CORRECT:
 useEffect(() => {
@@ -119,9 +162,9 @@ useEffect(() => {
 }, [condition]); // Don't depend on state you're updating
 ```
 
-### Framer Motion Animation Patterns
+### Framer Motion Patterns
 ```javascript
-// Horizontal expansion pattern
+// Standard horizontal expansion
 <motion.div
   initial={{ opacity: 0, width: 0 }}
   animate={{ opacity: 1, width: 320 }}
@@ -129,7 +172,7 @@ useEffect(() => {
   transition={{ duration: 0.3, ease: "easeInOut" }}
 >
 
-// Ensure unique keys for AnimatePresence
+// CRITICAL: Unique keys for AnimatePresence
 <AnimatePresence>
   {items.map(item => (
     <motion.div key={item.id} {...animations}>
@@ -139,35 +182,159 @@ useEffect(() => {
 </AnimatePresence>
 ```
 
-### Large File Refactoring Workflow
-```bash
-# 1. Read strategically (4000+ line files)
-Read file.jsx offset:1000 limit:200
+## AI Integration Architecture
 
-# 2. Pattern searching
-Grep "useState<" --type js glob:"**/*.jsx"
-Grep "as const" --type js glob:"**/PlannerGantt/*.jsx"
+### Google Gemini (Primary)
+```javascript
+// NEW SDK: @google/genai v1.16.0
+import { GoogleGenAI } from '@google/genai';
+const ai = new GoogleGenAI({ apiKey: apiKey }); // Object initialization
 
-# 3. Bulk operations
-sed -i 's/as const//g' file.jsx
-sed -i '/^interface /,/^}/d' file.jsx
-
-# 4. Progressive approach
-# Fix → Test → Commit → Next error
-npm run dev # Must succeed before proceeding
+// Schema format changed
+// OLD: Type.STRING (enum) → NEW: "STRING" (string)
+const schema = { type: "STRING" };
 ```
 
-### Performance & Memory Management
-```javascript
-// Memory leak prevention
-useEffect(() => {
-  return () => clearHoverTimer(); // Cleanup timers
-}, [clearHoverTimer]);
+**Setup Requirements:**
+1. `npm install @google/genai@^1.16.0`
+2. Add `VITE_GOOGLE_AI_API_KEY` to `.env`
+3. Remove old `@google/generative-ai` imports
+4. Update all schemas: `Type.STRING` → `"STRING"`
 
-// Re-render optimization
-const memoizedComponent = useCallback((task, element) => {
-  // Logic here
-}, [dependencies]); // List ALL dependencies
+**Croatian Document Processing:**
+- Service: `src/services/CloudLLMService.js`
+- Optimized for HR accounting documents
+- 3-stage JSON parsing with fallback recovery
+- Multi-modal support: PDF, JPEG, PNG with base64 processing
+
+### OpenAI Integration (Secondary)
+**Dual Server Architecture:**
+- `file-writer.cjs`: Draft/Confirm workflow with Whisper transcription
+- `server.js`: Advanced document registry + smart routing
+
+**Key Endpoints:**
+```javascript
+POST /api/llm/draft      # Initial voice command processing
+POST /api/llm/confirm    # Finalization with execution plan
+POST /api/transcribe     # Whisper audio → text
+POST /api/agent/smart-document  # Two-stage doc processing
+```
+
+### Document Registry System
+**Auto-discovery from `src/backend/Računi/`:**
+```javascript
+const documentRegistry = new DocumentRegistry();
+// Scans: pdf, jpg, jpeg, png, doc, docx, xls, xlsx, txt
+// Generates search terms + metadata
+// LLM-powered document matching
+```
+
+### Legacy AI Systems
+- **OpenWebUI** (localhost:8080): RAG document processing
+- **LM Studio** (10.39.35.136:1234): Local LLM with manual model selection
+- **Service:** `src/services/aiIntegrationService.js`
+- **4 Modes:** Vision, Spatial, OpenWebUI, Direct LLM
+
+## Major Application Modules
+
+### Invoice Processing System
+**Three implementations:** InvoiceProcessing, InvoiceProcessor2, InvoiceProcessorV2Simple
+- **Google Gemini AI:** Croatian prompt optimization
+- **Two-view system:** Upload → Analysis transition
+- **Multi-format export:** Excel, JSON, CSV
+- **Inline editing:** EditableField components
+- **Debug panels:** JSON viewer with toggles
+
+### Floor Management (`/floorplan`)
+- **Drag & Drop:** Interactive position placement
+- **Multi-floor support:** Razina management
+- **Installation tracking:** spremno → završeno states
+- **Real-time updates:** Cross-component synchronization
+
+### Gantt Planning (`/gantt`, `/employogram`)
+- **PlannerGantt + PlannerGanttV2:** Dual implementations
+- **3-level hierarchy:** Position → Piece → Subprocess
+- **Interactive charts:** Drag & drop scheduling
+- **Resource management:** Assignee tracking
+
+### Chat & Communication (`/chat`)
+- **AGBIM integration:** Field simulator messages
+- **Layout:** Text left, attachments right
+- **Goriona urgency system:** 8-level Croatian idiom scale
+- **Real-time sync:** Cross-tab event communication
+
+### User Management (`/users`)
+- **Role-based access:** Admin, Manager, Worker
+- **Authentication:** useUserStore with localStorage persistence
+- **Profile settings:** Modal-based user preferences
+
+## File Organization
+```
+src/
+├── App.jsx                    # Main router with lazy loading
+├── components/
+│   ├── layout/
+│   │   ├── MainLayout.jsx     # Sidebar + content wrapper
+│   │   └── Sidebar.jsx        # Navigation component
+│   ├── tabs/                  # All application modules
+│   │   ├── InvoiceProcessing/ # Google AI document processing
+│   │   ├── FloorManagement/   # Interactive floor plans
+│   │   ├── PlannerGantt/      # Gantt chart implementations
+│   │   ├── Chat/              # AGBIM communication hub
+│   │   ├── LLMServerManager/  # AI server management
+│   │   └── ...                # Other specialized modules
+│   ├── auth/                  # Authentication components
+│   ├── ErrorBoundary.jsx      # Global error handling
+│   └── TabErrorBoundary.jsx   # Tab-specific error isolation
+├── services/
+│   ├── CloudLLMService.js     # Google Gemini integration
+│   ├── ProjectDataService.js  # Project CRUD operations
+│   ├── AgbimDataService.js    # AGBIM field data + localStorage management
+│   ├── aiIntegrationService.js # Multi-AI system integration
+│   └── ...
+├── store/
+│   ├── useProjectStore.js     # Main Zustand store
+│   └── useUserStore.js        # Authentication store
+├── constants/
+│   └── navigation.js          # Sidebar navigation configuration
+└── utils/
+    ├── parseLogikalXml.js     # XML parsing utilities
+    └── agentHelpers.js        # AI helper functions
+```
+
+## Development Environment Setup
+
+### Prerequisites
+- **Node.js** ≥ 18.0.0 (React 19 requirement)
+- **npm** or **yarn**
+- **Environment variables:**
+```env
+VITE_GOOGLE_AI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
+VITE_LM_STUDIO_URL=http://10.39.35.136:1234
+VITE_OPENWEBUI_URL=http://localhost:8080
+```
+
+### Common Issues & Solutions
+
+#### Server Crashes
+1. Check Node.js version ≥18
+2. `rm -rf node_modules .vite package-lock.json && npm install`
+3. Kill processes: `taskkill /f /im node.exe` (Windows)
+4. Port conflicts: `npm run dev --port 3001`
+
+#### HMR Issues
+1. Check file path casing (Windows sensitivity)
+2. Verify export/import syntax consistency
+3. Restart dev server if state corrupted
+4. Check for circular dependencies in imports
+
+#### Memory Management
+```javascript
+// Cleanup patterns
+useEffect(() => {
+  return () => clearHoverTimer(); // Always cleanup timers
+}, [clearHoverTimer]);
 
 // Performance monitoring
 if (process.env.NODE_ENV === 'development') {
@@ -175,376 +342,19 @@ if (process.env.NODE_ENV === 'development') {
 }
 ```
 
-## Development Environment Fixes
-
-### Server Crashes
-1. Check Node.js ≥18 for React 19
-2. `rm -rf node_modules .vite package-lock.json && npm install`
-3. Kill processes: `taskkill /f /im node.exe` (Windows)
-4. Port conflicts: `npm run dev --port 3001`
-
-### HMR Issues
-1. Check file path casing (Windows)
-2. Verify export/import syntax
-3. Restart dev server if state corrupted
-4. Check for circular dependencies
-
-### Context Window Management
-1. Use `Read file.jsx offset:X limit:Y` for large files
-2. `Grep` for patterns instead of full reads
-3. `MultiEdit` for multiple operations
-4. Line-targeted editing with IDE numbers
-
-## Common Error Patterns
-
-### JSX Syntax
-- Systematic tag matching verification
-- Orphaned `<AnimatePresence>` tags
-- Improper nesting (`<div>` inside `<p>`)
-- Fragment usage (`<>` vs `<React.Fragment>`)
-
-### State Synchronization
-- Scattered useState → unified objects
-- Prop drilling → Zustand store
-- Direct mutations → immutable updates
-- Race conditions → proper dependencies
-
-### Animation Conflicts
-- Missing `key` props on animated components
-- Conflicting CSS transitions with Framer Motion
-- Layout prop for smooth transitions
-- Proper AnimatePresence exit handling
-
-## Tailwind Responsive Patterns
-```css
-/* Mobile-first approach */
-.class {
-  @apply text-sm p-2;          /* Base: mobile */
-  @apply sm:text-base sm:p-3;  /* ≥640px */
-  @apply md:text-lg md:p-4;    /* ≥768px */
-  @apply lg:text-xl lg:p-5;    /* ≥1024px */
-  @apply xl:text-2xl xl:p-6;   /* ≥1280px */
-}
-
-/* Debug breakpoints */
-<div className="bg-red-500 sm:bg-green-500 md:bg-blue-500 lg:bg-yellow-500 xl:bg-purple-500">
-  Breakpoint indicator
-</div>
-```
-
-## AI Integration Architecture
-
-### Google Cloud AI Integration (PRIMARY)
-- **Service:** `src/services/CloudLLMService.js`
-- **SDK:** `@google/genai` v1.16.0 (NEW - migrated from `@google/generative-ai`)
-- **Models:** Gemini 1.5 Pro, Gemini 2.0 Flash (experimental)
-- **API Key:** Set `VITE_GOOGLE_AI_API_KEY` in `.env`
-- **Components:** InvoiceProcessor2 (`src/components/tabs/InvoiceProcessor2/`)
-
-#### Critical Migration Details (2025-09-02)
-```javascript
-// OLD SDK (deprecated)
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// NEW SDK (current)
-import { GoogleGenAI, Type } from '@google/genai';
-
-// Initialization Change
-// OLD: const ai = new GoogleGenerativeAI(apiKey);
-// NEW: const ai = new GoogleGenAI({ apiKey: apiKey });
-
-// Schema Definition Change  
-// OLD: Type.STRING (enum-based)
-// NEW: "STRING" (string-based)
-
-// API Call Structure Change
-const result = await ai.models.generateContent({
-  model: model,
-  contents: parts,
-  config: {
-    generationConfig: generationConfig
-  }
-});
-
-// Response Access Change
-// OLD: response.text()  
-// NEW: response.text
-```
-
-#### Robust JSON Parsing Strategy
-```javascript
-// Multi-stage JSON cleaning and parsing
-cleanedText = cleanedText
-  .replace(/^```(?:json)?\s*\n?/gm, '')  // Remove markdown
-  .replace(/\n?```\s*$/gm, '')
-  .replace(/,(\s*[}\]])/g, '$1')         // Trailing commas
-  .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":') // Quote keys
-  .replace(/:\s*'([^']*)'/g, ': "$1"')   // Single to double quotes
-  .trim();
-
-// Fallback extraction between { and }
-const firstBrace = responseText.indexOf('{');
-const lastBrace = responseText.lastIndexOf('}');
-```
-
-#### Document Processing Features
-- **Croatian Prompts:** Optimized for HR accounting documents  
-- **Schema Enforcement:** Structured JSON output with Type validation
-- **File Handling:** Inline base64 processing (File API temporarily disabled)
-- **Error Recovery:** 3-stage parsing with fallback strategies
-- **Document Types:** PDF, JPEG, PNG support
-
-#### InvoiceProcessor2 Component Architecture
-```javascript
-// Two-view system (like original InvoiceProcessing)
-const [currentView, setCurrentView] = useState('upload'); // 'upload' or 'analysis'
-
-// Upload View - Full screen drag & drop
-{currentView === 'upload' ? (
-  <div className="h-full border-dashed border-gray-300 rounded-xl">
-    <Upload /> // Large central upload zone
-  </div>
-) : (
-  <div className="flex">
-    <Sidebar /> // Document list (width: 320px)  
-    <MainContent /> // Analysis results
-  </div>
-)}
-```
-
-#### Integrated Features (from InvoiceProcessing)
-- **✅ Data Editing:** EditableField component with inline editing
-- **✅ Export Options:** Excel (.xlsx) + JSON export
-- **✅ Database Save:** "Potvrdi sve" button with mock database integration  
-- **✅ Debug Panel:** JSON viewer with toggle
-- **✅ Responsive Layout:** Upload → Analysis view transition
-- **✅ Error Handling:** Multi-stage JSON parsing recovery
-
-#### Header Controls by View
-```javascript
-// Upload View Header
-<button>Dodaj datoteke</button> + <ModelSelector />
-
-// Analysis View Header  
-<button>← Nazad na upload</button> + <button>Analiziraj sve</button> + 
-<button>Uredi podatke</button> + <button>Debug</button> + <ModelSelector />
-```
-
-#### Critical Setup Instructions
-1. **Install new SDK:** `npm install @google/genai@^1.16.0`
-2. **Environment variable:** Add `VITE_GOOGLE_AI_API_KEY=your_api_key` to `.env`
-3. **Migration checklist:** Remove old `@google/generative-ai` imports
-4. **Schema updates:** Convert Type.STRING → "STRING" in all schemas
-5. **API calls:** Update initialization to object syntax `{ apiKey }`
-
-#### Common Issues & Solutions
-- **"Expected property name" JSON error:** Enhanced cleaning in CloudLLMService.js handles this
-- **"API Key must be set" error:** Use object initialization `new GoogleGenAI({ apiKey })`
-- **File upload undefined mimeType:** File API disabled, using inline base64 instead
-- **Incomplete JSON responses:** Automatic brace completion and structure repair
-- **View switching:** Auto-transition from upload to analysis on file add
-
-### Legacy AI Systems (SECONDARY)
-- **OpenWebUI** (`localhost:8080`) - RAG system
-- **LM Studio** (`10.39.35.136:1234`) - Direct LLM
-- **Service:** `src/services/aiIntegrationService.js`
-- 4 modes: Vision, Spatial, OpenWebUI, Direct
-- Manual model selection (no automatic fallbacks)
-- 20+ LM Studio parameters with UI controls
-- JSON parsing resilience with multi-strategy fallbacks
-- Chunk processing for OOM prevention
+## Context Window Management
+1. Use `Read file.jsx offset:X limit:Y` for files >4000 lines
+2. `Grep` for patterns instead of full file reads
+3. `MultiEdit` for bulk operations
+4. Line-targeted editing with IDE line numbers
 
 ## Emergency Recovery
 **Code Corruption:**
 1. `git revert` to last working commit
 2. Apply changes incrementally
 3. Use IDE local history
-4. Keep dev server running for early error detection
+4. Keep `npm run dev` running for early error detection
 
-**Critical Debugging:**
-```javascript
-// Debugging state
-const debugState = () => {
-  console.group('🐛 Debug State');
-  console.log('Level:', hoverLevel);
-  console.log('Task:', hoveredTask?.name || 'none');
-  console.log('Timer:', !!timerRef.current);
-  console.groupEnd();
-};
+**Always verify builds succeed before committing changes.**
 
-// Safe logging
-if (process.env.NODE_ENV === 'development') {
-  debugState();
-}
-```
-
-**File Organization:** Follow `src/components/tabs/` structure, PascalCase components, consistent exports.
-
-This guide prioritizes fixing build failures, implementing stable hover systems, and maintaining clean performance-optimized code.
-
----
-
-# 🎯 SESSION LOG: 2025-09-03 - AGBIM Chat Integration & Storage Crisis Resolution
-
-## Overview
-Massive development session implementing complete AGBIM field data → Chat display pipeline with critical localStorage crisis resolution. Successfully delivered text-left/attachments-right UI layout with goriona urgency integration.
-
-## 🔥 Critical Problems Faced & Solutions
-
-### Problem #1: Chat Tab Missing AGBIM Message Display
-**Issue:** Chat tab couldn't display new AGBIM field recordings properly
-- AGBIM messages had complex `agbimProcessing` structure with AI findings
-- User requirement: "tekst pokazuje lijevo, dokumenti/slike... desno"
-- Needed goriona urgency level integration with color coding
-
-**Solution Implemented:**
-- Created `AgbimCard` component for left-side text display (transcript/summary)
-- Created `AgbimAttachmentsCard` component for right-side file attachments  
-- Enhanced `groupItemsIntoRows()` logic to handle AGBIM text/attachment pairs
-- Added `agbim_result` and `agbim_attachments` types with gradient timeline dots
-- Integrated goriona color coding from "ladno" (blue) to "ako sad ne zaliješ zapalit će se" (red)
-
-### Problem #2: localStorage Quota Exceeded Crisis ⚠️
-**Issue:** `QuotaExceededError: Setting the value of 'agbim_data_cache' exceeded the quota`
-- System storing entire agbim.json (1400+ lines) in localStorage as backup
-- Multiple AGBIM entries with base64 audio/images causing massive size growth
-- Browser localStorage limit (~5-10MB) exceeded, blocking all saves
-
-**Root Cause Analysis:**
-```javascript
-// PROBLEM CODE (AgbimDataService.js:92)
-localStorage.setItem('agbim_data_cache', JSON.stringify(data)); // 8MB+ data!
-```
-
-**Solution Strategy:**
-1. **Immediate Cleanup:** Added `performStartupCleanup()` to clear oversized cache (>1MB)
-2. **Smart Storage:** Replaced full data caching with `saveToLocalStorageSafely()` lightweight summaries
-3. **Primary Source:** Made file-writer API primary, localStorage secondary
-4. **Size Monitoring:** Added quota checking before localStorage writes
-
-```javascript
-// SOLUTION CODE
-const lightData = {
-  version: data.version,
-  lastUpdated: new Date().toISOString(),
-  projectCount: data.projects?.length || 0,
-  chatCount: data.projects?.reduce((total, p) => total + (p.chat?.length || 0), 0) || 0,
-  recentChats: data.projects?.map(p => ({
-    id: p.id,
-    name: p.name,
-    recentMessages: (p.chat || []).slice(-10) // Only last 10 messages
-  })) || []
-};
-```
-
-### Problem #3: Google Cloud AI SDK Migration Issues
-**Issue:** Outdated SDK causing schema definition failures
-- Old `@google/generative-ai` deprecated → New `@google/genai` v1.16.0
-- Schema syntax changed from `Type.STRING` (enum) → `"STRING"` (string)
-- API initialization syntax updated to object format
-
-**Migration Path:**
-```javascript
-// OLD SDK (broken)
-import { GoogleGenerativeAI, Type } from '@google/generative-ai';
-const ai = new GoogleGenerativeAI(apiKey);
-const schema = { type: Type.STRING };
-
-// NEW SDK (working)
-import { GoogleGenAI } from '@google/genai';  
-const ai = new GoogleGenAI({ apiKey: apiKey });
-const schema = { type: "STRING" };
-```
-
-**Croatian Prompt Optimization:**
-- Enhanced document processing for HR accounting documents
-- Robust JSON parsing with 3-stage cleaning/fallback system
-- Multi-modal support: PDF, JPEG, PNG with inline base64 processing
-
-### Problem #4: Backend Communication Architecture Issues
-**Issue:** No actual file persistence - only localStorage simulation
-- `agbim.json` not being updated despite UI showing "saved to backend"
-- Chat not receiving new AGBIM messages from field simulator
-- Missing event-driven cross-tab communication
-
-**Solution Architecture:**
-1. **File-Writer Service:** Created `file-writer.cjs` Express server on port 3001
-2. **API Pipeline:** AGBIM Field Simulator → PUT `/api/save-agbim` → `agbim.json`
-3. **Event System:** Cross-tab `media-ai:post-to-chat` events for real-time updates
-4. **Data Flow:** ProjectDataService ↔ AgbimDataService ↔ File System
-
-```javascript
-// Backend Integration (file-writer.cjs)
-app.put('/api/save-agbim', async (req, res) => {
-  const data = req.body;
-  const filePath = path.join(__dirname, 'src', 'backend', 'agbim.json');
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-  console.log(`📊 Projects: ${data.projects?.length || 0}, Tasks: ${data.tasks?.length || 0}`);
-});
-```
-
-## 🎨 New Features Delivered
-
-### 1. AGBIM Chat Display System
-- **Left Side:** AI analysis text, transcripts, summaries, goriona urgency badges
-- **Right Side:** Audio recordings, images, documents with type detection
-- **Timeline Integration:** Linked pairs with gradient timeline dots
-- **Expandable Attachments:** File lists with download functionality
-
-### 2. Goriona Urgency System Integration  
-```javascript
-const gorioniColors = {
-  'ladno': 'bg-blue-100 text-blue-800 border-blue-200',
-  'lagana vatra': 'bg-yellow-100 text-yellow-800 border-yellow-200', 
-  'krčka se': 'bg-orange-100 text-orange-800 border-orange-200',
-  'nestalo plina': 'bg-red-100 text-red-800 border-red-200',
-  'nestalo struje': 'bg-red-200 text-red-900 border-red-300',
-  'izgorilo': 'bg-red-300 text-red-900 border-red-400',
-  'svaki čas će se zapalit': 'bg-red-400 text-white border-red-500',
-  'ako sad ne zaliješ zapalit će se': 'bg-red-600 text-white border-red-700'
-};
-```
-
-### 3. Intelligent Storage Management
-- **Startup Cleanup:** Automatic removal of oversized localStorage entries
-- **Size Monitoring:** Pre-write quota checking with graceful degradation  
-- **Summary Caching:** Lightweight metadata instead of full datasets
-- **Fallback Hierarchy:** File → localStorage cache → empty structure
-
-### 4. Complete AGBIM Pipeline
-**End-to-End Flow:**
-1. AGBIM Field Simulator captures audio + images
-2. Google Gemini AI processes with Croatian prompts
-3. AgbimDataService saves to agbim.json via file-writer API
-4. Chat component displays with proper text/attachment layout
-5. Real-time updates via event system
-
-## 📊 Technical Metrics
-- **Files Modified:** 5 core files (Chat, AgbimDataService, goriona utils)  
-- **Storage Optimization:** From 8MB+ localStorage to <100KB summaries
-- **API Calls:** 12+ successful agbim.json updates during session
-- **Error Resolution:** 100% localStorage quota errors eliminated
-- **Features Delivered:** Complete AGBIM message display as requested
-
-## 🔧 Commands & Services
-```bash
-# Development Stack (All Running Concurrently)
-npm run dev              # Vite dev server (port 5186)
-npm run file-writer      # Backend persistence (port 3001) 
-npm run file-server      # Alternative file service
-
-# Storage Cleanup
-# Automatic on AgbimDataService instantiation
-# Manual: localStorage.clear() in browser console
-```
-
-## 🏆 Session Success Metrics
-- ✅ AGBIM messages display properly: text left, attachments right
-- ✅ localStorage quota crisis completely resolved  
-- ✅ Google Cloud AI SDK migration successful
-- ✅ Backend file persistence confirmed working
-- ✅ Goriona urgency system fully integrated
-- ✅ Real-time cross-tab communication established  
-- ✅ All changes committed and pushed to repository
-
-**End Result:** Robust, scalable AGBIM field data → Chat display system with intelligent storage management and full Croatian idiom integration.
+This guide prioritizes fixing build failures, implementing stable systems, and maintaining clean, performant code with comprehensive AI integration capabilities.

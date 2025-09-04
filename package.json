@@ -10,8 +10,10 @@
     "preview": "vite preview",
     "file-writer": "node file-writer.cjs",
     "server": "node server.js",
+    "voice-server": "node voice-server.cjs",
     "dev-full": "concurrently \"npm run file-server\" \"npm run dev\"",
-    "dev-with-api": "concurrently \"npm run server\" \"npm run dev\""
+    "dev-with-api": "concurrently \"npm run server\" \"npm run dev\"",
+    "dev-voice": "concurrently \"npm run voice-server\" \"npm run dev\""
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
@@ -27,13 +29,16 @@
     "fs-extra": "^11.3.1",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.539.0",
+    "mime-types": "^3.0.1",
     "multer": "^2.0.2",
     "openai": "^5.19.1",
     "papaparse": "^5.5.3",
+    "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.4.54",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tesseract.js": "^6.0.1",
+    "uuid": "^11.1.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.8"
   },

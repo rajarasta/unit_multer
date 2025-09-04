@@ -62,6 +62,9 @@ const TaskHub = lazy(() => import('./components/tabs/TaskHub'));
 const DispatchTab = lazy(() => import('./components/tabs/DispatchTab'));
 const AccountingTab = lazy(() => import('./components/tabs/AccountingTab'));
 const VoiceTab = lazy(() => import('./components/tabs/VoiceTab'));
+const AIAgentGuide = lazy(() => import('./components/tabs/AIAgentGuide'));
+const VoiceAgentHR = lazy(() => import('./components/tabs/VoiceAgentHR'));
+const VoiceHRV2 = lazy(() => import('./components/tabs/VoiceHRV2'));
 
 
 // Loading component
@@ -181,6 +184,12 @@ export default function App() {
           return <AccountingTab />;
         case 'voice':
           return <VoiceTab />;
+        case 'ai-agent-guide':
+          return <AIAgentGuide />;
+        case 'voice-agent-hr':
+          return <VoiceAgentHR />;
+        case 'voice-hr-v2':
+          return <VoiceHRV2 />;
         default:
           return <HomeContent />;
       }

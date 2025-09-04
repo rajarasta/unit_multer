@@ -1,5 +1,5 @@
 import { 
-  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic
+  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones
 } from 'lucide-react';
 
 export const navItems = [
@@ -21,5 +21,8 @@ export const navItems = [
   { key: "task-hub", label: "Task Hub", icon: FolderKanban},
   { key: "dispatch", label: "Otprema", icon: Truck},
   { key: "accounting", label: "Accounting", icon: Wallet},
-  { key: "voice", label: "Glasovni Agent", icon: Mic}
+  { key: "voice", label: "Glasovni Agent", icon: Mic},
+  { key: "ai-agent-guide", label: "AI Agent Guide", icon: BookOpen},
+  { key: "voice-agent-hr", label: "Hrvatski Glasovni Agent", icon: Headphones},
+  { key: "voice-hr-v2", label: "Voice HR V2", icon: Mic}
 ];
