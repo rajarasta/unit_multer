@@ -1,11 +1,38 @@
 # Aluminum Store UI - Upravljanje Aluminijskog Proizvodstva
 
-Moderni dashboard za upravljanje aluminijskim pogonima i projektima sa interaktivnim komponentama, AI integracijama i naprednim planiranjem proizvodnje.
+Moderni dashboard za upravljanje aluminijskim pogonima i projektima sa **Kinetic Context Framework** dizajnom, AI integracijama i naprednim planiranjem proizvodnje.
 
 ![React 19](https://img.shields.io/badge/React-19.1.1-61DAFB?style=flat&logo=react)
 ![Vite](https://img.shields.io/badge/Vite-7.1.2-646CFF?style=flat&logo=vite)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.14-38B2AC?style=flat&logo=tailwind-css)
 ![Zustand](https://img.shields.io/badge/Zustand-5.0.8-E3C200?style=flat)
+![Framer Motion](https://img.shields.io/badge/Framer_Motion-12.23.12-FF6B9D?style=flat&logo=framer)
+
+## 🎨 Kinetic Context Framework
+
+**State-of-the-Art UI/UX dizajn sistem** za kompleksne multi-agent aplikacije sa 26+ modula. Framework koristi pokret (Kinetic), svjetlo i adaptaciju (Context) za intuitivnu informacijsku komunikaciju i AI kolaboraciju.
+
+### ⚡ Core Principles
+- **Kontekstualna Adaptacija**: UI se dinamički prilagođava ulozi korisnika, uređaju i trenutnom zadatku
+- **AI Transparentnost**: Agenti su vizualno prisutni sa jasnim feedback sustavima
+- **Illuminative Feedback**: Korištenje svjetla, sjene i blur efekata za vođenje pažnje
+- **Meaningful Motion**: Fizički animacije bez teleportacije, sve promjene su glatko animirane
+
+### 🏗️ Workspace Navigation (26 Modula)
+Moduli su organizirani u funkcionalne radne prostore:
+
+**🚛 Logistika i Operacije** | **💰 Financije** | **🔧 Inženjering i Projekti** | **🤖 AI Platforma**
+--- | --- | --- | ---
+Skladište | Accounting | Tlocrt | Voice Orchestrator
+Otprema | Invoice Processors | AGBIM Field | AI Inference  
+Barcode Scanner | Troškovnik | Gantt Agent | Chat
+Task Hub |  |  | Asistent
+
+### 🎯 Advanced Interaction Patterns
+- **Dynamic Focus**: Spotlighting (elementi od interesa) + Backgrounding (nerelevantni podaci)
+- **Agent Focus Mode**: UI se transformira kada agent radi - blur pozadine, spotlight na radnim elementima
+- **Multi-Layer Feedback**: Thought Pill (agent namjera) + Process Tray (detaljni workflow)
+- **Ambient Awareness**: Pozadina pulsira tijekom agent aktivnosti
 
 ## 🏗️ Pregled Projekta
 
@@ -500,3 +527,41 @@ This project is proprietary software. All rights reserved.
 ---
 
 **Aluminum Store UI** - Moderan, skalabilan sustav za upravljanje aluminijskim pogonima sa cutting-edge tehnologijama i hrvatskim jezičnim podrškom.
+## Design System i Teme
+
+- Tri početne teme: Fluent Dark, Contrast Light, OpenAI.
+- Stilovi i primitivne klase su u `src/theme/theme.css`.
+- Upravljanje temom je u `src/theme/manager.js` (spremanje u `localStorage`).
+- Primitivi (React): `src/components/ui/Primitives.jsx` (`Card`, `Section`, `Button`).
+
+Kako radi (React + Vite + Tailwind):
+- `src/index.css` uvozi `src/theme/theme.css`, pa su klase dostupne posvuda.
+- Tema se aktivira dodavanjem klase na `body`: `theme-dark-fluent`, `theme-light-contrast`, `theme-openai`.
+- `src/main.jsx` poziva `initTheme()` prije rendera da odmah primijeni spremljenu temu.
+
+API za temu:
+```js
+import { applyTheme, cycleTheme, ThemePresets } from './theme/manager'
+
+applyTheme('dark-fluent') // ili applyTheme(0)
+cycleTheme()              // prebacuje na sljedeću temu
+```
+
+Primjeri primitiva u komponentama:
+```jsx
+import { Button, Card, Section } from './components/ui/Primitives'
+import { cycleTheme } from './theme/manager'
+
+export function Toolbar() {
+  return (
+    <Section className="p-3 flex gap-2 items-center">
+      <Button onClick={() => cycleTheme()}>Promijeni stil</Button>
+      <Button variant="primary">Spremi</Button>
+      <Button variant="outline">Poništi</Button>
+    </Section>
+  )
+}
+```
+
+Smjernice:
+- Kod novih tabova i refaktora, koristi `.panel`, `.l-card`, `.l-btn` i `.input-bg` kako bi stil ostao ujednačen između tema.

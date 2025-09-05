@@ -1,4 +1,4 @@
-// src/components/tabs/PlannerGantt/services/JsonStorageService.js
+// Centralized JsonStorageService - Advanced Version with Emergency Cleanup and Minimal Data Fallback
 /**
  * Browser-compatible JsonStorageService
  * Uses localStorage for persistence and BroadcastChannel for cross-tab sync
@@ -82,16 +82,33 @@ class JsonStorageService {
       if (error.name === 'QuotaExceededError') {
         console.error('localStorage quota exceeded. Attempting cleanup...');
         
-        // Try to clean up old backups
+        // Try to clean up old backups first
         this.cleanupOldBackups();
         
-        // Retry with compressed data
+        // Also clean up any other large items to free space
+        this.emergencyCleanup();
+        
+        // Retry with compressed data (no formatting)
         try {
-          const compressedData = JSON.stringify(data); // Remove formatting
+          const compressedData = JSON.stringify(data);
           localStorage.setItem(this.storageKey, compressedData);
+          console.log('Successfully saved data after cleanup');
           return true;
         } catch (retryError) {
-          throw new Error('Unable to save data: storage quota exceeded');
+          console.error('Failed to save even after cleanup:', retryError);
+          
+          // Last resort: try to save a minimal version
+          try {
+            const minimalData = this.createMinimalDataVersion(data);
+            const minimalJson = JSON.stringify(minimalData);
+            localStorage.setItem(this.storageKey, minimalJson);
+            console.warn('Saved minimal data version due to storage constraints');
+            return true;
+          } catch (minimalError) {
+            console.error('Failed to save even minimal data:', minimalError);
+            // Return false instead of throwing to prevent infinite loops
+            return false;
+          }
         }
       }
       
@@ -350,7 +367,12 @@ class JsonStorageService {
    * Full import: completely replace data
    */
   async importFull(newObject) {
-    await this.writeJson(newObject);
+    const success = await this.writeJson(newObject);
+    if (!success) {
+      console.error('Failed to save data to localStorage - data may not persist');
+      // Still return the object so the application can continue
+      // but the user should be aware that data won't persist
+    }
     return newObject;
   }
 
@@ -577,6 +599,93 @@ class JsonStorageService {
       }
     } catch (error) {
       console.error('Error cleaning up backups:', error);
+    }
+  }
+
+  /**
+   * Emergency cleanup to free up localStorage space
+   */
+  emergencyCleanup() {
+    try {
+      // Remove all backups except the most recent one
+      this.cleanupOldBackups(1);
+      
+      // Clean up any temporary data that might exist
+      const keysToCheck = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('temp_') || key.includes('cache_') || key.includes('_old'))) {
+          keysToCheck.push(key);
+        }
+      }
+      
+      keysToCheck.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+          console.log(`Removed temporary item: ${key}`);
+        } catch (error) {
+          console.error(`Failed to remove temporary item ${key}:`, error);
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error in emergency cleanup:', error);
+    }
+  }
+
+  /**
+   * Create a minimal version of the data for storage when space is limited
+   */
+  createMinimalDataVersion(data) {
+    try {
+      // Create a minimal version with only essential data
+      const minimal = {
+        version: data.version || '5.0',
+        exportDate: new Date().toISOString(),
+        meta: {
+          schemaName: 'project.unified',
+          schemaVersion: '5.0.0',
+          types: {}
+        },
+        projects: [],
+        activeProjectId: data.activeProjectId || null
+      };
+
+      // Include only essential project data
+      if (data.projects && Array.isArray(data.projects)) {
+        minimal.projects = data.projects.map(project => ({
+          id: project.id,
+          name: project.name || 'Untitled Project',
+          client: {
+            name: project.client?.name || '',
+            oib: project.client?.oib || ''
+          },
+          created: project.created || new Date().toISOString(),
+          owner: project.owner || { id: 'u1', name: 'User', email: 'user@example.com' },
+          // Keep only essential position data
+          positions: (project.positions || []).map(position => ({
+            id: position.id,
+            title: position.title || 'Untitled Position',
+            processes: (position.processes || []).map(process => ({
+              name: process.name,
+              status: process.status || 'Čeka',
+              progress: process.progress || 0
+            }))
+          }))
+        }));
+      }
+
+      return minimal;
+    } catch (error) {
+      console.error('Error creating minimal data version:', error);
+      // Return absolute minimum
+      return {
+        version: '5.0',
+        exportDate: new Date().toISOString(),
+        meta: { schemaName: 'project.unified', schemaVersion: '5.0.0', types: {} },
+        projects: [],
+        activeProjectId: null
+      };
     }
   }
 

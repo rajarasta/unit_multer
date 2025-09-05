@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useUserStore } from '../../store/useUserStore';
+import { useProjectStore } from '../../store/useProjectStore';
 import { 
   User, 
   Mail, 
@@ -11,11 +12,13 @@ import {
   CheckCircle,
   Eye,
   EyeOff,
-  Camera
+  Camera,
+  Settings
 } from 'lucide-react';
 
 export default function ProfileSettings({ onClose }) {
   const { currentUser, updateProfile, changePassword, authError, clearError } = useUserStore();
+  const { skipConfirmations, setSkipConfirmations } = useProjectStore();
   
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
@@ -149,7 +152,8 @@ export default function ProfileSettings({ onClose }) {
   
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
-    { id: 'password', label: 'Lozinka', icon: Lock }
+    { id: 'password', label: 'Lozinka', icon: Lock },
+    { id: 'preferences', label: 'Postavke', icon: Settings }
   ];
   
   return (
@@ -443,6 +447,49 @@ export default function ProfileSettings({ onClose }) {
                 </button>
               </div>
             </form>
+          )}
+          
+          {/* Preferences Tab */}
+          {activeTab === 'preferences' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Claude Code Preferences</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-gray-900 mb-1">
+                        Batch Execution Mode
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        When enabled, Claude will execute all planned tasks automatically without asking for confirmation at each step.
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        You can still review the plan before execution starts.
+                      </p>
+                    </div>
+                    <div className="ml-4">
+                      <button
+                        onClick={() => setSkipConfirmations(!skipConfirmations)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                          skipConfirmations ? 'bg-blue-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            skipConfirmations ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-md">
+                    <strong>Tip:</strong> You can always change this setting during plan execution by using the confirmation dialog.
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

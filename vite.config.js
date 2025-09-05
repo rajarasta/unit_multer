@@ -20,6 +20,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       }
+      ,
+      "/fw": {
+        target: "http://localhost:3001", // File-writer service
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/fw/, "")
+      }
     },
   },
 })

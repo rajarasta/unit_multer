@@ -46,6 +46,51 @@ app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.static('dist')); // Serve Vite build
 
+/* ====================== Background Images API ====================== */
+const BG_DIR = process.env.BG_SCREENSHOTS_DIR || (process.platform === 'win32' ? 'C:/Users/Josip/Pictures/Screenshots' : process.env.HOME || '/tmp');
+const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+
+function isUnderDir(filePath, baseDir) {
+  try {
+    const rel = path.relative(path.resolve(baseDir), path.resolve(filePath));
+    return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+  } catch { return false; }
+}
+
+app.get('/api/bg/random', (req, res) => {
+  try {
+    const dir = BG_DIR;
+    if (!dir || !fs.existsSync(dir)) {
+      return res.json({ ok: false, reason: 'dir_missing' });
+    }
+    const files = fs.readdirSync(dir).filter(f => IMG_EXT.has(path.extname(f).toLowerCase()));
+    if (!files.length) {
+      return res.json({ ok: false, reason: 'no_images' });
+    }
+    const pick = files[Math.floor(Math.random() * files.length)];
+    const full = path.join(dir, pick);
+    return res.json({ ok: true, name: pick, url: `/api/bg/image?f=${encodeURIComponent(Buffer.from(full).toString('base64'))}` });
+  } catch (e) {
+    return res.json({ ok: false, reason: 'error', message: e.message });
+  }
+});
+
+app.get('/api/bg/image', (req, res) => {
+  const b64 = req.query.f;
+  if (!b64) return res.status(400).send('missing file');
+  try {
+    const filePath = Buffer.from(String(b64), 'base64').toString('utf8');
+    if (!isUnderDir(filePath, BG_DIR)) return res.status(403).send('forbidden');
+    if (!fs.existsSync(filePath)) return res.status(404).send('not found');
+    const ext = path.extname(filePath).toLowerCase();
+    const type = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+    res.setHeader('Content-Type', type);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (e) {
+    res.status(500).send('error');
+  }
+});
+
 // Multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({

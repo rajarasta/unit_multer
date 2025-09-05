@@ -20,6 +20,8 @@ const Reports = lazy(() => import('./components/tabs/Reports'));
 const Warehouse = lazy(() => import('./components/tabs/Warehouse'));
 const ShowcasePanel = lazy(() => import('./components/tabs/ShowcasePanel'));
 const AnimationPlayground = lazy(() => import('./components/tabs/AnimationPlayground'));
+const AnimationPlaygroundV2 = lazy(() => import('./components/tabs/AnimationPlaygroundV2'));
+const BackgroundLab = lazy(() => import('./components/tabs/BackgroundLab'));
 const FluentHoverPeek = lazy(() => import('./components/tabs/FluentHoverPeek'));
 const FsHoverPreview = lazy(() => import('./components/tabs/FsHoverPreview'));
 const BoQReaderAnalyzer = lazy(() => import('./components/tabs/BoQReaderAnalyzer'));
@@ -65,6 +67,10 @@ const VoiceTab = lazy(() => import('./components/tabs/VoiceTab'));
 const AIAgentGuide = lazy(() => import('./components/tabs/AIAgentGuide'));
 const VoiceAgentHR = lazy(() => import('./components/tabs/VoiceAgentHR'));
 const VoiceHRV2 = lazy(() => import('./components/tabs/VoiceHRV2'));
+const GanttAgent = lazy(() => import('./components/tabs/GanttAgent'));
+const VoiceOrchestratorTab = lazy(() => import('./components/tabs/VoiceOrchestrator'));
+const GVAv2 = lazy(() => import('./components/tabs/GVAv2'));
+const CodexControl = lazy(() => import('./components/tabs/CodexControl'));
 
 
 // Loading component
@@ -89,6 +95,15 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const { isAuthenticated, initAuth } = useUserStore();
+  
+  // Handle domain selection from VoiceOrchestrator
+  const handleDomainSelect = (domain) => {
+    console.log(`🎯 App: Domain selected: ${domain.id}`);
+    if (domain.id === 'gantt') {
+      setActiveTab('gantt-agent');
+    }
+    // Add other domain mappings as needed
+  };
   
   // Initialize auth on app load
   useEffect(() => {
@@ -164,6 +179,10 @@ export default function App() {
           return <FsHoverPreview />;
         case 'animations':
           return <AnimationPlayground />;
+        case 'animations-v2':
+          return <AnimationPlaygroundV2 />;
+        case 'background-lab':
+          return <BackgroundLab />;
         case 'reports':
           return <Reports />;
         case 'warehouse':
@@ -190,6 +209,14 @@ export default function App() {
           return <VoiceAgentHR />;
         case 'voice-hr-v2':
           return <VoiceHRV2 />;
+        case 'gantt-agent':
+          return <GanttAgent />;
+        case 'gva-v2':
+          return <GVAv2 />;
+        case 'voice-orchestrator':
+          return <VoiceOrchestratorTab onDomainSelect={handleDomainSelect} />;
+        case 'codex-control':
+          return <CodexControl />;
         default:
           return <HomeContent />;
       }
@@ -228,4 +255,3 @@ export default function App() {
     </LLMSessionProvider>
   );
 }
-

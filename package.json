@@ -11,9 +11,12 @@
     "file-writer": "node file-writer.cjs",
     "server": "node server.js",
     "voice-server": "node voice-server.cjs",
-    "dev-full": "concurrently \"npm run file-server\" \"npm run dev\"",
+    "dev-full": "concurrently \"npm run file-writer\" \"npm run server\" \"npm run dev\"",
     "dev-with-api": "concurrently \"npm run server\" \"npm run dev\"",
-    "dev-voice": "concurrently \"npm run voice-server\" \"npm run dev\""
+    "dev-voice": "concurrently \"npm run voice-server\" \"npm run dev\"",
+    "dev-gantt": "concurrently \"npm run file-writer\" \"npm run server\" \"npm run dev\"",
+    "runner": "cross-env RUNNER_PORT=3004 node runner.js",
+    "servers:all": "concurrently -n voice,file,registry,runner -c blue,magenta,green,yellow \"npm:voice-server\" \"npm:file-writer\" \"npm:server\" \"npm:runner\""
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
@@ -43,6 +46,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@eslint/js": "^9.33.0",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",

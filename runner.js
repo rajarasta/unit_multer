@@ -256,7 +256,7 @@ app.get("/api/runner/health", (req, res) => {
   });
 });
 
-const PORT = process.env.RUNNER_PORT || 3002;
+const PORT = process.env.RUNNER_PORT || 3004;
 app.listen(PORT, () => {
   console.log(`🏃 Runner API listening on port ${PORT}`);
   console.log(`📡 Endpoints:`);

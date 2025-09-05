@@ -13,9 +13,9 @@ import {
   FolderPlus, GitBranch, Shuffle, BarChart3
 } from 'lucide-react';
 
-import ProjectDataService from './ProjectDataService.js';
+import ProjectDataService from '../../../services/ProjectDataService.js';
 import TaskHoverCardRedesign from './hoverTab2.jsx';
-import JsonStorageService from './JsonStorageService.js';
+import JsonStorageService from '../../../services/JsonStorageService.js';
 import { useProjectStore } from '../../../store/useProjectStore';
 import { AdvancedTaskHoverCard } from './hoverTab.jsx';
 import { useHover, HoverProvider } from './HoverContext.jsx';

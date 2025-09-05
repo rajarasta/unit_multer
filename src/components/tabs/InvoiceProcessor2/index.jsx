@@ -7,7 +7,7 @@ import {
 
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
-import CloudLLMService from '../../../services/CloudLLMService';
+import backendService from '../../../services/BackendService';
 import { AI_MODES, GOOGLE_MODELS, GOOGLE_MODEL_LABELS } from '../../../constants/aiModes';
 
 // Konfiguracija za pdf.js worker kako bi radio u pregledniku
@@ -198,7 +198,7 @@ export default function InvoiceProcessor2() {
       throw new Error("Nema datoteka za analizu. Renderiranje PDF-a možda nije uspjelo.");
     }
     
-    const result = await CloudLLMService.analyzeDocumentGoogle({
+    const result = await backendService.analyzeDocumentGoogle({
       apiKey: settings.googleApiKey || null,
       model: settings.selectedModel,
       files: filesForAnalysis,
@@ -834,7 +834,7 @@ export default function InvoiceProcessor2() {
                       
                       setProgressStep('Testira konekciju...');
                       try {
-                        const result = await CloudLLMService.testGoogleAIConnection(apiKey, settings.selectedModel);
+                        const result = await backendService.testGoogleAIConnection(apiKey, settings.selectedModel);
                         alert(`✅ ${result.message}\nOdgovor: ${result.testResponse}`);
                       } catch (error) {
                         alert(`❌ ${error.message}`);

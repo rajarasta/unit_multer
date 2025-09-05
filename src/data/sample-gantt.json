@@ -1,0 +1,45 @@
+{
+  "project": {
+    "id": "PRJ-2025-001",
+    "name": "Voltaža - Fasadni Sustav",
+    "description": "Montaža aluminijske fasade za stambenu zgradu"
+  },
+  "pozicije": [
+    {
+      "id": "P-001",
+      "naziv": "Fasada Sjever",
+      "montaza": {
+        "opis": "Montaža aluminijskih panela na sjevernoj strani zgrade",
+        "osoba": "Marko Petrović",
+        "datum_pocetka": "2025-10-10",
+        "datum_zavrsetka": "2025-10-15"
+      }
+    },
+    {
+      "id": "P-002", 
+      "naziv": "Fasada Jug",
+      "montaza": {
+        "opis": "Montaža aluminijskih panela na južnoj strani zgrade s posebnim UV zaštitnim slojem",
+        "osoba": "Ana Kovačević",
+        "datum_pocetka": "2025-10-16",
+        "datum_zavrsetka": "2025-10-22"
+      }
+    },
+    {
+      "id": "P-003",
+      "naziv": "Horizontalne Lamele",
+      "montaza": {
+        "opis": "Ugradnja horizontalnih lamelnih elemenata za suncobran i estetski učinak",
+        "osoba": "Tomislav Novak",
+        "datum_pocetka": "2025-10-23", 
+        "datum_zavrsetka": "2025-10-28"
+      }
+    }
+  ],
+  "metadata": {
+    "created": "2025-01-09T10:30:00Z",
+    "modified": "2025-01-09T10:30:00Z",
+    "version": "1.0",
+    "editor": "Voice Gantt Agent"
+  }
+}

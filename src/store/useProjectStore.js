@@ -250,9 +250,17 @@ function seedTasksFromParsed(parsed, positions) {
 export const useProjectStore = create((set, get) => ({
   project: defaultProject(),        // <-- defined on first render
   activeSubtab: 'overview',
+  
+  // Batch execution mode settings
+  skipConfirmations: false,
+  batchExecutionMode: false,
 
   setActiveSubtab: (k) => set({ activeSubtab: k }),
   reset: () => set({ project: defaultProject() }),
+  
+  // Batch execution control
+  setSkipConfirmations: (value) => set({ skipConfirmations: value }),
+  setBatchExecutionMode: (value) => set({ batchExecutionMode: value }),
 
   importFromXmlFile: async (file) => {
     const parsed = await parseLogikalXml(file);

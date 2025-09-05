@@ -1,5 +1,6 @@
 ﻿import React, { useEffect } from 'react';
 import Sidebar from './Sidebar';
+import AppBackground from './AppBackground';
 export default function MainLayout({ children, activeTab, setActiveTab, navItems }) {
   useEffect(() => {
     const handleTabSwitch = (event) => {
@@ -26,8 +27,9 @@ export default function MainLayout({ children, activeTab, setActiveTab, navItems
   }, [setActiveTab]);
 
   return (
-    <div className="h-screen w-full bg-white text-slate-900 overflow-hidden">
-      <div className="h-full w-full flex">
+    <div className="h-screen w-full overflow-hidden relative">
+      <AppBackground />
+      <div className="h-full w-full flex relative z-10">
         {/* Sidebar */}
         <div className="w-[250px] flex-shrink-0">
           <Sidebar 
