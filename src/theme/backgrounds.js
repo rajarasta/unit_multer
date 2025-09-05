@@ -10,19 +10,19 @@ export const BackgroundPresets = {
 
 export const ThemeFallbacks = {
   'dark-fluent': [
-    '/backgrounds/fallback-dark-1.jpg',
-    '/backgrounds/fallback-dark-2.jpg',
-    '/backgrounds/fallback-dark-3.jpg',
+    '/backgrounds/fallback-dark-1.svg',
+    '/backgrounds/fallback-dark-2.svg',
+    '/backgrounds/fallback-dark-3.svg',
   ],
   'light-contrast': [
-    '/backgrounds/fallback-light-1.jpg',
-    '/backgrounds/fallback-light-2.jpg',
-    '/backgrounds/fallback-light-3.jpg',
+    '/backgrounds/fallback-light-1.svg',
+    '/backgrounds/fallback-light-2.svg',
+    '/backgrounds/fallback-light-3.svg',
   ],
   'openai': [
-    '/backgrounds/fallback-openai-1.jpg',
-    '/backgrounds/fallback-openai-2.jpg',
-    '/backgrounds/fallback-openai-3.jpg',
+    '/backgrounds/fallback-openai-1.svg',
+    '/backgrounds/fallback-openai-2.svg',
+    '/backgrounds/fallback-openai-3.svg',
   ],
 };
 

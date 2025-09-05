@@ -59,6 +59,8 @@ const LLMServerManager = lazy(() => import('./components/tabs/LLMServerManager')
 const Circus = lazy(() => import('./components/tabs/Circus'));
 const UserManagement = lazy(() => import('./components/tabs/UserManagement'));
 const Employogram = lazy(() => import('./components/tabs/PlannerGanttV2'));
+const EmployogramOriginal = lazy(() => import('./components/tabs/Employogram'));
+const Employogram2 = lazy(() => import('./components/tabs/Employogram2'));
 const AgbimFieldSimulatorTab = lazy(() => import('./components/tabs/AgbimFieldSimulatorTab'));
 const TaskHub = lazy(() => import('./components/tabs/TaskHub'));
 const DispatchTab = lazy(() => import('./components/tabs/DispatchTab'));
@@ -173,6 +175,10 @@ export default function App() {
           return <UserManagement />;
         case 'employogram':
           return <Employogram />;
+        case 'employogram-original':
+          return <EmployogramOriginal />;
+        case 'employogram2':
+          return <Employogram2 />;
         case 'agbim-field':
           return <AgbimFieldSimulatorTab />;
         case 'hover':

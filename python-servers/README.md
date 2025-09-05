@@ -85,6 +85,25 @@ python pdf_analyzer.py
 4. Klikni **Pokreni** (Connect)
 5. Testiraj **"Kreiraj sesiju"**
 
+### JSON Tool Dispatcher (Gantt + JSON store)
+
+- Skripta: `python-servers/json_tool_dispatcher.py`
+- Koristi OpenAI-kompatibilan lokalni server i validirane alate (ALL_TOOLS)
+- Postavi env varijable, zatim pokreni:
+
+```bash
+set LM_BASE_URL=http://10.255.130.136:1234/v1
+set LM_MODEL=lmstudio-community/qwen2.5-7b-instruct
+set JSON_STORE=./public/all_projects_2025-09-02T23-56-55.json
+python python-servers/json_tool_dispatcher.py
+```
+
+Očekivana JSON struktura (kao u tvom dumpu):
+- `project.gantt.start/end`
+- `positions[].gantt.bar.start/end`
+- `positions[].gantt.milestones[]` s `id/date/title`
+- `positions[].processes[].plannedStart/plannedEnd`
+
 ## 📄 Document Processing
 
 ### Text Documents (.txt, .md, readable PDFs)

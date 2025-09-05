@@ -6,6 +6,7 @@ import {
   Edit3, Save, X, Trash2, Brain, Sliders, TestTube, Zap
 } from 'lucide-react';
 import { useLLMSession } from './llmSessionStore';
+import { useAISettingsStore } from '../../../store/useAISettingsStore';
 import { sendChatMessage, testSessionConnectivity, ERROR_TYPES } from './llmBridge';
 
 const LLMServerManager = () => {
@@ -85,6 +86,39 @@ const LLMServerManager = () => {
   const runnerEvtRef = useRef(null);
   
   const logsEndRef = useRef(null);
+
+  // Global AI settings (agent mode + local config)
+  const aiSettings = useAISettingsStore();
+  const [localPing, setLocalPing] = useState(null);
+  const [modelsScan, setModelsScan] = useState(null);
+
+  const API_BASE = 'http://localhost:3002';
+
+  async function pingLocal() {
+    try {
+      setLocalPing({ loading: true });
+      const u = new URL('/api/llm/local/health', API_BASE);
+      u.searchParams.set('base', aiSettings.localBaseUrl);
+      const r = await fetch(u.toString());
+      const j = await r.json();
+      setLocalPing(j);
+    } catch (e) {
+      setLocalPing({ ok: false, error: String(e?.message || e) });
+    }
+  }
+
+  async function scanModels() {
+    try {
+      setModelsScan({ loading: true });
+      const u = new URL('/api/llm/local/models', API_BASE);
+      u.searchParams.set('root', aiSettings.localModelsRoot || 'E:\\Modeli');
+      const r = await fetch(u.toString());
+      const j = await r.json();
+      setModelsScan(j);
+    } catch (e) {
+      setModelsScan({ ok: false, error: String(e?.message || e) });
+    }
+  }
 
   // Initialize with predefined server configurations
   useEffect(() => {
@@ -356,6 +390,76 @@ const LLMServerManager = () => {
     } catch (error) {
       addLog('error', `Stop error: ${error.message}`);
     }
+  }
+
+  // --- Render helpers for global AI settings ---
+  function GlobalAgentControls() {
+    return (
+      <div className="mb-4 p-3 border rounded-lg bg-white">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Agent mode:</span>
+            <select
+              className="text-sm border rounded px-2 py-1"
+              value={aiSettings.llmMode}
+              onChange={(e)=>aiSettings.setLLMMode(e.target.value)}
+            >
+              <option value="server">Server</option>
+              <option value="local">Local</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Local LLM URL:</span>
+            <input
+              className="text-sm border rounded px-2 py-1 w-[280px]"
+              value={aiSettings.localBaseUrl || ''}
+              onChange={(e)=>aiSettings.setLocalBaseUrl(e.target.value)}
+              placeholder="http://10.255.130.136:1234"
+            />
+            <button className="px-2 py-1 text-sm border rounded" onClick={pingLocal}>Ping</button>
+            {localPing?.loading ? (
+              <span className="text-xs text-slate-500">Pinging…</span>
+            ) : localPing ? (
+              <span className={`text-xs ${localPing.ok? 'text-emerald-600' : 'text-rose-600'}`}>
+                {localPing.ok ? `OK (${localPing.models||0} models)` : `ERR: ${localPing.error||'unknown'}`}
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-slate-600">Models path:</span>
+          <input
+            className="text-sm border rounded px-2 py-1 w-[280px]"
+            value={aiSettings.localModelsRoot || ''}
+            onChange={(e)=>aiSettings.setLocalModelsRoot(e.target.value)}
+            placeholder="E:\\Modeli"
+          />
+          <button className="px-2 py-1 text-sm border rounded" onClick={scanModels}>Scan</button>
+          {modelsScan?.loading ? (
+            <span className="text-xs text-slate-500">Scanning…</span>
+          ) : modelsScan ? (
+            <span className={`text-xs ${modelsScan.ok? 'text-emerald-600' : 'text-rose-600'}`}>
+              {modelsScan.ok ? `${modelsScan.count||0} gguf` : `ERR: ${modelsScan.error||'unknown'}`}
+            </span>
+          ) : null}
+          {modelsScan?.ok && (modelsScan.models?.length>0) && (
+            <>
+              <span className="text-sm text-slate-600 ml-2">Select model:</span>
+              <select
+                className="text-sm border rounded px-2 py-1"
+                value={aiSettings.selectedLocalModel || ''}
+                onChange={(e)=>aiSettings.setSelectedLocalModel(e.target.value)}
+              >
+                <option value="">-- choose --</option>
+                {modelsScan.models.map(m => (
+                  <option key={m.path} value={m.path}>{m.name}</option>
+                ))}
+              </select>
+            </>
+          )}
+        </div>
+      </div>
+    );
   }
 
   // Run .bat file via Runner API
@@ -928,6 +1032,11 @@ const LLMServerManager = () => {
             {showLogs ? 'Sakrij' : 'Prikaži'} logove
           </button>
         </div>
+      </div>
+
+      {/* Global Agent Controls */}
+      <div className="p-4 border-b border-gray-200 bg-white">
+        <GlobalAgentControls />
       </div>
 
       {/* Launcher & Prompts Panel */}

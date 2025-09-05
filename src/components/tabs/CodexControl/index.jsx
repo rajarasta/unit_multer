@@ -9,6 +9,7 @@ const SubTab = {
   POSTAVKE: 'postavke',
   UPUTE: 'upute',
   DOKUMENTI: 'dokumenti',
+  NAREDBE: 'naredbe',
 };
 
 function SectionHeader({ icon: Icon, title, subtitle }) {
@@ -58,6 +59,8 @@ const defaultDocs = [
   '/CUDA_TROUBLESHOOTING.md',
   '/GPT5_RESPONSES_API_REFERENCE.md',
   '/docs/codex/CODEX_INSTRUKCIJE.md',
+  '/docs/codex/ARHITEKTOV_NACRT_ZA_AGENTSKE_SUSTAVE.md',
+  '/docs/commands/VOICE_COMMANDS.md',
 ];
 
 async function fetchText(path) {
@@ -93,6 +96,68 @@ export default function CodexControlTab() {
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [savingDoc, setSavingDoc] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  // Commands doc
+  const commandsDocPath = '/docs/commands/VOICE_COMMANDS.md';
+  const [commandsDoc, setCommandsDoc] = useState('');
+  const [loadingCommands, setLoadingCommands] = useState(false);
+  const [commandsError, setCommandsError] = useState(null);
+
+  // Dynamically fetch docs list from API when opening Documents tab
+  useEffect(() => {
+    let cancelled = false;
+    async function loadList() {
+      try {
+        const r = await fetch('http://localhost:3001/api/docs/list');
+        if (!r.ok) throw new Error('Ne mogu dohvatiti listu dokumenata');
+        const j = await r.json();
+        if (!cancelled && j?.success && Array.isArray(j.files)) {
+          const merged = Array.from(new Set([ ...defaultDocs, ...j.files ]));
+          setDocList(merged);
+          if (!merged.includes(selectedDoc)) setSelectedDoc(merged[0]);
+        }
+      } catch {}
+    }
+    if (active === SubTab.DOKUMENTI) loadList();
+    return () => { cancelled = true; };
+  }, [active]);
+
+  // Load commands doc when opening NAREDBE tab
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCmd() {
+      setLoadingCommands(true); setCommandsError(null);
+      try {
+        const text = await fetchText(commandsDocPath);
+        if (!cancelled) setCommandsDoc(text);
+      } catch (e) {
+        if (!cancelled) setCommandsError(e.message || 'Ne mogu učitati dokument s naredbama');
+      } finally {
+        if (!cancelled) setLoadingCommands(false);
+      }
+    }
+    if (active === SubTab.NAREDBE) loadCmd();
+    return () => { cancelled = true; };
+  }, [active]);
+
+  const commandPills = [
+    'agent',
+    'pomakni pr4 za jedan dan',
+    'pomakni pr5 plus 2 dana',
+    'pomakni početak pr3 na 2025-10-01',
+    'pomakni početak pr2 na početak rujna',
+    'start pr4 na 1.9',
+    'start pz02 na 1.9',
+    'pomakni sve za 2 dana',
+    'rasporedi početke sa krajevima',
+    'korigiraj trajanje prema normativu',
+    'dodaj zadatak',
+    'upiši projekt sastanak u ponedjeljak',
+    'pročitaj mi',
+    'potvrdi',
+    'poništi',
+    'dalje',
+    'prekini',
+  ];
 
   // Load selected doc content
   useEffect(() => {
@@ -218,6 +283,12 @@ Dnevni Start (preporučeni tok)
           onClick={() => setActive(SubTab.DOKUMENTI)}
         >
           <FileText className="w-4 h-4" /> Dokumenti
+        </button>
+        <button
+          className={`inline-flex items-center gap-2 px-3 py-2 rounded border ${active === SubTab.NAREDBE ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700'}`}
+          onClick={() => setActive(SubTab.NAREDBE)}
+        >
+          <BookOpen className="w-4 h-4" /> Naredbe
         </button>
       </div>
 
@@ -364,7 +435,27 @@ Dnevni Start (preporučeni tok)
           </div>
         </div>
       )}
+
+      {active === SubTab.NAREDBE && (
+        <div className="space-y-2">
+          <SectionHeader icon={BookOpen} title="Glasovne i tekstualne naredbe" subtitle={commandsDocPath} />
+          {/* Pills with example commands */}
+          <div className="flex flex-wrap gap-2 mb-2">
+            {commandPills.map((c)=> (
+              <span key={c} className="text-xs px-2.5 py-1 rounded-full border border-slate-300 bg-white text-slate-800 shadow-sm">
+                {c}
+              </span>
+            ))}
+          </div>
+          {loadingCommands ? (
+            <div className="text-sm text-slate-500">Učitavanje...</div>
+          ) : commandsError ? (
+            <div className="text-sm text-rose-600">{commandsError}</div>
+          ) : (
+            <pre className="bg-white border rounded p-4 text-sm leading-5 whitespace-pre-wrap text-slate-800 min-h-[300px] overflow-auto">{commandsDoc}</pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }
-

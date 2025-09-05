@@ -68,11 +68,15 @@ export default function AppBackground() {
           const fallback = getRandomFallbackUrl(themeKey);
           const ok = await preload(fallback);
           if (active && ok) setImageUrl(fallback); else setImageUrl(null);
+          // Disable screenshots source to avoid repeated failing calls
+          try { localStorage.setItem('app.bg.source', 'blobs'); } catch {}
         }
       } catch {
         const fallback = getRandomFallbackUrl(themeKey);
         const ok = await preload(fallback);
         if (active && ok) setImageUrl(fallback); else setImageUrl(null);
+        // Disable screenshots source to avoid repeated failing calls
+        try { localStorage.setItem('app.bg.source', 'blobs'); } catch {}
       }
     }
     if (preset?.key === 'screenshots' || preset?.type === 'screenshots') {

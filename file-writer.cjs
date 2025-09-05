@@ -89,6 +89,46 @@ app.post('/api/docs/save', async (req, res) => {
   }
 });
 
+// List available instruction/docs markdown files
+app.get('/api/docs/list', async (req, res) => {
+  try {
+    const docsRoot = path.resolve(__dirname, 'docs');
+    const results = [];
+
+    function walk(dir) {
+      const entries = fsSync.readdirSync(dir, { withFileTypes: true });
+      for (const ent of entries) {
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory()) {
+          walk(full);
+        } else if (ent.isFile() && ent.name.toLowerCase().endsWith('.md')) {
+          // Produce web path starting at '/docs/...'
+          const webPath = '/' + path.relative(__dirname, full).replace(/\\/g, '/');
+          results.push(webPath);
+        }
+      }
+    }
+
+    if (fsSync.existsSync(docsRoot)) walk(docsRoot);
+
+    // Also include selected top-level MDs if present
+    const top = [
+      'README.md','CLAUDE.md','LLM_SERVER_MANAGER_README.md','PDF_AGENT_README.md','PDF_SEARCH_ENGINE_README.md','CUDA_TROUBLESHOOTING.md','GPT5_RESPONSES_API_REFERENCE.md'
+    ];
+    for (const f of top) {
+      const p = path.resolve(__dirname, f);
+      if (fsSync.existsSync(p)) results.push('/' + f);
+    }
+
+    // De-duplicate
+    const unique = Array.from(new Set(results)).sort();
+    res.json({ success: true, files: unique });
+  } catch (error) {
+    console.error('❌ Error listing docs:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Initialize OpenAI client
 async function initOpenAI() {
   try {

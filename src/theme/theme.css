@@ -118,6 +118,42 @@
 /* Sidebar nav badge with glow */
 .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 0.9rem; height: 0.9rem; padding: 0 4px; font-size: 10px; line-height: 1; border-radius: 9999px; color: #fff; }
 .nav-badge--pulse { animation: nav-badge-pulse 1.6s ease-in-out infinite; }
+
+/* Ambient glow for agent focus modes */
+:root {
+  --focus-glow-border: 0.35;   /* alpha */
+  --focus-glow-outer: 0.18;    /* alpha */
+  --focus-glow-duration: 200ms;
+  --superfocus-glow-border: 0.45;
+  --superfocus-glow-outer: 0.22;
+  --superfocus-glow-duration: 200ms;
+  --localfocus-glow-border: 0.45;
+  --localfocus-glow-outer: 0.20;
+  --localfocus-glow-duration: 200ms;
+}
+body.app-focus .panel {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, var(--focus-glow-border)), 0 0 32px rgba(245, 158, 11, var(--focus-glow-outer)) inset;
+  transition: box-shadow var(--focus-glow-duration) ease;
+}
+body.app-focus .input-bg {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, calc(var(--focus-glow-border) * 0.7)) inset;
+}
+body.app-superfocus .panel {
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, var(--superfocus-glow-border)), 0 0 36px rgba(16, 185, 129, var(--superfocus-glow-outer)) inset;
+  transition: box-shadow var(--superfocus-glow-duration) ease;
+}
+body.app-superfocus .input-bg {
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, calc(var(--superfocus-glow-border) * 0.62)) inset;
+}
+
+/* Local LLM focus (blue) */
+body.app-focus-local .panel {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, var(--localfocus-glow-border)), 0 0 32px rgba(59, 130, 246, var(--localfocus-glow-outer)) inset;
+  transition: box-shadow var(--localfocus-glow-duration) ease;
+}
+body.app-focus-local .input-bg {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, calc(var(--localfocus-glow-border) * 0.65)) inset;
+}
 @keyframes nav-badge-pulse { 0% { transform: scale(1); filter: drop-shadow(0 0 4px var(--nbg, #ef4444)); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 10px var(--nbg, #ef4444)); } 100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--nbg, #ef4444)); } }
 .nav-badge--red     { background: #ef4444; --nbg:#ef4444; box-shadow: 0 0 8px #ef4444AA; }
 .nav-badge--amber   { background: #f59e0b; --nbg:#f59e0b; box-shadow: 0 0 8px #f59e0bAA; }
@@ -125,6 +161,24 @@
 .nav-badge--sky     { background: #06b6d4; --nbg:#06b6d4; box-shadow: 0 0 8px #06b6d4AA; }
 .nav-badge--violet  { background: #8b5cf6; --nbg:#8b5cf6; box-shadow: 0 0 8px #8b5cf6AA; }
 .nav-badge--slate   { background: #64748b; --nbg:#64748b; box-shadow: 0 0 8px #64748bAA; }
+
+/* === GVAv2 Focus visibility for aliases and bars === */
+/* Make alias badges always visible and prominent when in focus */
+body.app-focus [data-bar-id] .alias-badge,
+body.app-focus-local [data-bar-id] .alias-badge {
+  display: inline-block !important;
+  background: rgba(16, 163, 127, 0.9);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .02em;
+  box-shadow: 0 0 12px rgba(16,163,127,.6);
+}
+
+/* Subtle outline around bars in focus to improve visibility */
+body.app-focus [data-bar-id],
+body.app-focus-local [data-bar-id] {
+  box-shadow: 0 0 0 2px rgba(16,163,127,.35), 0 8px 18px rgba(0,0,0,.25);
+}
 
 /* === App dynamic background === */
 .app-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }

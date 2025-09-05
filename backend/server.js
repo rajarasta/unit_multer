@@ -1015,3 +1015,137 @@ const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`✅ API server radi na http://localhost:${PORT}`);
 });
+
+/* ========== Local LLM helpers ==========
+   - Health check for OpenAI-compatible local server
+   - Scan models directory for GGUF files
+*/
+app.get('/api/llm/local/health', async (req, res) => {
+  try {
+    const base = (req.query.base || req.query.baseUrl || '').toString().replace(/\/+$/,'');
+    if (!base) return res.status(400).json({ ok: false, error: 'Missing base or baseUrl query param' });
+    const url = `${base}/v1/models`;
+    const r = await fetch(url);
+    if (!r.ok) {
+      return res.status(502).json({ ok: false, error: `HTTP ${r.status}`, url });
+    }
+    const j = await r.json().catch(() => ({}));
+    const count = Array.isArray(j?.data) ? j.data.length : 0;
+    res.json({ ok: true, url, models: count, raw: j });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err?.message || err) });
+  }
+});
+
+app.get('/api/llm/local/models', async (req, res) => {
+  try {
+    // Default models root as requested
+    let root = (req.query.root || 'E:\\Modeli').toString();
+    // Normalize and ensure it exists
+    const abs = path.resolve(root);
+    if (!fs.existsSync(abs)) {
+      return res.status(404).json({ ok: false, error: `Path not found: ${abs}` });
+    }
+    // Walk directory (one level deep) and collect .gguf files
+    const result = [];
+    const entries = fs.readdirSync(abs, { withFileTypes: true });
+    for (const e of entries) {
+      const p = path.join(abs, e.name);
+      if (e.isFile() && /\.gguf$/i.test(e.name)) {
+        result.push({ name: e.name, path: p });
+      } else if (e.isDirectory()) {
+        try {
+          const sub = fs.readdirSync(p, { withFileTypes: true });
+          for (const s of sub) {
+            if (s.isFile() && /\.gguf$/i.test(s.name)) {
+              result.push({ name: s.name, path: path.join(p, s.name) });
+            }
+          }
+        } catch {}
+      }
+    }
+    res.json({ ok: true, root: abs, count: result.length, models: result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err?.message || err) });
+  }
+});
+
+/* ========== Local LLM tool-calling (OpenAI-compatible) ==========
+   POST /api/llm/local/tool-calling
+   Body: { prompt: string, tools?: [], base_url?: string, model?: string }
+*/
+app.post('/api/llm/local/tool-calling', async (req, res) => {
+  try {
+    const { prompt, tools = [], base_url, model } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
+
+    // Simulated tool functions (server-side)
+    const availableTools = {
+      get_weather: async (location) => ({
+        location,
+        temperature: Math.round(Math.random() * 30 + 5),
+        condition: ["sunny","cloudy","rainy","windy"][Math.floor(Math.random()*4)],
+        humidity: Math.round(Math.random()*100),
+        timestamp: new Date().toISOString()
+      }),
+      calculate: async (expression) => {
+        try { const sanitized = String(expression||'').replace(/[^0-9+\-*/\(\)\.\s]/g, ''); return { expression, result: eval(sanitized), valid: true }; }
+        catch (error) { return { expression, result: null, valid: false, error: error.message }; }
+      },
+      create_aluminum_quote: async (customer, items, total) => ({
+        quote_id: `ALU-${Date.now()}`,
+        customer,
+        items: items||[],
+        total_amount: total||0,
+        currency: 'HRK',
+        created_at: new Date().toISOString(),
+        valid_until: new Date(Date.now()+30*24*60*60*1000).toISOString(),
+        status: 'draft'
+      }),
+      search_projects: async (query, limit=5) => {
+        const mock = [
+          { id: 'P001', name: 'Škola Zadar', status: 'active', client: 'Grad Zadar' },
+          { id: 'P002', name: 'Trgovački centar Split', status: 'completed', client: 'Mall Group' },
+          { id: 'P003', name: 'Stambena zgrada Zagreb', status: 'planning', client: 'Nekretnine d.o.o.' },
+          { id: 'P004', name: 'Industrijska hala Varaždin', status: 'active', client: 'Production Ltd' },
+          { id: 'P005', name: 'Hotel Dubrovnik', status: 'completed', client: 'Tourism Corp' }
+        ];
+        const filtered = mock.filter(p => p.name.toLowerCase().includes(String(query||'').toLowerCase()) || p.client.toLowerCase().includes(String(query||'').toLowerCase())).slice(0, limit);
+        return { query, results: filtered, total_found: filtered.length };
+      }
+    };
+
+    const base = String(base_url || 'http://127.0.0.1:1234').replace(/\/+$/,'');
+    const mdl = model || 'local';
+    const messages = [ { role: 'user', content: prompt } ];
+    let iterations = 0;
+    let toolCallsExecuted = 0;
+    const maxIterations = 5;
+
+    while (iterations < maxIterations) {
+      iterations++;
+      const body = { model: mdl, messages, tools, tool_choice: 'auto', stream: false, temperature: 0.3 };
+      const r = await fetch(`${base}/v1/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) { const e = await r.text(); return res.status(502).json({ error: `Local LLM HTTP ${r.status}: ${e.slice(0,200)}` }); }
+      const j = await r.json().catch(err => ({ error: String(err?.message||err) }));
+      if (j?.error) return res.status(502).json({ error: j.error });
+      const msg = j.choices?.[0]?.message || {};
+      const toolCalls = msg.tool_calls || [];
+      if (!toolCalls.length) {
+        messages.push({ role: 'assistant', content: msg.content || '' });
+        return res.json({ id: j.id, model: j.model, status: 'completed', iterations, tool_calls_executed: toolCallsExecuted, usage: j.usage, final_response: msg.content || '', full_conversation: messages });
+      }
+      for (const tc of toolCalls) {
+        const fn = tc.function?.name; let args = {}; try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+        let out;
+        if (availableTools[fn]) { try { out = await availableTools[fn](...Object.values(args)); } catch (err) { out = { error: String(err?.message||err) }; } }
+        else { out = { error: `Unknown function: ${fn}` }; }
+        toolCallsExecuted++;
+        messages.push({ role: 'tool', tool_call_id: tc.id, name: fn, content: JSON.stringify(out) });
+      }
+    }
+    return res.json({ id: 'local-unknown', model: mdl, status: 'incomplete', iterations: maxIterations, tool_calls_executed: toolCallsExecuted, usage: null, final_response: '', full_conversation: messages });
+  } catch (err) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});

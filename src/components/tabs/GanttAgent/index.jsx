@@ -818,41 +818,45 @@ export default function GanttAgentTab() {
 
   // JSON LOADING EFFECT
   // ===================  
-  // Učitava sample JSON pri mount-u komponente
+  // Učitava Prodaja procese iz all_projects JSON-a pri mount-u komponente
   useEffect(() => {
-    loadSampleGanttJson();
+    loadProdajaProcessesFromAllProjects();
   }, []);
 
   /**
-   * CORE FUNCTION: loadSampleGanttJson
-   * =================================
-   * Učitava sample-gantt.json i registrira ga kao "poznatu datoteku"
-   * Ovo omogućava da agent može referencirati i modificirati JSON strukturu
+   * CORE FUNCTION: loadProdajaProcessesFromAllProjects
+   * =================================================
+   * Učitava sve "Prodaja" procese iz all_projects JSON datoteke
+   * Ovo omogućava da agent može referencirati i modificirati procese prodaje
    */
-  const loadSampleGanttJson = async () => {
+  const loadProdajaProcessesFromAllProjects = async () => {
     try {
-      // Učitaj JSON datoteku iz src/data/
-      const response = await fetch('/src/data/sample-gantt.json');
-      const jsonData = await response.json();
+      // Učitaj JSON datoteku iz src/backend/
+      const response = await fetch('/src/backend/all_projects_2025-09-02T23-56-55.json');
+      const allProjectsData = await response.json();
       
-      setGanttJson(jsonData);
+      // Ekstraktiraj sve "Prodaja" procese iz svih projekata i pozicija
+      const prodajaProcesses = extractProdajaProcesses(allProjectsData);
+      
+      // Konvertiraj u Gantt-friendly format
+      const ganttData = convertProdajaToGanttFormat(prodajaProcesses);
+      
+      setGanttJson(ganttData);
       
       // Inicijaliziraj povijest za undo/redo
-      setJsonHistory([jsonData]);
+      setJsonHistory([ganttData]);
       setHistoryIndex(0);
       
       // Stvori draft state iz JSON strukture za kompatibilnost s postojećim UI
-      convertJsonToDraft(jsonData);
+      convertJsonToDraft(ganttData);
       
-      console.log('📊 Gantt JSON loaded:', jsonData);
-      
-      // TODO: Registrirati kao "poznatu datoteku" u useKnownDocsV2
-      // registerKnownDocument('sample-gantt.json', jsonData);
+      console.log('📊 Prodaja Gantt JSON loaded:', ganttData);
+      console.log('📈 Ukupno prodaja procesa:', prodajaProcesses.length);
       
     } catch (error) {
-      console.error('❌ Failed to load Gantt JSON:', error);
-      // Fallback na mock data
-      const fallbackData = createFallbackJson();
+      console.error('❌ Failed to load Prodaja processes:', error);
+      // Fallback na mock data s prodajom
+      const fallbackData = createProdajaFallbackJson();
       setGanttJson(fallbackData);
       convertJsonToDraft(fallbackData);
       setHistoryIndex(0);

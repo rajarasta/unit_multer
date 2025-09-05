@@ -1,0 +1,16 @@
+﻿              id: `queue-${Date.now()}`,
+              name: 'Dodajem u red Äekanja',
+              description: `Akcija "${parsed.type}" za ${parsed.alias}`,
+              icon: 'â³',
+              status: 'completed',
+              timestamp: new Date().toISOString(),
+              completedAt: new Date().toISOString(),
+              params: parsed
+            };
+            agent.addStage(queueStage);
+            
+            // Handle global and local actions
+            if (parsed.type === 'exit_focus') {
+              try { agent.stopListening(); } catch {}
+              setFocusMode(false); setAliasByLine({}); setLineByAlias({}); nextAliasNumRef.current=1; return;
+            }

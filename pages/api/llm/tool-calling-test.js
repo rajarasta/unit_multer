@@ -79,7 +79,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, enable_tools = true } = req.body;
+    const { prompt, enable_tools = true, llm_mode = 'server', base_url, model } = req.body;
 
     console.log(`🔧 Tool calling test - Prompt: "${prompt}"`);
 

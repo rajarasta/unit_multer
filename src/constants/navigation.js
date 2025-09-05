@@ -1,5 +1,5 @@
 import { 
-  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings
+  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings, Server
 } from 'lucide-react';
 
 export const navItems = [
@@ -17,6 +17,8 @@ export const navItems = [
   { key: "circus", label: "Glasovno projektiranje", icon: Zap },
   { key: "users", label: "Upravljanje korisnicima", icon: Users},
   { key: "employogram", label: "Employogram", icon: Network},
+  { key: "employogram-original", label: "Employogram Original", icon: Network},
+  { key: "employogram2", label: "Employogram2", icon: Network},
   { key: "agbim-field", label: "AGBIM Field Simulator", icon: Smartphone},
   { key: "task-hub", label: "Task Hub", icon: FolderKanban},
   { key: "dispatch", label: "Otprema", icon: Truck, badge: { color: 'amber' }},
@@ -31,4 +33,5 @@ export const navItems = [
   ,{ key: "background-lab", label: "Appearance", icon: Layers }
   ,{ key: "gva-v2", label: "G VAv2", icon: Calendar }
   ,{ key: "codex-control", label: "Codex Control", icon: Settings }
+  ,{ key: "llm-server", label: "LLM Server Manager", icon: Server }
 ];
