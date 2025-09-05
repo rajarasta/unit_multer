@@ -11,112 +11,25 @@ import AgentConsole from '../../agent/AgentConsole.jsx';
 import AgentTaskCard from '../../agent/AgentTaskCard.jsx';
 import { chatCompletions } from '../../../agent/llmClient.js';
 import { validateParams } from '../../../agent/tooling.js';
-// Using inline AgentInteractionPanel and loadProdajaData in this file
+import AgentInteractionPanelView from './components/AgentInteractionPanel.jsx';
+import { loadProdajaData as loadProdajaDataExternal } from './data/prodaja.js';
 
+import { parseJsonSafe } from './utils/json.js';
+import { ymd, fromYmd, addDays, diffDays, rangeDays } from './utils/date.js';
+
+// Import custom hooks
+import useGanttAgent from './hooks/useGanttAgent.js';
+import { useGanttData } from './hooks/useGanttData.js';
+import { useGanttSettings } from './hooks/useGanttSettings.js';
+
+// Import utilities
+import { assignAliasToLine, findPositionCodes, calculateDateRange } from './utils/ganttCalculations.js';
+import { parseCroatianCommand } from './parser/parseCroatianCommand.js';
 // --- JSON helper: safely parse raw model output (handles code fences) ---
-function parseJsonSafe(text) {
-  try {
-    let s = String(text || '').trim();
-    // strip optional markdown code fences
-    s = s.replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/i, '');
-    // clamp to the first/last brace (defensive against logging noise)
-    const first = s.indexOf('{');
-    const last = s.lastIndexOf('}');
-    if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-}
+// parseJsonSafe moved to utils/json.js
 // --- Date helpers (UTC safe) ---
-const ymd = (d) => d.toISOString().slice(0, 10);
-const fromYmd = (s) => new Date(`${s}T00:00:00Z`);
-const addDays = (s, n) => { if (!s) return s; const d = fromYmd(s); d.setUTCDate(d.getUTCDate() + n); return ymd(d); };
-const diffDays = (a, b) => { if (!a || !b) return 0; const d1 = fromYmd(a), d2 = fromYmd(b); return Math.round((d2 - d1) / (1000*60*60*24)); };
-const rangeDays = (from, to) => { if (!from || !to) return []; const out=[]; let cur=fromYmd(from), end=fromYmd(to); while(cur<=end){ out.push(ymd(cur)); cur.setUTCDate(cur.getUTCDate()+1);} return out; };
-// --- Load prodaja processes from all_projects JSON ---
-let PRODAJA_GANTT_JSON = null;
-const loadProdajaData = async () => {
-  try {
-    const response = await fetch('/all_projects_2025-09-02T23-56-55.json');
-    const allProjectsData = await response.json();
-    
-    // Extract all "Prodaja" processes
-    const prodajaProcesses = [];
-    
-    if (allProjectsData.projects) {
-      allProjectsData.projects.forEach((project) => {
-        if (project.positions) {
-          project.positions.forEach((pozicija) => {
-            if (pozicija.processes) {
-              pozicija.processes.forEach((process) => {
-                if (process.name === "Prodaja") {
-                  prodajaProcesses.push({
-                    project,
-                    pozicija,
-                    process,
-                    uniqueId: `${project.id}-${pozicija.id}-PRODAJA`
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-    }
-    
-    // Convert to GVAv2 format
-    PRODAJA_GANTT_JSON = {
-      project: {
-        id: 'ALL-PRODAJA-PROCESSES',
-        name: 'Svi Procesi Prodaje',
-        description: `Prikaz ${prodajaProcesses.length} procesa prodaje iz svih projekata`
-      },
-      pozicije: prodajaProcesses.map((item, index) => ({
-        id: item.uniqueId,
-        naziv: `${item.project.name} - ${item.pozicija.title}`,
-        montaza: {
-          opis: `Prodaja za ${item.pozicija.title} (${item.project.client?.name || 'N/A'})`,
-          osoba: item.process.owner?.name || "Nepoznato",
-          datum_pocetka: item.process.plannedStart,
-          datum_zavrsetka: item.process.plannedEnd,
-          // Additional data for voice commands
-          status: item.process.status,
-          progress: item.process.progress || 0,
-          actualStart: item.process.actualStart,
-          actualEnd: item.process.actualEnd,
-          notes: item.process.notes || '',
-          // Metadata for voice modification
-          projectId: item.project.id,
-          pozicijaId: item.pozicija.id,
-          clientName: item.project.client?.name
-        }
-      })),
-      metadata: {
-        version: '2.0',
-        source: 'all_projects_2025-09-02T23-56-55.json',
-        processCount: prodajaProcesses.length,
-        loadedAt: new Date().toISOString()
-      }
-    };
-    
-    console.log(`ðŸ“Š Loaded ${prodajaProcesses.length} prodaja processes for GVAv2`);
-    return PRODAJA_GANTT_JSON;
-    
-  } catch (error) {
-    console.error('âŒ Failed to load prodaja data:', error);
-    // Fallback to mock data with prodaja theme
-    return {
-      project: { id: 'PRODAJA-FALLBACK', name: 'Prodaja Procesi - Fallback', description: 'Fallback podaci za prodaju procese' },
-      pozicije: [
-        { id:'PRJ-01-PZ-01-PRODAJA', naziv:'Stambena zgrada â€“ Istok - Aluminijski profili', montaza:{ opis:'Prodaja za Aluminijski profili KTM-2025', osoba:'Marko P.', datum_pocetka:'2025-08-16', datum_zavrsetka:'2025-08-16', status:'ZavrÅ¡eno' } },
-        { id:'PRJ-01-PZ-02-PRODAJA', naziv:'Stambena zgrada â€“ Istok - Staklo termoizol.', montaza:{ opis:'Prodaja za Staklo termoizol. 4+12+4', osoba:'Marko P.', datum_pocetka:'2025-08-18', datum_zavrsetka:'2025-08-23', status:'ZavrÅ¡eno' } },
-        { id:'PRJ-02-PZ-01-PRODAJA', naziv:'Ured Zapad - ÄŒeliÄni okvir', montaza:{ opis:'Prodaja za ÄŒeliÄni okvir FEA D45-001', osoba:'Marko P.', datum_pocetka:'2025-08-16', datum_zavrsetka:'2025-08-17', status:'ZavrÅ¡eno' } },
-      ],
-      metadata: { version:'2.0', source:'fallback' }
-    };
-  }
-};
+// date helpers moved to utils/date.js`n// --- Load prodaja processes from all_projects JSON ---
+// data loader moved to data/prodaja.js
 // Initialize with fallback, will be replaced by loaded data
 const MOCK_GANTT_JSON = {
   project: { id: 'LOADING', name: 'UÄitavanje podataka...', description: 'UÄitavam procese prodaje iz all_projects datoteke' },
@@ -124,359 +37,11 @@ const MOCK_GANTT_JSON = {
   metadata: { version:'2.0', loading:true }
 };
 // --- Agent Interaction Panel Component ---
-function AgentInteractionPanel({ agent, focusMode, processCommand, pendingActions, confirmAction, cancelAction, aliasByLine }) {
-  const [textInput, setTextInput] = useState('');
-  // handle quick command events
-  useEffect(() => {
-    const h = (e) => {
-      const t = e?.detail?.t;
-      if (typeof t === 'string' && t.trim()) {
-        processCommand(t.trim());
-      }
-    };
-    window.addEventListener('gva:quickCommand', h);
-    return () => window.removeEventListener('gva:quickCommand', h);
-  }, [processCommand]);
-  
-  const hasActiveContent = focusMode || pendingActions.length > 0 || agent.transcript || agent.isListening;
-  
-  return (
-    <div className="h-full flex flex-col">
-      {hasActiveContent && (
-        <div className="panel rounded-2xl p-4 mb-4 shadow-lg">
-          <h3 className="font-semibold text-primary flex items-center gap-2">
-            <Bot className="w-4 h-4" />
-            Chat & Glasovni Agent
-          </h3>
-        </div>
-      )}
-      
-      <div className="flex-1 overflow-y-auto">
-        {!hasActiveContent ? (
-          <div 
-            className="p-4 h-full flex items-center justify-center cursor-pointer"
-            onClick={agent.startListening}
-          >
-            <div className="text-center text-subtle">
-              <Mic className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="text-sm">Chat & Glasovni Agent</p>
-              <p className="text-xs mt-1">Kliknite za poÄetak snimanja</p>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4">
-        {/* Voice Control */}
-        <div className="mb-4">
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={agent.isListening ? agent.stopListening : agent.startListening}
-              className={`flex-1 p-3 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
-                agent.isListening 
-                  ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-accent hover:bg-accent/80 text-white'
-              }`}
-            >
-              {agent.isListening ? <Square size={16} /> : <Mic size={16} />}
-              {agent.isListening ? 'Stop' : 'Voice'}
-            </button>
-          </div>
-          
-          {agent.transcript && (
-            <div className="p-2 bg-gray-100 rounded text-sm text-gray-700 mb-2">
-              {agent.transcript}
-            </div>
-          )}
-        </div>
-        {/* Text Input */}
-        <div className="mb-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && textInput.trim()) {
-                  processCommand(textInput);
-                  setTextInput('');
-                }
-              }}
-              placeholder={focusMode ? "Recite naredbu..." : "Recite 'agent' za fokus"}
-              className="flex-1 p-2 rounded-lg input-bg border border-theme text-sm"
-            />
-            <button
-              onClick={() => {
-                if (textInput.trim()) {
-                  processCommand(textInput);
-                  setTextInput('');
-                }
-              }}
-              disabled={!textInput.trim()}
-              className="px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send size={16} />
-            </button>
-          </div>
-        </div>
-        {/* Focus Mode Indicator */}
-        {focusMode && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-amber-800">Focus Mode Aktivan</span>
-            </div>
-            <p className="text-xs text-amber-700">Reci "dalje" za izlaz iz focus moda</p>
-          </div>
-        )}
-        {/* Pending Actions */}
-        {pendingActions.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-primary">ÄŒekaju potvrdu:</h4>
-            {pendingActions.map(action => (
-              <div key={action.id} className="p-3 input-bg rounded-lg border border-theme">
-                <div className="text-xs text-secondary mb-1">Akcija</div>
-                <div className="text-sm font-medium text-primary mb-2">Pomakni poÄetak</div>
-                <div className="text-xs text-secondary mb-1">
-                  Meta: <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded">{aliasByLine[action.lineId] || action.alias}</span>
-                </div>
-                <div className="text-xs text-secondary mb-3">
-                  Vrijeme: <span className="font-mono">{action.iso}</span>
-                </div>
-                <div className="text-[11px] text-amber-700 mb-2">Reci "potvrdi" ili "poni1ti"</div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => confirmAction(action)}
-                    className="px-2 py-1 rounded bg-emerald-600 text-white text-xs flex items-center gap-1"
-                  >
-                    <CheckCircle size={12}/> Potvrdi
-                  </button>
-                  <button 
-                    onClick={() => cancelAction(action.id)}
-                    className="px-2 py-1 rounded border text-xs"
-                  >
-                    PoniÅ¡ti
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// Agent panel moved to external component
 // --- Process Timeline Panel Component ---
-function ProcessTimelinePanel({ processStages, clearStages }) {
-  return (
-    <div className="h-[600px] flex flex-col">
-      {processStages.length > 0 && (
-        <div className="panel rounded-2xl p-4 mb-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-primary flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Proces obrade
-            </h3>
-            <button
-              onClick={clearStages}
-              className="text-xs text-subtle hover:text-primary transition-colors"
-            >
-              OÄisti
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="flex-1 overflow-y-auto">
-        {processStages.length === 0 ? (
-          <div className="p-4 h-full flex items-center justify-center">
-            <div className="text-center text-subtle">
-              <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="text-sm">Nema aktivnih procesa</p>
-              <p className="text-xs mt-1">Timeline Ä‡e se prikazati kad pokrenete glasovnu naredbu</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <AnimatePresence>
-                {processStages.map((stage, index) => (
-                  <motion.div
-                    key={stage.id}
-                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                    animate={{ 
-                      opacity: 1, 
-                      scale: 1, 
-                      y: 0,
-                      transition: { delay: index * 0.1 }
-                    }}
-                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                    className={`
-                      relative p-3 rounded-lg border-2 transition-all duration-300
-                      ${stage.status === 'active' ? 'border-blue-200 bg-blue-50/50' : ''}
-                      ${stage.status === 'completed' ? 'border-green-200 bg-green-50/50' : ''}
-                      ${stage.status === 'failed' ? 'border-red-200 bg-red-50/50' : ''}
-                      ${stage.status === 'idle' ? 'border-gray-200 bg-gray-50/30' : ''}
-                    `}
-                  >
-                    {/* Timeline connector */}
-                    {index < processStages.length - 1 && (
-                      <div className="absolute left-6 top-12 w-0.5 h-6 bg-gray-300" />
-                    )}
-                    
-                    {/* Status indicator */}
-                    <div className="absolute top-3 left-3">
-                      {stage.status === 'active' && (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                          className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full"
-                        />
-                      )}
-                      {stage.status === 'completed' && (
-                        <CheckCircle className="w-3 h-3 text-green-600" />
-                      )}
-                      {stage.status === 'failed' && (
-                        <AlertCircle className="w-3 h-3 text-red-600" />
-                      )}
-                      {stage.status === 'idle' && (
-                        <div className="w-3 h-3 rounded-full border-2 border-gray-400" />
-                      )}
-                    </div>
-                    {/* Stage content */}
-                    <div className="ml-6">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm">{stage.icon}</span>
-                        <h4 className={`font-medium text-sm ${
-                          stage.status === 'active' ? 'text-blue-900' :
-                          stage.status === 'completed' ? 'text-green-900' :
-                          stage.status === 'failed' ? 'text-red-900' : 'text-gray-900'
-                        }`}>
-                          {stage.name}
-                        </h4>
-                      </div>
-                      <p className={`text-xs mb-2 ${
-                        stage.status === 'active' ? 'text-blue-700' :
-                        stage.status === 'completed' ? 'text-green-700' :
-                        stage.status === 'failed' ? 'text-red-700' : 'text-gray-600'
-                      }`}>
-                        {stage.description}
-                      </p>
-                      {/* Parameters */}
-                      {stage.params && Object.keys(stage.params).length > 0 && (
-                        <div className="mb-2">
-                          <div className="text-xs font-medium text-gray-600 mb-1">Parametri:</div>
-                          <div className="space-y-1">
-                            {Object.entries(stage.params).map(([key, value]) => (
-                              <div key={key} className="flex justify-between text-xs">
-                                <span className="text-gray-500">{key}:</span>
-                                <span className="text-gray-700 font-mono max-w-[100px] truncate">
-                                  {typeof value === 'string' ? value : JSON.stringify(value)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {/* Result */}
-                      {stage.result && (
-                        <div className="mb-2">
-                          <div className="text-xs font-medium text-green-600 mb-1">Rezultat:</div>
-                          <div className="text-xs text-green-700 font-mono">
-                            {typeof stage.result === 'string' 
-                              ? stage.result 
-                              : JSON.stringify(stage.result, null, 2).substring(0, 50) + '...'
-                            }
-                          </div>
-                        </div>
-                      )}
-                      {/* Error */}
-                      {stage.error && (
-                        <div className="mb-2">
-                          <div className="text-xs font-medium text-red-600 mb-1">GreÅ¡ka:</div>
-                          <div className="text-xs text-red-700 font-mono">
-                            {typeof stage.error === 'string' 
-                              ? stage.error 
-                              : JSON.stringify(stage.error, null, 2).substring(0, 50) + '...'
-                            }
-                          </div>
-                        </div>
-                      )}
-                      {/* Timing */}
-                      <div className="flex justify-between items-center text-xs text-gray-500 mt-2">
-                        <span>
-                          {stage.timestamp && new Date(stage.timestamp).toLocaleTimeString('hr-HR', { 
-                            hour: '2-digit', 
-                            minute: '2-digit', 
-                            second: '2-digit' 
-                          })}
-                        </span>
-                        {stage.completedAt && (
-                          <span>
-                            ({Math.round((new Date(stage.completedAt) - new Date(stage.timestamp)) / 1000)}s)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-            </AnimatePresence>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+import ProcessTimelinePanel from './components/ProcessTimelinePanel.jsx';
 // --- Quick Command Cards (right side) ---
-function QuickCommandCards({ onSend }) {
-  // Flat list of colored command chips (no grouping)
-  const cmds = [
-    { id: 'shift-1', title: 'Pomakni PZ-01 +2 dana', text: 'pomakni pz-01 za +2 dana', icon: Activity, tint: 'sky' },
-    { id: 'shift-2', title: 'Pomakni aktivnu -1 dan', text: 'pomakni aktivnu liniju za -1 dan', icon: Activity, tint: 'sky' },
-    { id: 'date-1',  title: 'Start PZ-02 na 1.9.',   text: 'postavi poÄetak pz-02 na 2025-09-01', icon: CalendarDays, tint: 'indigo' },
-    { id: 'date-2',  title: 'Kraj PZ-03 na 5.9.',     text: 'postavi kraj pz-03 na 2025-09-05',   icon: CalendarDays, tint: 'indigo' },
-    { id: 'conf-1',  title: 'Potvrdi aktivnu liniju', text: 'potvrdi',                            icon: CheckCircle,  tint: 'emerald' },
-    { id: 'nav-1',   title: 'Izlaz i spremi',         text: 'dalje',                              icon: X,            tint: 'rose' },
-  ];
-  const tintToGradient = (t) => {
-    switch (t) {
-      case 'sky':     return { from: '#38bdf8', via: '#0ea5e9', to: '#0284c7' };
-      case 'indigo':  return { from: '#818cf8', via: '#6366f1', to: '#4f46e5' };
-      case 'emerald': return { from: '#34d399', via: '#10b981', to: '#059669' };
-      case 'rose':    return { from: '#fb7185', via: '#f43f5e', to: '#e11d48' };
-      default:        return { from: '#94a3b8', via: '#64748b', to: '#475569' };
-    }
-  };
-  return (
-    <div className="panel h-full rounded-2xl p-4 shadow-lg flex flex-col">
-      <h3 className="font-semibold text-primary mb-3">Brze naredbe</h3>
-      <div className="flex flex-wrap gap-2">
-        {cmds.map((c) => {
-          const Icon = c.icon || Sparkles;
-          const g = tintToGradient(c.tint);
-          const style = {
-            background: `linear-gradient(135deg, ${g.from}22, ${g.via}22 45%, ${g.to}26), rgba(255,255,255,0.04)`,
-            boxShadow: `inset 0 1px 0 0 rgba(255,255,255,.12), 0 8px 20px rgba(0,0,0,.12)`,
-            borderColor: 'rgba(255,255,255,.18)'
-          };
-          return (
-            <button
-              key={c.id}
-              onClick={()=>onSend(c.text)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-white/90 backdrop-blur-md border transition hover:translate-y-[-1px]`}
-              style={style}
-              title={c.text}
-            >
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/85 text-slate-700 shadow-sm">
-                <Icon size={12} />
-              </span>
-              <span className="text-xs font-medium">{c.title}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-auto" />
-    </div>
-  );
-}
+import QuickCommandCards from './components/QuickCommandCards.jsx';
 // --- Agent simulation ---
 function useGanttAgent() {
   const [state, setState] = useState('idle');
@@ -553,16 +118,8 @@ function useGanttAgent() {
   };
 }
 // --- Simple Croatian command parser (heuristic) ---
-function resolveMonthToken(tok) {
-  const m = {
-    'prvog':1,'drugog':2,'treÄ‡eg':3,'treceg':3,'Äetvrtog':4,'cetvrtog':4,'petog':5,'Å¡estog':6,'sestog':6,'sedmog':7,'osmog':8,'devetog':9,'desetog':10,'jedanaestog':11,'dvanaestog':12,
-    'sijeÄnja':1,'veljaÄe':2,'oÅ¾ujka':3,'travnja':4,'svibnja':5,'lipnja':6,'srpnja':7,'kolovoza':8,'rujna':9,'listopada':10,'studenog':11,'prosinca':12,
-    'sijecnja':1,'veljace':2,'ozujka':3,'travnja':4,'svibnja':5,'lipnja':6,'srpnja':7,'kolovoza':8,'rujna':9,'listopada':10,'studenog':11,'prosinca':12,
-    '1.':1,'2.':2,'3.':3,'4.':4,'5.':5,'6.':6,'7.':7,'8.':8,'9.':9,'10.':10,'11.':11,'12.':12,
-    '1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'11':11,'12':12
-  };
-  return m[tok] || null;
-}
+import { parseCroatianCommand } from './parser/parseCroatianCommand.js';
+
 function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
   if (!text) return null;
   const t = text.toLowerCase().trim();
@@ -768,233 +325,7 @@ function InspectorSidebar({ ganttJson, activeLine, jsonHistory, historyIndex, ca
     </div>
   );
 }
-function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions }) {
-  const [isListening, setIsListening] = useState(false);
-  const [ganttVisible, setGanttVisible] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [textInput, setTextInput] = useState('');
-  const { dateRange, lines } = useMemo(() => {
-    if (!ganttJson?.pozicije) return { dateRange: {}, lines: [] };
-    const jsonLines = ganttJson.pozicije.map(p=>({
-      id:p.id, pozicija_id:p.id, label:p.naziv, start:p.montaza.datum_pocetka, end:p.montaza.datum_zavrsetka,
-      duration_days: diffDays(p.montaza.datum_pocetka, p.montaza.datum_zavrsetka)+1, osoba:p.montaza.osoba, opis:p.montaza.opis
-    }));
-    const all = jsonLines.flatMap(l=>[l.start,l.end]).filter(Boolean).sort();
-    if (!all.length) return { dateRange:{}, lines: jsonLines };
-    return { dateRange: { from: all[0], to: all[all.length-1] }, lines: jsonLines };
-  }, [ganttJson]);
-  const days = useMemo(()=> rangeDays(dateRange.from, dateRange.to), [dateRange]);
-  const totalDays = days.length || 1;
-  // Voice recognition for "gantt" wake word
-  useEffect(() => {
-    if (!isListening) return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    
-    const rec = new SR();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = 'hr-HR';
-    
-    const onresult = (e) => {
-      let finalText = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i];
-        if (res.isFinal) finalText += res[0].transcript;
-      }
-      
-      if (finalText) {
-        const text = finalText.trim().toLowerCase();
-        setTranscript(text);
-        
-        if (/\bgantt\b/.test(text) || /\bgant\b/.test(text)) {
-          setGanttVisible(true);
-          setIsListening(false);
-          setTimeout(() => window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } })), 0);
-        }
-      }
-    };
-    
-    rec.onresult = onresult;
-    rec.onerror = () => {};
-    rec.start();
-    
-    return () => { try { rec.stop(); } catch {} };
-  }, [isListening]);
-  const startListening = () => {
-    setIsListening(true);
-    setTranscript('');
-  };
-  const handleTextSearch = () => {
-    if (textInput.trim()) {
-      const searchText = textInput.trim().toLowerCase();
-      if (searchText.includes('gantt') || searchText.includes('gant')) {
-        setGanttVisible(true);
-        setTimeout(() => window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } })), 0);
-      }
-      // TODO: Later implement search functionality for specific gantt elements
-      console.log('Searching for:', searchText);
-    }
-  };
-  if (!ganttVisible) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center text-subtle p-8 w-full max-w-md">
-          {/* Voice Control */}
-          <div 
-            className="cursor-pointer mb-6"
-            onClick={startListening}
-          >
-            <motion.div
-              animate={isListening ? { scale: [1, 1.2, 1] } : {}}
-              transition={{ duration: 1, repeat: isListening ? Infinity : 0 }}
-            >
-              <Mic className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            </motion.div>
-            <p className="text-lg mb-2">Gantt Dijagram</p>
-            <p className="text-sm mb-4">
-              {isListening ? 'SluÅ¡am... Recite "gantt"' : 'Kliknite za glasovnu aktivaciju'}
-            </p>
-            {transcript && (
-              <div className="text-xs text-secondary bg-gray-100 rounded px-3 py-1 inline-block mb-4">
-                {transcript}
-              </div>
-            )}
-          </div>
-          {/* Text Input */}
-          <div className="w-full">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && textInput.trim()) {
-                    handleTextSearch();
-                    setTextInput('');
-                  }
-                }}
-                placeholder="UpiÅ¡ite 'gantt' ili pretraÅ¾ite elemente..."
-                className="flex-1 p-3 rounded-lg input-bg border border-theme text-sm text-primary placeholder-text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-              <button
-                onClick={() => {
-                  handleTextSearch();
-                  setTextInput('');
-                }}
-                disabled={!textInput.trim()}
-                className="px-4 py-3 bg-accent text-white rounded-lg hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  if (!lines.length) return <div className="panel flex-1 rounded-2xl flex items-center justify-center text-subtle">UÄitavanje podataka...</div>;
-  const barColors = ['from-indigo-500 to-purple-600','from-sky-500 to-blue-600','from-emerald-500 to-teal-600','from-amber-500 to-orange-600','from-rose-500 to-pink-600'];
-  return (
-    <div className="panel flex-1 rounded-2xl overflow-hidden flex flex-col">
-      <div className="p-6 border-b border-theme flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-primary">{ganttJson.project.name}</h2>
-          <p className="text-sm text-subtle mt-1">{ganttJson.project.description}</p>
-        </div>
-        <div className="flex items-center gap-4 text-sm text-secondary">
-          <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4"/> {dateRange.from} â€“ {dateRange.to}</div>
-        </div>
-      </div>
-      <div className="flex-1 overflow-auto">
-        <div className="grid" style={{ gridTemplateColumns: `280px repeat(${totalDays}, 45px)` }}>
-          <div className="text-sm font-semibold sticky top-0 left-0 z-30 panel px-6 py-3 border-b border-theme">Pozicija</div>
-          {days.map((d)=>{ const dateObj = fromYmd(d); const dayNum = dateObj.getUTCDate(); const dayName = dateObj.toLocaleDateString('hr-HR',{weekday:'short', timeZone:'UTC'}).toUpperCase(); return (
-            <div key={d} className="text-xs text-center py-3 sticky top-0 z-10 panel border-b border-l gantt-grid-line border-theme">
-              <div className="font-bold text-sm text-primary">{dayNum}</div>
-              <div className="text-subtle">{dayName}</div>
-            </div>
-          );})}
-          {lines.map((ln,idx)=>{
-            const startIdx = Math.max(0, diffDays(dateRange.from, ln.start));
-            const span = ln.duration_days;
-            const isActive = ln.id===activeLineId; const barColor = barColors[idx%barColors.length];
-            return (
-              <React.Fragment key={ln.id}>
-                <div className={`px-6 py-2 text-sm sticky left-0 z-20 panel border-t border-theme flex flex-col justify-center h-12 cursor-pointer transition-shadow ${isActive?'ring-2 ring-inset ring-accent':''}`} onClick={()=>setActiveLineId(ln.id)}>
-                  <div className="font-medium text-primary truncate" title={ln.label}>{ln.label}</div>
-                  <div className="text-xs text-subtle mt-1 flex items-center gap-2"><span className="px-2 py-0.5 input-bg rounded-md text-xs">{ln.pozicija_id}</span><span>{ln.osoba}</span></div>
-                </div>
-                <div className="relative col-span-full grid" style={{ gridTemplateColumns: `repeat(${totalDays}, 45px)`, gridColumnStart: 2 }}>
-          {days.map((d,i)=> (<div key={`${ln.id}-${d}`} className="h-12 border-t border-l gantt-grid-line border-theme"/>))}
-                  <motion.div layoutId={`gantt-bar-${ln.id}`} data-bar-id={ln.id} className={`absolute top-1 h-10 rounded-lg shadow-xl bg-gradient-to-r ${barColor} flex flex-col justify-center pl-3 pr-3 text-white cursor-pointer`}
-                    style={{ gridColumnStart: startIdx+1, gridColumnEnd: startIdx+1+span, width:`calc(${span*45}px - 8px)`, left:'4px', filter: isActive? 'brightness(1.1) drop-shadow(0 0 15px var(--color-accent))':'none' }}
-                    initial={{opacity:0.8}} animate={{opacity:1}} whileHover={{scale:1.02}} transition={{type:'spring',stiffness:300,damping:25}}
-                    onMouseEnter={(e)=>{ const r = e.currentTarget.getBoundingClientRect(); const x = r.left + r.width/2; const y = r.top + r.height/2; window.dispatchEvent(new CustomEvent('bg:highlight',{ detail:{ x, y, radius: Math.max(r.width,r.height), durationMs: 900 } })); if (window.__gvaFocusAssignAlias) window.__gvaFocusAssignAlias(ln.id); }}
-                    onClick={()=>setActiveLineId(ln.id)}>
-                    {/* Alias badge (focus mode only) injected via CSS toggle */}
-                    <span className="alias-badge hidden mr-2 px-2 py-0.5 rounded bg-white/20 text-xs">PR?</span>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs font-medium truncate block leading-tight">{ln.label}</span>
-                      <span className="text-xs opacity-80 leading-tight">
-                        {ln.duration_days} {ln.duration_days === 1 ? 'dan' : 'dana'}
-                      </span>
-                    </div>
-                  </motion.div>
-                  {/* Ghost preview when action pending for this line */}
-                  {pendingActions && pendingActions.filter(a=>a.lineId===ln.id).map((a)=>{
-                    const newStart = a.iso || ln.start;
-                    const newStartIdx = Math.max(0, diffDays(dateRange.from, newStart));
-                    const newEndIdx = newStartIdx + span;
-                    return (
-                      <div key={`ghost-${a.id}`} className="absolute top-1 h-10 rounded-lg border-2 border-dashed border-amber-400/80 bg-amber-200/20 pointer-events-none"
-                        style={{ gridColumnStart: newStartIdx+1, gridColumnEnd: newEndIdx+1, width:`calc(${span*45}px - 8px)`, left:'4px', backdropFilter:'blur(1px)' }}
-                        title={`Preview: ${a.iso}`}>
-                        <div className="absolute inset-0 rounded-lg" style={{boxShadow:'inset 0 0 0 2px rgba(251,191,36,.5)'}} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </React.Fragment>
-            );
-            // Trigger LLM fallback suggestions when parse fails
-            if (enableLLMFallback && agentSource === 'local') {
-              (async () => {
-                try {
-                  setFallbackOpen(true);
-                  setFallbackLoading(true);
-                  const context = {
-                    currentDate: new Date().toISOString().slice(0,10),
-                    availableAliases: Object.keys(lineByAlias || {})
-                  };
-                  const sys = 'Vrati JSON: {"suggestions":[{"tool":"...","params":{...},"confidence":0.0},...]} bez dodatnog teksta. ' +
-                    'Dostupni alati: move_start{alias,date:YYYY-MM-DD}, shift{alias,days}, shift_all{days}, distribute_chain{}, normative_extend{days}, add_task_open{}, image_popup{}.';
-                  const user = `Kontekst: ${JSON.stringify(context)}\nNaredba: ${t}`;
-                  const text = await chatCompletions(localAgentUrl, [ { role:'system', content: sys }, { role:'user', content: user } ]);
-                  let suggestions = [];
-                  const obj = parseJsonSafe(text);
-                  suggestions = Array.isArray(obj?.suggestions) ? obj.suggestions.slice(0,3) : [];
-                  setFallbackSuggestions(suggestions);
-                  // if the best suggestion asks for a value, show the question in chat and focus input
-                  const first = suggestions[0];
-                  if (first?.ask) {
-                    setFallbackChat(c => [...c, { role: 'assistant', text: first.ask }]);
-                    try { fallbackInputRef.current?.focus(); } catch {}
-                  }
-                  setSuperFocus(true);
-                } catch (e) {
-                  log(`LLM fallback error: ${e?.message || String(e)}`);
-                } finally {
-                  setFallbackLoading(false);
-                }
-              })();
-            }
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
+import GanttCanvas from './components/GanttCanvas.jsx';
 function AgentInteractionBar({ agent, processCommand }) {
   const [textInput, setTextInput] = useState('');
   const handleTextSubmit = (e) => { e.preventDefault(); if (textInput.trim()) { processCommand(textInput.trim()); setTextInput(''); } };
@@ -1051,7 +382,7 @@ export default function GVAv2() {
   useEffect(() => {
     const initializeProdajaData = async () => {
       console.log('ðŸ”„ Loading prodaja data for GVAv2...');
-      const prodajaData = await loadProdajaData();
+      const prodajaData = await loadProdajaDataExternal();
       
       setJsonHistory([prodajaData]);
       setHistoryIndex(0);
@@ -2059,7 +1390,7 @@ export default function GVAv2() {
 
         {/* Chat/Voice Input Panel - Right (1/6 width) */}
         <div className="w-1/6 flex-shrink-0">
-          <AgentInteractionPanel
+          <AgentInteractionPanelView
             agent={agent}
             focusMode={focusMode}
             processCommand={(cmd) => {
@@ -2133,3 +1464,7 @@ export default function GVAv2() {
     </div>
   );
 }
+
+
+
+
