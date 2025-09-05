@@ -20,7 +20,7 @@
     "dev-voice": "concurrently \"npm run voice-server\" \"npm run dev\"",
     "dev-gantt": "concurrently \"npm run file-writer\" \"npm run server\" \"npm run dev\"",
     "runner": "cross-env RUNNER_PORT=3004 node runner.js",
-    "servers:all": "concurrently -n voice,file,registry,runner -c blue,magenta,green,yellow \"npm:voice-server\" \"npm:file-writer\" \"npm:server\" \"npm:runner\""
+    "servers:all": "concurrently -n ui,voice,file,registry,runner -c cyan,blue,magenta,green,yellow \"npm:dev\" \"npm:voice-server\" \"npm:file-writer\" \"npm:server\" \"npm:runner\""
   },
   "dependencies": {
     "@google/genai": "^1.16.0",

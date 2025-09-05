@@ -11,6 +11,24 @@ import AgentConsole from '../../agent/AgentConsole.jsx';
 import AgentTaskCard from '../../agent/AgentTaskCard.jsx';
 import { chatCompletions } from '../../../agent/llmClient.js';
 import { validateParams } from '../../../agent/tooling.js';
+import AgentInteractionPanelView from './components/AgentInteractionPanel.jsx';
+import { loadProdajaData as loadProdajaDataExternal } from './data/prodaja.js';
+
+// --- JSON helper: safely parse raw model output (handles code fences) ---
+function parseJsonSafe(text) {
+  try {
+    let s = String(text || '').trim();
+    // strip optional markdown code fences
+    s = s.replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/i, '');
+    // clamp to the first/last brace (defensive against logging noise)
+    const first = s.indexOf('{');
+    const last = s.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
 // --- Date helpers (UTC safe) ---
 const ymd = (d) => d.toISOString().slice(0, 10);
 const fromYmd = (s) => new Date(`${s}T00:00:00Z`);
@@ -569,22 +587,24 @@ function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
     return { type: 'move_start', alias, lineId, iso, confidence: 0.82 };
   }
   // Pattern: "pomakni PR5 za 2 dana" (shift by N days)
-  const s = t.match(/pomakni\s+(pr\d+)\s+za\s+(-?\d+)\s+dana?/);
+  // Accept fillers (pa, ajde, molim te, ok) and verb synonyms (pomakni|makni|pomjeri|premjesti|prebaci)
+  // Allow space in alias: "pr 6" ? normalize later
+  const s = t.match(/^(?:pa|ajmo|ajde|hajde|molim(?:\s+te)?|ma|hej|ok|okej)?\s*(?:pomakni|makni|pomjeri|premjesti|prebaci)\s+(pr\s*\d+)\s+za\s+(-?\d+)\s+dana?/u);
   if (s) {
-    const alias = s[1].toUpperCase();
+    const alias = s[1].replace(/\\s+/g,'').toUpperCase();
     const delta = parseInt(s[2], 10);
     const lineId = aliasToLine[alias];
     if (!lineId || !Number.isFinite(delta)) return null;
     return { type: 'shift', alias, lineId, days: delta, confidence: 0.8 };
   }
   // Pattern: natural numbers and plus/minus wording (e.g., "pomakni pr4 za jedan dan", "pomakni pr4 plus jedan dan")
-  const s2 = t.match(/pomakni\s+(pr\d+)\s+(?:za\s+)?(?:(plus|minu[sz])\s+)?([a-zÄÄ‡Å¡Ä‘Å¾]+|\d+)\s+(dan|dana|tjedan|tjedna)/);
+  const s2 = t.match(/^(?:pa|ajmo|ajde|hajde|molim(?:\s+te)?|ma|hej|ok|okej)?\s*(?:pomakni|makni|pomjeri|premjesti|prebaci)\s+(pr\s*\d+)\s+(?:za\s+)?(?:(plus|minu[sz])\s+)?([a-zccdï¿½ï¿½]+|\d+)\s+(dan|dana|tjedan|tjedna)/u);
   if (s2) {
-    const alias = s2[1].toUpperCase();
+    const alias = s2[1].replace(/\\s+/g,'').toUpperCase();
     const signWord = s2[2];
     const numWord = s2[3];
-    const unit = s2[4];
-    const numMap = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'Äetiri':4,'cetiri':4,'pet':5,'Å¡est':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
+     const unit = s2[4];
+     const numMap = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'četiri':4,'cetiri':4,'pet':5,'šest':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
     let n = (/^\d+$/.test(numWord) ? parseInt(numWord,10) : (numMap[numWord] ?? null));
     if (n == null) return null;
     if (/tjedan/.test(unit)) n *= 7;
@@ -596,8 +616,8 @@ function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
   // Global: "pomakni sve za N dana"
   const g1 = t.match(/pomakni\s+sve\s+za\s+(-?\d+|[a-zÄÄ‡Å¡Ä‘Å¾]+)\s+dana?/);
   if (g1) {
-    // FIX: Corrected character encoding for 'č' and 'š'.
-    const numMapAll = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'četiri':4,'cetiri':4,'pet':5,'šest':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
+    // FIX: Corrected character encoding for 'c' and 'ï¿½'.
+    const numMapAll = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'cetiri':4,'cetiri':4,'pet':5,'ï¿½est':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
     
     // Use toLowerCase() for case-insensitive matching with the map keys.
     const input = g1[1].toLowerCase();
@@ -608,10 +628,10 @@ function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
     return { type: 'shift_all', days: n };
 }
 
-// Global: "rasporedi početke sa krajevima"
+// Global: "rasporedi pocetke sa krajevima"
 // FIX: Added case-insensitivity (i), unicode support (u), and optional 'a' in 'sa' (sa?)
 //      to correctly handle "s krajevima" as well.
-if (/rasporedi\s+po(?:č|c)etke\s+sa?\s+krajevima/iu.test(t)) {
+if (/rasporedi\s+po(?:c|c)etke\s+sa?\s+krajevima/iu.test(t)) {
     return { type: 'distribute_chain' };
 }
 
@@ -623,17 +643,17 @@ if (/korigiraj\s+trajanje.*normativ/i.test(t)) {
 
 // Global UI: open Add Task modal (synonyms)
 // FIX: Combined multiple conditions into one efficient regex.
-//      Handles "dodaj zadatak", "zadatak", "dodaj bilješku", "dodaj biljesku" case-insensitively.
-if (/(?:dodaj\s+)?(?:zadatak|bilje(?:š|s)ku)/iu.test(t)) {
+//      Handles "dodaj zadatak", "zadatak", "dodaj biljeï¿½ku", "dodaj biljesku" case-insensitively.
+if (/(?:dodaj\s+)?(?:zadatak|bilje(?:ï¿½|s)ku)/iu.test(t)) {
     return { type: 'add_task_open' };
 }
 
 // Modal-scoped commands (will only apply if modal is open)
 
-// Handles commands like: "upiši Naziv novog zadatka"
-// FIX: Changed to a non-capturing group (?:š|s) and added case-insensitivity.
-if (/^upi(?:š|s)i\s+.+/iu.test(t)) {
-    const mU = t.match(/^upi(?:š|s)i\s+(.+)$/iu);
+// Handles commands like: "upiï¿½i Naziv novog zadatka"
+// FIX: Changed to a non-capturing group (?:ï¿½|s) and added case-insensitivity.
+if (/^upi(?:ï¿½|s)i\s+.+/iu.test(t)) {
+    const mU = t.match(/^upi(?:ï¿½|s)i\s+(.+)$/iu);
     return { type: 'add_task_append', text: (mU && mU[1]) ? mU[1] : '' };
 }
 
@@ -646,15 +666,15 @@ if (/^(spremi|potvrdi|unesi|dodaj)$/i.test(t)) {
 // Handles cancel/close commands in a modal.
 // FIX: Replaced a syntax error with a specific regex for canceling,
 //      including common synonyms and case-insensitivity.
-if (/^(odustani|prekini|zatvori|izađi)$/i.test(t)) {
+if (/^(odustani|prekini|zatvori|izadi)$/i.test(t)) {
     return { type: 'modal_cancel' };
 }
-  // Global: show image popup (supports: "popup", "pop up", "digni/otvori/prikaži popup/sliku")
-  if (/(?:\bpop\s*up\b|\bpopup\b|\b(?:digni|otvori|prikaži|prikazi)\s+(?:popup|sliku)\b)/iu.test(t)) {
+  // Global: show image popup (supports: "popup", "pop up", "digni/otvori/prikaï¿½i popup/sliku")
+  if (/(?:\bpop\s*up\b|\bpopup\b|\b(?:digni|otvori|prikaï¿½i|prikazi)\s+(?:popup|sliku)\b)/iu.test(t)) {
     return { type: 'image_popup' };
   }
-  // Global: "pročitaj mi"
-  // Global: "pročitaj mi"
+  // Global: "procitaj mi"
+  // Global: "procitaj mi"
   if (/(pro\u010Ditaj|procitaj)\s+mi/u.test(t)) {
     return { type: 'tts_read' };
   }
@@ -953,8 +973,15 @@ function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions 
                   const user = `Kontekst: ${JSON.stringify(context)}\nNaredba: ${t}`;
                   const text = await chatCompletions(localAgentUrl, [ { role:'system', content: sys }, { role:'user', content: user } ]);
                   let suggestions = [];
-                  try { const obj = JSON.parse(text); suggestions = Array.isArray(obj?.suggestions) ? obj.suggestions.slice(0,3) : []; } catch {}
+                  const obj = parseJsonSafe(text);
+                  suggestions = Array.isArray(obj?.suggestions) ? obj.suggestions.slice(0,3) : [];
                   setFallbackSuggestions(suggestions);
+                  // if the best suggestion asks for a value, show the question in chat and focus input
+                  const first = suggestions[0];
+                  if (first?.ask) {
+                    setFallbackChat(c => [...c, { role: 'assistant', text: first.ask }]);
+                    try { fallbackInputRef.current?.focus(); } catch {}
+                  }
                   setSuperFocus(true);
                 } catch (e) {
                   log(`LLM fallback error: ${e?.message || String(e)}`);
@@ -1025,7 +1052,7 @@ export default function GVAv2() {
   useEffect(() => {
     const initializeProdajaData = async () => {
       console.log('ðŸ”„ Loading prodaja data for GVAv2...');
-      const prodajaData = await loadProdajaData();
+      const prodajaData = await loadProdajaDataExternal();
       
       setJsonHistory([prodajaData]);
       setHistoryIndex(0);
@@ -1100,10 +1127,20 @@ export default function GVAv2() {
   const [fallbackLoading, setFallbackLoading] = useState(false);
   const [fallbackSuggestions, setFallbackSuggestions] = useState([]);
   const [fallbackClarification, setFallbackClarification] = useState('');
+  const [fallbackChat, setFallbackChat] = useState([]); // [{role:'assistant'|'user', text:string}]
+
+  const [fallbackMode, setFallbackMode] = useState('idle'); const [fallbackPending, setFallbackPending] = useState(null); const [fallbackPrimarySuggestion, setFallbackPrimarySuggestion] = useState(null); const fallbackInputRef = useRef(null);
   const [localPing, setLocalPing] = useState(null);
   const log = useCallback((msg) => {
     setConsoleLogs((prev) => [...prev.slice(-400), { id: Date.now() + Math.random(), t: Date.now(), msg }]);
   }, []);
+  // Focus fallback chat input and ensure listening when fallback opens
+  useEffect(() => {
+    if (fallbackOpen) {
+      try { setTimeout(() => fallbackInputRef.current?.focus(), 0); } catch {}
+      try { if (!agent.isListening) agent.startListening(); } catch {}
+    }
+  }, [fallbackOpen, agent]);
   // Assign alias helper (usable by hover and by auto-assignment)
   const assignAliasToLine = useCallback((lineId) => {
     if (!lineId) return null;
@@ -1241,6 +1278,51 @@ export default function GVAv2() {
       localStorage.setItem('gva.llm.threshold', String(llmThreshold));
     } catch {}
   }, [glowEnabled, glowIntensity, glowDurationMs, agentSource, localAgentUrl, enableLLMFallback, llmThreshold]);
+
+  function describeSuggestion(sug){
+    if(!sug) return '';
+    const t = sug.tool; const p = sug.params||{};
+    if(t==='move_start') return `Pomakni ${String(p.alias||'').toUpperCase()} na ${p.date}`;
+    if(t==='shift') {
+      const aliases = Array.isArray(p.alias) ? p.alias : [p.alias];
+      const label = aliases.filter(Boolean).map(a=>String(a).toUpperCase()).join(', ');
+      return `Pomakni ${label} za ${p.days} dana`;
+    }
+    if(t==='shift_all') return `Pomakni sve za ${p.days} dana`;
+    if(t==='distribute_chain') return 'Rasporedi pocetke sa krajevima';
+    if(t==='normative_extend') return `Produï¿½i trajanje po normativu (+${p.days} dana)`;
+    if(t==='add_task_open') return 'Otvori modal za zadatak';
+    if(t==='image_popup') return 'Prikaï¿½i sliku';
+    return JSON.stringify({tool:t,params:p});
+  }
+
+  const runSuggestion = useCallback((sug)=>{
+    const v = validateParams(sug?.tool, sug?.params); if (!v.ok) { log(`Prijedlog neispravan: ${v.error}`); return; }
+    const tool = sug.tool; const params = sug.params || {};
+    if (tool === 'move_start') {
+      const aliasKey = String(params.alias||'').toUpperCase();
+      const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+      setPendingActions(q => [{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso: params.date }, ...q].slice(0,5));
+    } else if (tool === 'shift') {
+      const aliases = Array.isArray(params.alias) ? params.alias : [params.alias];
+      aliases.forEach((a)=>{
+        const aliasKey = String(a||'').toUpperCase(); const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+        try { const pos=(ganttJson?.pozicije||[]).find(p=>p.id===lineId); const curStart=pos?.montaza?.datum_pocetka; if(curStart&&Number.isFinite(params.days)){ const d=new Date(curStart+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+params.days); const iso=d.toISOString().slice(0,10); setPendingActions(q=>[{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso }, ...q].slice(0,5)); } } catch {}
+      });
+    } else if (tool === 'shift_all') {
+      setPendingActions(q => [{ id:`${Date.now()}`, type:'shift_all', days: params.days }, ...q].slice(0,5));
+    } else if (tool === 'distribute_chain') {
+      setPendingActions(q => [{ id:`${Date.now()}`, type:'distribute_chain' }, ...q].slice(0,5));
+    } else if (tool === 'normative_extend') {
+      setPendingActions(q => [{ id:`${Date.now()}`, type:'normative_extend', days: params.days }, ...q].slice(0,5));
+    } else if (tool === 'add_task_open') {
+      setShowAddTaskModal(true);
+    } else if (tool === 'image_popup') {
+      setShowImagePopup(true);
+    }
+    setFallbackOpen(false); setSuperFocus(false);
+    log(`? Pokrecem alat: ${tool}`);
+  }, [ganttJson, lineByAlias]);
   // Load persisted settings
   useEffect(() => {
     try {
@@ -1315,6 +1397,13 @@ export default function GVAv2() {
         log(`âœ… Prepoznato: "${finalText}"`);
       
         const t = finalText.trim().toLowerCase();
+        if (fallbackOpen) {
+          if (/^prijedlog\\s*[123]$/.test(t)) { const n=parseInt((t.match(/\\d/)[0]),10)-1; const sug=fallbackSuggestions[n]; if(sug){ runSuggestion(sug);} return; }
+          if (/^(zatvori|odustani|prekini)$/.test(t)) { setFallbackOpen(false); setSuperFocus(false); return; }
+          if (/^potvrdi\\s+sve\\s+izmjene$/.test(t)) { persistQueuedChanges(); setFallbackOpen(false); setSuperFocus(false); return; }
+          setFallbackChat(c=>[...c,{role:'user',text:t}]); setFallbackClarification(t); try{ fallbackInputRef.current?.focus(); }catch{};
+          return;
+        }
         // Wake word
         if (!focusMode && /\bagent\b/.test(t)) {
           setFocusMode(true);
@@ -1479,8 +1568,10 @@ export default function GVAv2() {
                     currentDate: new Date().toISOString().slice(0,10),
                     availableAliases: Object.keys(lineByAlias || {})
                   };
-                  const sys = 'Vrati JSON: {"suggestions":[{"tool":"...","params":{...},"confidence":0.0},...]} bez dodatnog teksta. ' +
-                    'Dostupni alati: move_start{alias,date:YYYY-MM-DD}, shift{alias,days}, shift_all{days}, distribute_chain{}, normative_extend{days}, add_task_open{}, image_popup{}.';
+                  const sys = 'Vrati JSON strogo ovog oblika: {"suggestions":[{"tool":"...","params":{...},"confidence":0.0,"ask":"(ako je potrebna TOCNO jedna najnejasnija varijabla ï¿½ postavi kratko pitanje na hrvatskom; inace izostavi)"},...]}.' +
+                    ' Alati: move_start{alias:string,date:YYYY-MM-DD}, shift{alias:(string|array),days:number}, shift_all{days:number}, distribute_chain{}, normative_extend{days:number}, add_task_open{}, image_popup{}.' +
+                    ' Normaliziraj alias: ukloni razmake ("pr 10"?"PR10"), velika slova. Ako korisnik navede viï¿½e aliasa, koristi polje alias:["PR10","PR12"].' +
+                    ' Izvedi inferenciju gdje moï¿½eï¿½ i postavi samo JEDNO pitanje (ask) za najnejasniju varijablu.';
                   const user = `Kontekst: ${JSON.stringify(context)}\nNaredba: ${t}`;
                   const text = await chatCompletions(localAgentUrl, [ { role:'system', content: sys }, { role:'user', content: user } ]);
                   let suggestions = [];
@@ -1808,22 +1899,30 @@ export default function GVAv2() {
         </div>
       )}
       {fallbackOpen && (
-        <div className="fixed inset-0 z-[60]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 backdrop-blur-md bg-black/20" />
-          <div className="absolute right-8 top-20 w-[420px] max-w-[92vw] panel border border-theme rounded-xl shadow-2xl p-4 bg-white/95">
+          <div className="relative z-10 w-[720px] max-w-[95vw] panel border border-theme rounded-2xl shadow-2xl p-5 bg-white/95">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold text-primary">Asistent prijedlozi (LLM)</div>
+              <div className="text-sm font-semibold text-primary">Asistent (LLM) ï¿½ razjaï¿½njenje naredbe</div>
               <button className="text-xs px-2 py-1 rounded border" onClick={()=>{ setFallbackOpen(false); setSuperFocus(false); }}>Zatvori</button>
             </div>
             {fallbackLoading ? (
-              <div className="text-sm text-secondary">Tražim prijedloge...</div>
+              <div className="text-sm text-secondary">Traï¿½im prijedloge...</div>
             ) : (
               <div className="space-y-3">
+                {!!fallbackChat.length && (
+                  <div className="space-y-1 max-h-32 overflow-auto pr-1">
+                    {fallbackChat.map((m,idx)=> (
+                      <div key={idx} className={`text-xs ${m.role==='assistant'?'text-primary':'text-secondary'}`}>[{m.role}] {m.text}</div>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-2 max-h-64 overflow-auto pr-1">
                   {fallbackSuggestions.map((sug, i) => (
                     <div key={i} className="border border-theme rounded-lg p-2">
-                      <div className="text-xs text-secondary">Prijedlog {i+1} • {(sug?.confidence ?? 0).toFixed(2)}</div>
-                      <div className="text-sm font-mono break-words">{JSON.stringify({tool:sug?.tool, params:sug?.params})}</div>
+                      <div className="text-xs text-secondary">Prijedlog {i+1} ï¿½ {(sug?.confidence ?? 0).toFixed(2)}</div>
+                      <div className="text-sm break-words">{describeSuggestion(sug)}</div>
+                      {sug?.ask && (<div className="text-xs text-amber-700 mt-1">Pitanje: {sug.ask}</div>)}
                       <div className="mt-2 flex gap-2">
                         <button className="px-2 py-1 text-xs border rounded" onClick={()=>{
                           try {
@@ -1849,25 +1948,33 @@ export default function GVAv2() {
                               setShowImagePopup(true);
                             }
                             setFallbackOpen(false); setSuperFocus(false);
-                            log(`✅ Pokrećem alat: ${tool}`);
-                          } catch (e) { log(`Greška: ${e?.message||String(e)}`); }
+                            log(`? Pokrecem alat: ${tool}`);
+                          } catch (e) { log(`Greï¿½ka: ${e?.message||String(e)}`); }
                         }}>Pokreni</button>
+                        {sug?.ask && (
+                          <button className="px-2 py-1 text-xs border rounded" onClick={()=>{
+                            setFallbackChat(c=>[...c,{role:'assistant',text:sug.ask}]);
+                            try { fallbackInputRef.current?.focus(); } catch {} 
+                          }}>Pitaj</button>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="pt-2 border-t border-theme">
-                  <div className="text-xs text-secondary mb-1">Pojašnjenje</div>
+                  <div className="text-xs text-secondary mb-1">Pojaï¿½njenje</div>
                   <div className="flex gap-2">
-                    <input className="flex-1 input-bg border border-theme rounded px-2 py-1 text-sm" value={fallbackClarification} onChange={(e)=>setFallbackClarification(e.target.value)} placeholder="Npr. odaberi prijedlog 2 i za PR5" />
+                    <input ref={fallbackInputRef} className="flex-1 input-bg border border-theme rounded px-2 py-1 text-sm" value={fallbackClarification} onChange={(e)=>setFallbackClarification(e.target.value)} placeholder="Npr. odaberi prijedlog 2 i za PR5" />
+                    <button className={`px-2 py-1 text-xs rounded border ${agent.isListening ? 'bg-rose-500 text-white border-rose-500' : ''}`} onClick={()=>{ agent.isListening ? agent.stopListening() : agent.startListening(); }}>{agent.isListening?'Mic ON':'Mic'}</button>
                     <button className="px-2 py-1 text-xs border rounded" onClick={async()=>{
                       try {
                         setFallbackLoading(true);
                         const context = { suggestions: fallbackSuggestions.map(s=>({tool:s.tool, params:s.params, confidence:s.confidence})) };
-                        const sys = 'Vrati točno jedan JSON: {"tool":"...","params":{...},"confidence":0.0}. Bez objašnjenja.';
-                        const user = `Kontekst: ${JSON.stringify(context)}\nPojašnjenje: ${fallbackClarification}`;
+                        const sys = 'Vrati tocno jedan JSON: {"tool":"...","params":{...},"confidence":0.0}. ' +
+                          ' Normaliziraj alias(e) ("pr 6"?"PR6", lista aliasa dopusti kao polje). Bez objaï¿½njenja.';
+                        const user = `Kontekst: ${JSON.stringify(context)}\nPojaï¿½njenje: ${fallbackClarification}`;
                         const text = await chatCompletions(localAgentUrl, [{role:'system',content:sys},{role:'user',content:user}]);
-                        let chosen=null; try{ chosen=JSON.parse(text);}catch{}
+                        const chosen = parseJsonSafe(text);
                         if(!chosen||!chosen.tool){ log('LLM nije vratio valjanu odluku.'); return; }
                         const v = validateParams(chosen.tool, chosen.params); if(!v.ok){ log(`Neispravni parametri: ${v.error}`); return; }
                         const tool=chosen.tool, params=chosen.params||{};
@@ -1889,9 +1996,9 @@ export default function GVAv2() {
                           setShowImagePopup(true);
                         }
                         setFallbackOpen(false); setSuperFocus(false);
-                        log(`✅ Pokrećem alat: ${tool}`);
-                      } catch(e){ log(`Greška klarifikacije: ${e?.message||String(e)}`);} finally { setFallbackLoading(false); }
-                    }}>Razriješi</button>
+                        log(`? Pokrecem alat: ${tool}`);
+                      } catch(e){ log(`Greï¿½ka klarifikacije: ${e?.message||String(e)}`);} finally { setFallbackLoading(false); }
+                    }}>Razrijeï¿½i</button>
                   </div>
                 </div>
               </div>
@@ -1943,25 +2050,44 @@ export default function GVAv2() {
         
         {/* Main Gantt Canvas - Center (4/6 width) */}
         <div className="w-4/6 flex-shrink-0">
-          <GanttCanvas ganttJson={ganttJson} activeLineId={activeLineId} setActiveLineId={setActiveLineId} pendingActions={pendingActions} />
+          <GanttCanvas
+            ganttJson={ganttJson}
+            activeLineId={activeLineId}
+            setActiveLineId={setActiveLineId}
+            pendingActions={pendingActions}
+          />
         </div>
-        
+
         {/* Chat/Voice Input Panel - Right (1/6 width) */}
         <div className="w-1/6 flex-shrink-0">
-          <AgentInteractionPanel 
-            agent={agent} 
+          <AgentInteractionPanelView
+            agent={agent}
             focusMode={focusMode}
             processCommand={(cmd) => {
-              // If local agent selected (tab setting), route to local tool-calling API
+              // If local agent selected (tab setting) and not in focus mode, route to Local LLM chat
               if (!focusMode && agentSource === 'local') {
                 (async () => {
                   try {
-                    log(`[LOCAL] â‡¢ ${cmd}`);
                     const base = String(localAgentUrl || '').replace(/\/+$/,'');
-                    // Detect local model if available
                     let model = 'local';
-                    try { const mr = await fetch(`${base}/v1/models`); if (mr.ok) { const mj = await mr.json(); model = (mj?.data?.[0]?.id) || (Array.isArray(mj?.models) ? (mj.models[0]?.id || model) : model); } } catch {}
-                    const r = await fetch(`${base}/v1/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role:'system', content: 'Ti si asistent za Gantt agenta. Odgovaraj kratko i jasno.' }, { role:'user', content: cmd }] }) });
+                    try {
+                      const mr = await fetch(`${base}/v1/models`);
+                      if (mr.ok) {
+                        const mj = await mr.json();
+                        model = (mj?.data?.[0]?.id) || (Array.isArray(mj?.models) ? (mj.models[0]?.id || model) : model);
+                      }
+                    } catch {}
+                    const r = await fetch(`${base}/v1/chat/completions`, {
+                      method: 'POST',
+                      headers: { 'content-type': 'application/json' },
+                      body: JSON.stringify({
+                        model,
+                        messages: [
+                          { role:'system', content: 'Ti si asistent za Gantt agenta. Odgovaraj kratko i jasno.' },
+                          { role:'user', content: cmd }
+                        ]
+                      })
+                    });
                     const j = await r.json();
                     if (!r.ok) throw new Error(j?.error || 'HTTP error');
                     const text = j?.choices?.[0]?.message?.content?.trim() || '(nema odgovora)';
@@ -1973,56 +2099,15 @@ export default function GVAv2() {
                 })();
                 return;
               }
-              // If in focus mode, treat text as a command to parse and confirm
+              // In focus mode, treat text as a command to parse and confirm
               if (focusMode) {
                 const year = (ganttJson?.pozicije?.[0]?.montaza?.datum_pocetka || '2025-01-01').slice(0,4);
-                // Add command parsing stage
-                const parseStage = {
-                  id: `parse-${Date.now()}`,
-                  name: 'Parsiranje glasovne naredbe',
-                  description: `Analiziram naredbu: "${cmd}"`,
-                  icon: 'ðŸ§ ',
-                  status: 'active',
-                  timestamp: new Date().toISOString(),
-                  params: { command: cmd, focusMode: true }
-                };
-                agent.addStage(parseStage);
-                
                 const parsed = parseCroatianCommand(cmd, { aliasToLine: lineByAlias, defaultYear: Number(year) });
                 if (parsed) {
-                  // Update stage as completed
-                  agent.setProcessStages(prev => 
-                    prev.map(stage => 
-                      stage.id === parseStage.id 
-                        ? { ...stage, status: 'completed', completedAt: new Date().toISOString(), result: parsed }
-                        : stage
-                    )
-                  );
-                  
-                  // Add action queue stage
-                  const queueStage = {
-                    id: `queue-${Date.now()}`,
-                    name: 'Dodajem u red Äekanja',
-                    description: `Akcija "${parsed.type}" za ${parsed.alias}`,
-                    icon: 'â³',
-                    status: 'completed',
-                    timestamp: new Date().toISOString(),
-                    completedAt: new Date().toISOString(),
-                    params: parsed
-                  };
-                  agent.addStage(queueStage);
-                  
                   const action = { id: `${Date.now()}`, type: parsed.type, alias: parsed.alias, lineId: parsed.lineId, iso: parsed.iso };
                   setPendingActions((q) => [action, ...q].slice(0, 5));
                 } else {
-                  // Update stage as failed
-                  agent.setProcessStages(prev => 
-                    prev.map(stage => 
-                      stage.id === parseStage.id 
-                        ? { ...stage, status: 'failed', completedAt: new Date().toISOString(), error: 'Naredba nije prepoznata' }
-                        : stage
-                    )
-                  );
+                  log(`Naredba nije prepoznata: "${cmd}"`);
                 }
                 return;
               }
@@ -2036,7 +2121,6 @@ export default function GVAv2() {
           />
         </div>
       </div>
-      
       {/* Agent Console - Bottom (split) */}
       <div className="px-8 pb-6 pt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -2050,4 +2134,3 @@ export default function GVAv2() {
     </div>
   );
 }
-
