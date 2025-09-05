@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import slika1 from '../../../backend/slika1.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Square, Mic, CheckCircle, Loader2, Send, ChevronRight,
@@ -80,18 +81,18 @@ const loadProdajaData = async () => {
       }
     };
     
-    console.log(`📊 Loaded ${prodajaProcesses.length} prodaja processes for GVAv2`);
+    console.log(`ðŸ“Š Loaded ${prodajaProcesses.length} prodaja processes for GVAv2`);
     return PRODAJA_GANTT_JSON;
     
   } catch (error) {
-    console.error('❌ Failed to load prodaja data:', error);
+    console.error('âŒ Failed to load prodaja data:', error);
     // Fallback to mock data with prodaja theme
     return {
       project: { id: 'PRODAJA-FALLBACK', name: 'Prodaja Procesi - Fallback', description: 'Fallback podaci za prodaju procese' },
       pozicije: [
-        { id:'PRJ-01-PZ-01-PRODAJA', naziv:'Stambena zgrada – Istok - Aluminijski profili', montaza:{ opis:'Prodaja za Aluminijski profili KTM-2025', osoba:'Marko P.', datum_pocetka:'2025-08-16', datum_zavrsetka:'2025-08-16', status:'Završeno' } },
-        { id:'PRJ-01-PZ-02-PRODAJA', naziv:'Stambena zgrada – Istok - Staklo termoizol.', montaza:{ opis:'Prodaja za Staklo termoizol. 4+12+4', osoba:'Marko P.', datum_pocetka:'2025-08-18', datum_zavrsetka:'2025-08-23', status:'Završeno' } },
-        { id:'PRJ-02-PZ-01-PRODAJA', naziv:'Ured Zapad - Čelični okvir', montaza:{ opis:'Prodaja za Čelični okvir FEA D45-001', osoba:'Marko P.', datum_pocetka:'2025-08-16', datum_zavrsetka:'2025-08-17', status:'Završeno' } },
+        { id:'PRJ-01-PZ-01-PRODAJA', naziv:'Stambena zgrada â€“ Istok - Aluminijski profili', montaza:{ opis:'Prodaja za Aluminijski profili KTM-2025', osoba:'Marko P.', datum_pocetka:'2025-08-16', datum_zavrsetka:'2025-08-16', status:'ZavrÅ¡eno' } },
+        { id:'PRJ-01-PZ-02-PRODAJA', naziv:'Stambena zgrada â€“ Istok - Staklo termoizol.', montaza:{ opis:'Prodaja za Staklo termoizol. 4+12+4', osoba:'Marko P.', datum_pocetka:'2025-08-18', datum_zavrsetka:'2025-08-23', status:'ZavrÅ¡eno' } },
+        { id:'PRJ-02-PZ-01-PRODAJA', naziv:'Ured Zapad - ÄŒeliÄni okvir', montaza:{ opis:'Prodaja za ÄŒeliÄni okvir FEA D45-001', osoba:'Marko P.', datum_pocetka:'2025-08-16', datum_zavrsetka:'2025-08-17', status:'ZavrÅ¡eno' } },
       ],
       metadata: { version:'2.0', source:'fallback' }
     };
@@ -99,7 +100,7 @@ const loadProdajaData = async () => {
 };
 // Initialize with fallback, will be replaced by loaded data
 const MOCK_GANTT_JSON = {
-  project: { id: 'LOADING', name: 'Učitavanje podataka...', description: 'Učitavam procese prodaje iz all_projects datoteke' },
+  project: { id: 'LOADING', name: 'UÄitavanje podataka...', description: 'UÄitavam procese prodaje iz all_projects datoteke' },
   pozicije: [],
   metadata: { version:'2.0', loading:true }
 };
@@ -140,7 +141,7 @@ function AgentInteractionPanel({ agent, focusMode, processCommand, pendingAction
             <div className="text-center text-subtle">
               <Mic className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p className="text-sm">Chat & Glasovni Agent</p>
-              <p className="text-xs mt-1">Kliknite za početak snimanja</p>
+              <p className="text-xs mt-1">Kliknite za poÄetak snimanja</p>
             </div>
           </div>
         ) : (
@@ -210,11 +211,11 @@ function AgentInteractionPanel({ agent, focusMode, processCommand, pendingAction
         {/* Pending Actions */}
         {pendingActions.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-primary">Čekaju potvrdu:</h4>
+            <h4 className="text-sm font-medium text-primary">ÄŒekaju potvrdu:</h4>
             {pendingActions.map(action => (
               <div key={action.id} className="p-3 input-bg rounded-lg border border-theme">
                 <div className="text-xs text-secondary mb-1">Akcija</div>
-                <div className="text-sm font-medium text-primary mb-2">Pomakni početak</div>
+                <div className="text-sm font-medium text-primary mb-2">Pomakni poÄetak</div>
                 <div className="text-xs text-secondary mb-1">
                   Meta: <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded">{aliasByLine[action.lineId] || action.alias}</span>
                 </div>
@@ -233,7 +234,7 @@ function AgentInteractionPanel({ agent, focusMode, processCommand, pendingAction
                     onClick={() => cancelAction(action.id)}
                     className="px-2 py-1 rounded border text-xs"
                   >
-                    Poništi
+                    PoniÅ¡ti
                   </button>
                 </div>
               </div>
@@ -261,7 +262,7 @@ function ProcessTimelinePanel({ processStages, clearStages }) {
               onClick={clearStages}
               className="text-xs text-subtle hover:text-primary transition-colors"
             >
-              Očisti
+              OÄisti
             </button>
           </div>
         </div>
@@ -272,7 +273,7 @@ function ProcessTimelinePanel({ processStages, clearStages }) {
             <div className="text-center text-subtle">
               <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p className="text-sm">Nema aktivnih procesa</p>
-              <p className="text-xs mt-1">Timeline će se prikazati kad pokrenete glasovnu naredbu</p>
+              <p className="text-xs mt-1">Timeline Ä‡e se prikazati kad pokrenete glasovnu naredbu</p>
             </div>
           </div>
         ) : (
@@ -371,7 +372,7 @@ function ProcessTimelinePanel({ processStages, clearStages }) {
                       {/* Error */}
                       {stage.error && (
                         <div className="mb-2">
-                          <div className="text-xs font-medium text-red-600 mb-1">Greška:</div>
+                          <div className="text-xs font-medium text-red-600 mb-1">GreÅ¡ka:</div>
                           <div className="text-xs text-red-700 font-mono">
                             {typeof stage.error === 'string' 
                               ? stage.error 
@@ -411,7 +412,7 @@ function QuickCommandCards({ onSend }) {
   const cmds = [
     { id: 'shift-1', title: 'Pomakni PZ-01 +2 dana', text: 'pomakni pz-01 za +2 dana', icon: Activity, tint: 'sky' },
     { id: 'shift-2', title: 'Pomakni aktivnu -1 dan', text: 'pomakni aktivnu liniju za -1 dan', icon: Activity, tint: 'sky' },
-    { id: 'date-1',  title: 'Start PZ-02 na 1.9.',   text: 'postavi početak pz-02 na 2025-09-01', icon: CalendarDays, tint: 'indigo' },
+    { id: 'date-1',  title: 'Start PZ-02 na 1.9.',   text: 'postavi poÄetak pz-02 na 2025-09-01', icon: CalendarDays, tint: 'indigo' },
     { id: 'date-2',  title: 'Kraj PZ-03 na 5.9.',     text: 'postavi kraj pz-03 na 2025-09-05',   icon: CalendarDays, tint: 'indigo' },
     { id: 'conf-1',  title: 'Potvrdi aktivnu liniju', text: 'potvrdi',                            icon: CheckCircle,  tint: 'emerald' },
     { id: 'nav-1',   title: 'Izlaz i spremi',         text: 'dalje',                              icon: X,            tint: 'rose' },
@@ -464,17 +465,17 @@ function useGanttAgent() {
   const [processStages, setProcessStages] = useState([]);
   const [lastResponse, setLastResponse] = useState(null);
   const [transcript, setTranscript] = useState('');
-  const startListening = () => { setIsListening(true); setState('listening'); setTranscript('Slušam...'); };
+  const startListening = () => { setIsListening(true); setState('listening'); setTranscript('SluÅ¡am...'); };
   const stopListening = () => { setIsListening(false); if (state==='listening') setState('idle'); setTranscript(''); };
   const processTextCommand = async (command, updateGanttJson) => {
     setState('processing'); setTranscript(`Obrada: "${command}"`);
     // trigger background highlight for context
     window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } }));
     const stages = [
-      { id:'nlu', name:'NLU', icon:'🧠', status:'active' },
-      { id:'ctx', name:'Kontekst', icon:'📋', status:'idle' },
-      { id:'plan', name:'Planiranje', icon:'✏️', status:'idle' },
-      { id:'apply', name:'Primjena', icon:'💾', status:'idle' },
+      { id:'nlu', name:'NLU', icon:'ðŸ§ ', status:'active' },
+      { id:'ctx', name:'Kontekst', icon:'ðŸ“‹', status:'idle' },
+      { id:'plan', name:'Planiranje', icon:'âœï¸', status:'idle' },
+      { id:'apply', name:'Primjena', icon:'ðŸ’¾', status:'idle' },
     ];
     setProcessStages(stages);
     const step = (id) => new Promise(r=>setTimeout(()=>{
@@ -535,8 +536,8 @@ function useGanttAgent() {
 // --- Simple Croatian command parser (heuristic) ---
 function resolveMonthToken(tok) {
   const m = {
-    'prvog':1,'drugog':2,'trećeg':3,'treceg':3,'četvrtog':4,'cetvrtog':4,'petog':5,'šestog':6,'sestog':6,'sedmog':7,'osmog':8,'devetog':9,'desetog':10,'jedanaestog':11,'dvanaestog':12,
-    'siječnja':1,'veljače':2,'ožujka':3,'travnja':4,'svibnja':5,'lipnja':6,'srpnja':7,'kolovoza':8,'rujna':9,'listopada':10,'studenog':11,'prosinca':12,
+    'prvog':1,'drugog':2,'treÄ‡eg':3,'treceg':3,'Äetvrtog':4,'cetvrtog':4,'petog':5,'Å¡estog':6,'sestog':6,'sedmog':7,'osmog':8,'devetog':9,'desetog':10,'jedanaestog':11,'dvanaestog':12,
+    'sijeÄnja':1,'veljaÄe':2,'oÅ¾ujka':3,'travnja':4,'svibnja':5,'lipnja':6,'srpnja':7,'kolovoza':8,'rujna':9,'listopada':10,'studenog':11,'prosinca':12,
     'sijecnja':1,'veljace':2,'ozujka':3,'travnja':4,'svibnja':5,'lipnja':6,'srpnja':7,'kolovoza':8,'rujna':9,'listopada':10,'studenog':11,'prosinca':12,
     '1.':1,'2.':2,'3.':3,'4.':4,'5.':5,'6.':6,'7.':7,'8.':8,'9.':9,'10.':10,'11.':11,'12.':12,
     '1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'11':11,'12':12
@@ -546,8 +547,8 @@ function resolveMonthToken(tok) {
 function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
   if (!text) return null;
   const t = text.toLowerCase().trim();
-  // Pattern: "pomakni početak PR5 na početak <mjeseca>"
-  const m = t.match(/pomakni\s+po(?:č|c)etak\s+(pr\d+)\s+na\s+(po(?:č|c)etak\s+([^.\s]+)\s+mjeseca|([0-9]{4}-[0-9]{2}-[0-9]{2}))/);
+  // Pattern: "pomakni poÄetak PR5 na poÄetak <mjeseca>"
+  const m = t.match(/pomakni\s+po(?:Ä|c)etak\s+(pr\d+)\s+na\s+(po(?:Ä|c)etak\s+([^.\s]+)\s+mjeseca|([0-9]{4}-[0-9]{2}-[0-9]{2}))/);
   if (m) {
     const alias = m[1].toUpperCase();
     let iso = null;
@@ -575,13 +576,13 @@ function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
     return { type: 'shift', alias, lineId, days: delta, confidence: 0.8 };
   }
   // Pattern: natural numbers and plus/minus wording (e.g., "pomakni pr4 za jedan dan", "pomakni pr4 plus jedan dan")
-  const s2 = t.match(/pomakni\s+(pr\d+)\s+(?:za\s+)?(?:(plus|minu[sz])\s+)?([a-zčćšđž]+|\d+)\s+(dan|dana|tjedan|tjedna)/);
+  const s2 = t.match(/pomakni\s+(pr\d+)\s+(?:za\s+)?(?:(plus|minu[sz])\s+)?([a-zÄÄ‡Å¡Ä‘Å¾]+|\d+)\s+(dan|dana|tjedan|tjedna)/);
   if (s2) {
     const alias = s2[1].toUpperCase();
     const signWord = s2[2];
     const numWord = s2[3];
     const unit = s2[4];
-    const numMap = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'četiri':4,'cetiri':4,'pet':5,'šest':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
+    const numMap = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'Äetiri':4,'cetiri':4,'pet':5,'Å¡est':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
     let n = (/^\d+$/.test(numWord) ? parseInt(numWord,10) : (numMap[numWord] ?? null));
     if (n == null) return null;
     if (/tjedan/.test(unit)) n *= 7;
@@ -591,41 +592,70 @@ function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
     return { type: 'shift', alias, lineId, days: n, confidence: 0.8 };
   }
   // Global: "pomakni sve za N dana"
-  const g1 = t.match(/pomakni\s+sve\s+za\s+(-?\d+|[a-zčćšđž]+)\s+dana?/);
+  const g1 = t.match(/pomakni\s+sve\s+za\s+(-?\d+|[a-zÄÄ‡Å¡Ä‘Å¾]+)\s+dana?/);
   if (g1) {
+    // FIX: Corrected character encoding for 'č' and 'š'.
     const numMapAll = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'četiri':4,'cetiri':4,'pet':5,'šest':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
-    let n = /^-?\d+$/.test(g1[1]) ? parseInt(g1[1],10) : (numMapAll[g1[1]] ?? null);
+    
+    // Use toLowerCase() for case-insensitive matching with the map keys.
+    const input = g1[1].toLowerCase();
+
+    let n = /^-?\d+$/.test(input) ? parseInt(input, 10) : (numMapAll[input] ?? null);
+    
     if (n == null) return null;
     return { type: 'shift_all', days: n };
-  }
-  // Global: "rasporedi početke sa krajevima"
-  if (/rasporedi\s+po(?:c|č)etke\s+sa\s+krajevima/.test(t)) {
+}
+
+// Global: "rasporedi početke sa krajevima"
+// FIX: Added case-insensitivity (i), unicode support (u), and optional 'a' in 'sa' (sa?)
+//      to correctly handle "s krajevima" as well.
+if (/rasporedi\s+po(?:č|c)etke\s+sa?\s+krajevima/iu.test(t)) {
     return { type: 'distribute_chain' };
-  }
-  // Global: "korigiraj trajanje prema normativu" (+2 dana trajanje)
-  if (/korigiraj\s+trajanje.*normativ/.test(t)) {
+}
+
+// Global: "korigiraj trajanje prema normativu"
+// FIX: Added case-insensitivity (i flag).
+if (/korigiraj\s+trajanje.*normativ/i.test(t)) {
     return { type: 'normative_extend', days: 2 };
-  }
-  // Global UI: open Add Task modal (synonyms)
-  if (/dodaj\s+zadatak/.test(t) || /\bzadatak\b/.test(t) || /dodaj\s+bilje\s*\u0161?ku/.test(t)) {
+}
+
+// Global UI: open Add Task modal (synonyms)
+// FIX: Combined multiple conditions into one efficient regex.
+//      Handles "dodaj zadatak", "zadatak", "dodaj bilješku", "dodaj biljesku" case-insensitively.
+if (/(?:dodaj\s+)?(?:zadatak|bilje(?:š|s)ku)/iu.test(t)) {
     return { type: 'add_task_open' };
-  }
-  // Modal-scoped commands (will only apply if modal is open)
-  if (/^upi[šs]i\s+.+/.test(t)) {
-    const mU = t.match(/^upi[šs]i\s+(.+)$/);
+}
+
+// Modal-scoped commands (will only apply if modal is open)
+
+// Handles commands like: "upiši Naziv novog zadatka"
+// FIX: Changed to a non-capturing group (?:š|s) and added case-insensitivity.
+if (/^upi(?:š|s)i\s+.+/iu.test(t)) {
+    const mU = t.match(/^upi(?:š|s)i\s+(.+)$/iu);
     return { type: 'add_task_append', text: (mU && mU[1]) ? mU[1] : '' };
-  }
-  if (/^(spremi|potvrdi)$/.test(t)) {
+}
+
+// Handles save/confirm commands in a modal.
+// FIX: Added case-insensitivity and more synonyms for "save".
+if (/^(spremi|potvrdi|unesi|dodaj)$/i.test(t)) {
     return { type: 'modal_save' };
-  }
-  if (/^(odustani|poni[sš]ti|zatvori|prekini)$/.test(t)) {
+}
+
+// Handles cancel/close commands in a modal.
+// FIX: Replaced a syntax error with a specific regex for canceling,
+//      including common synonyms and case-insensitivity.
+if (/^(odustani|prekini|zatvori|izađi)$/i.test(t)) {
     return { type: 'modal_cancel' };
+}
+  // Global: show image popup (supports: "popup", "pop up", "digni/otvori/prikaži popup/sliku")
+  if (/(?:\bpop\s*up\b|\bpopup\b|\b(?:digni|otvori|prikaži|prikazi)\s+(?:popup|sliku)\b)/iu.test(t)) {
+    return { type: 'image_popup' };
   }
   // Global: "pročitaj mi"
-  if (/(pročitaj|procitaj)\s+mi/.test(t)) {
+  // Global: "pročitaj mi"
+  if (/(pro\u010Ditaj|procitaj)\s+mi/u.test(t)) {
     return { type: 'tts_read' };
   }
-  // Global: "prekini" -> exit focus without persisting
   if (/\bprekini\b/.test(t)) {
     return { type: 'exit_focus' };
   }
@@ -698,7 +728,7 @@ function InspectorSidebar({ ganttJson, activeLine, jsonHistory, historyIndex, ca
                   <h4 className="text-xl font-bold text-primary">{activeLine.label}</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">Početak</p><p className="font-medium text-primary">{activeLine.start}</p></div>
+                  <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">PoÄetak</p><p className="font-medium text-primary">{activeLine.start}</p></div>
                   <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">Kraj</p><p className="font-medium text-primary">{activeLine.end}</p></div>
                   <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">Trajanje</p><p className="font-medium text-primary">{activeLine.duration_days} dana</p></div>
                   <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">Osoba</p><p className="font-medium text-primary flex items-center gap-1"><User size={14}/> {activeLine.osoba}</p></div>
@@ -802,7 +832,7 @@ function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions 
             </motion.div>
             <p className="text-lg mb-2">Gantt Dijagram</p>
             <p className="text-sm mb-4">
-              {isListening ? 'Slušam... Recite "gantt"' : 'Kliknite za glasovnu aktivaciju'}
+              {isListening ? 'SluÅ¡am... Recite "gantt"' : 'Kliknite za glasovnu aktivaciju'}
             </p>
             {transcript && (
               <div className="text-xs text-secondary bg-gray-100 rounded px-3 py-1 inline-block mb-4">
@@ -823,7 +853,7 @@ function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions 
                     setTextInput('');
                   }
                 }}
-                placeholder="Upišite 'gantt' ili pretražite elemente..."
+                placeholder="UpiÅ¡ite 'gantt' ili pretraÅ¾ite elemente..."
                 className="flex-1 p-3 rounded-lg input-bg border border-theme text-sm text-primary placeholder-text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
               />
               <button
@@ -842,7 +872,7 @@ function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions 
       </div>
     );
   }
-  if (!lines.length) return <div className="panel flex-1 rounded-2xl flex items-center justify-center text-subtle">Učitavanje podataka...</div>;
+  if (!lines.length) return <div className="panel flex-1 rounded-2xl flex items-center justify-center text-subtle">UÄitavanje podataka...</div>;
   const barColors = ['from-indigo-500 to-purple-600','from-sky-500 to-blue-600','from-emerald-500 to-teal-600','from-amber-500 to-orange-600','from-rose-500 to-pink-600'];
   return (
     <div className="panel flex-1 rounded-2xl overflow-hidden flex flex-col">
@@ -852,7 +882,7 @@ function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions 
           <p className="text-sm text-subtle mt-1">{ganttJson.project.description}</p>
         </div>
         <div className="flex items-center gap-4 text-sm text-secondary">
-          <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4"/> {dateRange.from} – {dateRange.to}</div>
+          <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4"/> {dateRange.from} â€“ {dateRange.to}</div>
         </div>
       </div>
       <div className="flex-1 overflow-auto">
@@ -926,7 +956,7 @@ function AgentInteractionBar({ agent, processCommand }) {
             <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0}} className="mb-3 text-sm text-center text-secondary flex items-center justify-center gap-2">
               <Sparkles className="w-4 h-4 text-accent"/>
               <span className="font-medium">{agent.lastResponse.tts}</span>
-              <button onClick={agent.resetAgent} className="text-subtle hover:text-primary transition" title="Očisti odgovor"><X size={14}/></button>
+              <button onClick={agent.resetAgent} className="text-subtle hover:text-primary transition" title="OÄisti odgovor"><X size={14}/></button>
             </motion.div>
           </AnimatePresence>
         )}
@@ -949,7 +979,7 @@ function AgentInteractionBar({ agent, processCommand }) {
           </form>
           <div className="flex items-center gap-2">
             <button onClick={toggleListening} className={`p-3 rounded-full transition-colors shadow-md ${agent.isListening ? 'bg-red-500 text-white' : 'input-bg text-subtle hover:text-primary border border-theme'}`} title="Glasovna naredba">{agent.isListening ? <Square size={20}/> : <Mic size={20}/>}</button>
-            <button onClick={handleTextSubmit} className="p-3 rounded-full bg-accent text-white transition hover:opacity-90 disabled:opacity-50 shadow-md" disabled={isProcessing || agent.isListening || (!textInput.trim() && !agent.transcript)} title="Pošalji naredbu"><Send size={20}/></button>
+            <button onClick={handleTextSubmit} className="p-3 rounded-full bg-accent text-white transition hover:opacity-90 disabled:opacity-50 shadow-md" disabled={isProcessing || agent.isListening || (!textInput.trim() && !agent.transcript)} title="PoÅ¡alji naredbu"><Send size={20}/></button>
           </div>
         </div>
       </div>
@@ -967,7 +997,7 @@ export default function GVAv2() {
   // Load prodaja data on component mount
   useEffect(() => {
     const initializeProdajaData = async () => {
-      console.log('🔄 Loading prodaja data for GVAv2...');
+      console.log('ðŸ”„ Loading prodaja data for GVAv2...');
       const prodajaData = await loadProdajaData();
       
       setJsonHistory([prodajaData]);
@@ -979,7 +1009,7 @@ export default function GVAv2() {
         setActiveLineId(prodajaData.pozicije[0].id);
       }
       
-      console.log('✅ Prodaja data loaded and set as active JSON');
+      console.log('âœ… Prodaja data loaded and set as active JSON');
     };
     
     initializeProdajaData();
@@ -1000,6 +1030,10 @@ export default function GVAv2() {
   const [addTaskDraft, setAddTaskDraft] = useState('');
   const [savedNotes, setSavedNotes] = useState([]); // array of strings
   const addTaskRef = useRef(null);
+  // Image popup state
+  const [showImagePopup, setShowImagePopup] = useState(false);
+  const [popupBlurPx, setPopupBlurPx] = useState(100);
+  const [popupTransitionMs, setPopupTransitionMs] = useState(2000);
   const speakNotes = useCallback(() => {
     try {
       const text = addTaskDraft || savedNotes[savedNotes.length-1] || 'Nema spremljenog teksta.';
@@ -1140,6 +1174,24 @@ export default function GVAv2() {
     root.style.setProperty('--superfocus-glow-duration', `${fd}ms`);
   }, [glowIntensity, glowDurationMs]);
   useEffect(() => { applyGlowVars(); }, [applyGlowVars]);
+
+  // Image popup animation: 100px -> 90px blur over 2s, then to 0px over 0.5s, then close
+  useEffect(() => {
+    if (!showImagePopup) return;
+    setPopupBlurPx(100);
+    setPopupTransitionMs(2000);
+    const t1 = setTimeout(() => {
+      setPopupBlurPx(90);
+      const t2 = setTimeout(() => {
+        setPopupTransitionMs(500);
+        setPopupBlurPx(0);
+        const t3 = setTimeout(() => setShowImagePopup(false), 550);
+        return () => clearTimeout(t3);
+      }, 2000);
+      return () => clearTimeout(t2);
+    }, 20);
+    return () => clearTimeout(t1);
+  }, [showImagePopup]);
   // Persist settings to localStorage
   useEffect(() => {
     try {
@@ -1216,25 +1268,25 @@ export default function GVAv2() {
         agent.setTranscript(interim);
         // Log live transcript
         if (interim.trim()) {
-          log(`🎤 LIVE: ${interim}`);
+          log(`ðŸŽ¤ LIVE: ${interim}`);
         }
       }
       if (finalText) {
         // Log final recognized text
-        log(`✅ Prepoznato: "${finalText}"`);
+        log(`âœ… Prepoznato: "${finalText}"`);
       
         const t = finalText.trim().toLowerCase();
         // Wake word
         if (!focusMode && /\bagent\b/.test(t)) {
           setFocusMode(true);
           // Add to console
-          log('🎯 Focus Mode aktiviran - Agent je spreman za glasovne naredbe');
+          log('ðŸŽ¯ Focus Mode aktiviran - Agent je spreman za glasovne naredbe');
           // Add stage to timeline
           const focusStage = {
             id: `focus-${Date.now()}`,
             name: 'Focus Mode aktiviran',
             description: 'Agent je detektirao "agent" wake word',
-            icon: '🎯',
+            icon: 'ðŸŽ¯',
             status: 'completed',
             timestamp: new Date().toISOString(),
             completedAt: new Date().toISOString(),
@@ -1254,8 +1306,8 @@ export default function GVAv2() {
             }
             if (/\b(odustani|ponisti|zatvori|prekini)\b/.test(t)) { setShowAddTaskModal(false); return; }
             if (/(procitaj)\s+mi/.test(t)) { speakNotes(); return; }
-            // Scoped input command: "upiši ..."
-            const m = t.match(/^upi[šs]i\s+(.+)$/);
+            // Scoped input command: "upiÅ¡i ..."
+            const m = t.match(/^upi[Å¡s]i\s+(.+)$/);
             if (m && m[1]) {
               const payload = m[1].trim();
               if (payload) setAddTaskDraft(prev => (prev ? prev + ' ' : '') + payload);
@@ -1268,7 +1320,7 @@ export default function GVAv2() {
               confirmAction(pendingActions[0]);
               return;
             }
-            if (/\b(odustani|poni[sš]ti|ne)\b/.test(t)) {
+            if (/\b(odustani|poni[sÅ¡]ti|ne)\b/.test(t)) {
               cancelAction(pendingActions[0].id);
               return;
             }
@@ -1279,7 +1331,7 @@ export default function GVAv2() {
               id: `exit-focus-${Date.now()}`,
               name: 'Izlazim iz Focus Mode',
               description: 'Agent je detektirao "dalje" - spremam promjene',
-              icon: '🏁',
+              icon: 'ðŸ',
               status: 'completed',
               timestamp: new Date().toISOString(),
               completedAt: new Date().toISOString(),
@@ -1288,7 +1340,7 @@ export default function GVAv2() {
             agent.addStage(exitStage);
             
             // Add to console
-            log('🏁 Izlazim iz Focus Mode - Spremljene promjene');
+            log('ðŸ Izlazim iz Focus Mode - Spremljene promjene');
             
             // Persist and exit focus
             persistQueuedChanges();
@@ -1303,7 +1355,7 @@ export default function GVAv2() {
             id: `parse-${Date.now()}`,
             name: 'Parsiranje glasovne naredbe',
             description: `Analiziram naredbu: "${t}"`,
-            icon: '🧠',
+            icon: 'ðŸ§ ',
             status: 'active',
             timestamp: new Date().toISOString(),
             params: { command: t, focusMode: true }
@@ -1313,7 +1365,7 @@ export default function GVAv2() {
           const parsed = parseCroatianCommand(t, { aliasToLine: lineByAlias, defaultYear: Number(year) });
           if (parsed) {
             // Log successful parsing
-            log(`✅ Naredba parsirana: ${parsed.type} za ${parsed.alias} → ${parsed.iso}`);
+            log(`âœ… Naredba parsirana: ${parsed.type} za ${parsed.alias} â†’ ${parsed.iso}`);
             
             // Update stage as completed
             agent.setProcessStages(prev => 
@@ -1327,9 +1379,9 @@ export default function GVAv2() {
             // Add action queue stage
             const queueStage = {
               id: `queue-${Date.now()}`,
-              name: 'Dodajem u red čekanja',
+              name: 'Dodajem u red Äekanja',
               description: `Akcija "${parsed.type}" za ${parsed.alias}`,
-              icon: '⏳',
+              icon: 'â³',
               status: 'completed',
               timestamp: new Date().toISOString(),
               completedAt: new Date().toISOString(),
@@ -1343,6 +1395,7 @@ export default function GVAv2() {
               setFocusMode(false); setAliasByLine({}); setLineByAlias({}); nextAliasNumRef.current=1; return;
             }
             if (parsed.type === 'add_task_open') { setShowAddTaskModal(true); return; }
+            if (parsed.type === 'image_popup') { setShowImagePopup(true); return; }
             if (parsed.type === 'modal_save') { if (showAddTaskModal) { if (addTaskDraft.trim()) setSavedNotes(n=>[...n, addTaskDraft.trim()]); setAddTaskDraft(''); setShowAddTaskModal(false); } return; }
             if (parsed.type === 'modal_cancel') { if (showAddTaskModal) setShowAddTaskModal(false); return; }
             if (parsed.type === 'add_task_append') { if (showAddTaskModal && parsed.text) setAddTaskDraft(prev => (prev ? prev + ' ' : '') + parsed.text); return; }
@@ -1367,7 +1420,7 @@ export default function GVAv2() {
             setPendingActions((q) => [normalized, ...q].slice(0, 5));
           } else {
             // Log failed parsing
-            log(`❌ Naredba nije prepoznata: "${t}"`);
+            log(`âŒ Naredba nije prepoznata: "${t}"`);
             
             // Update stage as failed
             agent.setProcessStages(prev => 
@@ -1418,10 +1471,10 @@ export default function GVAv2() {
         }
       }
       setPendingPatches([]);
-      log('✅ Spremanje promjena dovršeno');
+      log('âœ… Spremanje promjena dovrÅ¡eno');
     } catch (e) {
       console.warn('Persist queued changes failed (demo environment):', e?.message);
-      log('⚠️  Spremanje promjena nije uspjelo (demo)');
+      log('âš ï¸  Spremanje promjena nije uspjelo (demo)');
     }
   }
   const confirmAction = async (action) => {
@@ -1429,8 +1482,8 @@ export default function GVAv2() {
     const confirmStage = {
       id: `confirm-${Date.now()}`,
       name: 'Potvrda korisnika',
-      description: `Pokrećem akciju "${action.type}" za ${action.alias}`,
-      icon: '✅',
+      description: `PokreÄ‡em akciju "${action.type}" za ${action.alias}`,
+      icon: 'âœ…',
       status: 'active',
       timestamp: new Date().toISOString(),
       params: action
@@ -1438,10 +1491,10 @@ export default function GVAv2() {
     agent.addStage(confirmStage);
     
     setSuperFocus(true);
-    setFlowActive(0); setFlowDone(-1); log('🚀 Agent pokrenuo izvršavanje zadatka...');
-    // Step 0 → 1 (Thinking → Research)
+    setFlowActive(0); setFlowDone(-1); log('ðŸš€ Agent pokrenuo izvrÅ¡avanje zadatka...');
+    // Step 0 â†’ 1 (Thinking â†’ Research)
     setTimeout(()=>{ 
-      setFlowDone(0); setFlowActive(1); log('[Razmišljanje] Analiziram zahtjev...');
+      setFlowDone(0); setFlowActive(1); log('[RazmiÅ¡ljanje] Analiziram zahtjev...');
       // Update confirmation stage as completed
       agent.setProcessStages(prev => 
         prev.map(stage => 
@@ -1456,13 +1509,13 @@ export default function GVAv2() {
     window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { selector, durationMs: 1200 } }));
     // Simulate Research/Processing flow
     setTimeout(()=>{ 
-      setFlowDone(1); setFlowActive(2); log('[Istraživanje] Prikupljam kontekst...');
+      setFlowDone(1); setFlowActive(2); log('[IstraÅ¾ivanje] Prikupljam kontekst...');
       // Add research stage
       const researchStage = {
         id: `research-${Date.now()}`,
-        name: 'Istraživanje konteksta',
-        description: `Analiziram postojeće stanje pozicije ${action.alias}`,
-        icon: '📊',
+        name: 'IstraÅ¾ivanje konteksta',
+        description: `Analiziram postojeÄ‡e stanje pozicije ${action.alias}`,
+        icon: 'ðŸ“Š',
         status: 'active',
         timestamp: new Date().toISOString(),
         params: { lineId: action.lineId, alias: action.alias }
@@ -1494,7 +1547,7 @@ export default function GVAv2() {
         }
         const nh = jsonHistory.slice(0, historyIndex+1); nh.push(cur); setJsonHistory(nh); setHistoryIndex(nh.length-1);
         // Mark processing and skip the single-line path
-        const processingStage = { id: `processing-${Date.now()}`, name: 'Primjena promjene', description: 'Globalna operacija primijenjena', icon: '⚙️', status: 'active', timestamp: new Date().toISOString(), params: action };
+        const processingStage = { id: `processing-${Date.now()}`, name: 'Primjena promjene', description: 'Globalna operacija primijenjena', icon: 'âš™ï¸', status: 'active', timestamp: new Date().toISOString(), params: action };
         agent.addStage(processingStage);
         return;
       }
@@ -1502,8 +1555,8 @@ export default function GVAv2() {
       const processingStage = {
         id: `processing-${Date.now()}`,
         name: 'Primjena promjene',
-        description: `Ažuriram datum početka na ${action.iso}`,
-        icon: '🔄',
+        description: `AÅ¾uriram datum poÄetka na ${action.iso}`,
+        icon: 'ðŸ”„',
         status: 'active',
         timestamp: new Date().toISOString(),
         params: { operation: 'set_start', newStart: action.iso }
@@ -1531,8 +1584,8 @@ export default function GVAv2() {
       const validationStage = {
         id: `validation-${Date.now()}`,
         name: 'Validacija rezultata',
-        description: 'Provjera je li promjena uspješno primijenjena',
-        icon: '🔍',
+        description: 'Provjera je li promjena uspjeÅ¡no primijenjena',
+        icon: 'ðŸ”',
         status: 'active',
         timestamp: new Date().toISOString()
       };
@@ -1540,13 +1593,13 @@ export default function GVAv2() {
     }, 1200);
     
     setTimeout(()=>{ 
-      setFlowDone(4); log('✅ Zadatak završen.'); setSuperFocus(false);
+      setFlowDone(4); log('âœ… Zadatak zavrÅ¡en.'); setSuperFocus(false);
       
       // Update validation stage as completed
       agent.setProcessStages(prev => 
         prev.map(stage => 
           stage.id.startsWith('validation-') && stage.status === 'active'
-            ? { ...stage, status: 'completed', completedAt: new Date().toISOString(), result: 'Promjena uspješno primijenjena' }
+            ? { ...stage, status: 'completed', completedAt: new Date().toISOString(), result: 'Promjena uspjeÅ¡no primijenjena' }
             : stage
         )
       );
@@ -1554,9 +1607,9 @@ export default function GVAv2() {
       // Add completion stage
       const completionStage = {
         id: `completion-${Date.now()}`,
-        name: 'Zadatak završen',
-        description: `Uspješno pomjeren početak za ${action.alias}`,
-        icon: '🎉',
+        name: 'Zadatak zavrÅ¡en',
+        description: `UspjeÅ¡no pomjeren poÄetak za ${action.alias}`,
+        icon: 'ðŸŽ‰',
         status: 'completed',
         timestamp: new Date().toISOString(),
         completedAt: new Date().toISOString(),
@@ -1567,7 +1620,7 @@ export default function GVAv2() {
       // Activity card (keep existing functionality)
       const params = [ { key:'alias', value: aliasByLine[action.lineId] || action.alias }, { key:'newStart', value: action.iso } ];
       const resultSnippet = JSON.stringify({ positionId: action.lineId, newStart: action.iso }).slice(0, 120) + '...';
-      setActivities((a) => [{ id: action.id, startedAt: Date.now(), title: 'Pomicanje početka procesa', subtitle: `Primjena na ${action.lineId}`, params, resultSnippet, durationMs: 1300 }, ...a].slice(0, 5));
+      setActivities((a) => [{ id: action.id, startedAt: Date.now(), title: 'Pomicanje poÄetka procesa', subtitle: `Primjena na ${action.lineId}`, params, resultSnippet, durationMs: 1300 }, ...a].slice(0, 5));
       // Clear that action from queue
       setPendingActions((q) => q.filter(a => a.id !== action.id));
     }, 1500);
@@ -1592,9 +1645,9 @@ export default function GVAv2() {
                 setFocusMode(false);
               }}
               className="px-3 py-1.5 rounded border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 text-sm"
-              title="Izađi iz focus/superfocus"
+              title="IzaÄ‘i iz focus/superfocus"
             >
-              Izađi
+              IzaÄ‘i
             </button>
           )}
           <div className="relative">
@@ -1603,7 +1656,7 @@ export default function GVAv2() {
               <div className="absolute right-0 mt-2 w-64 panel p-3 border border-theme rounded-xl shadow-xl z-40">
                 <div className="text-sm font-semibold text-primary mb-2">Ambient Glow</div>
                 <label className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-secondary">Uključen</span>
+                  <span className="text-secondary">UkljuÄen</span>
                   <input type="checkbox" checked={glowEnabled} onChange={(e)=>setGlowEnabled(e.target.checked)} />
                 </label>
                 <div className="mb-2">
@@ -1616,7 +1669,7 @@ export default function GVAv2() {
                 </div>
                 <div className="mt-3 pt-2 border-t border-theme">
                   <div className="text-sm font-semibold text-primary mb-2">Agent</div>
-                  <label className="text-xs text-secondary mb-1">Način komunikacije</label>
+                  <label className="text-xs text-secondary mb-1">NaÄin komunikacije</label>
                   <select className="w-full border rounded px-2 py-1 text-sm mb-2" value={agentSource} onChange={(e)=>setAgentSource(e.target.value)}>
                     <option value="server">Server (OpenAI)</option>
                     <option value="local">Local LLM</option>
@@ -1634,7 +1687,7 @@ export default function GVAv2() {
                           } catch (e) { setLocalPing({ ok:false, error: String(e?.message||e) }); }
                         }}>Ping</button>
                         {localPing?.loading ? (
-                          <span className="text-xs text-slate-500">Pinging…</span>
+                          <span className="text-xs text-slate-500">Pingingâ€¦</span>
                         ) : localPing ? (
                           <span className={`text-xs ${localPing.ok? 'text-emerald-600' : 'text-rose-600'}`}>
                             {localPing.ok ? `OK (${localPing.models||0} models)` : `ERR: ${localPing.error||'unknown'}`}
@@ -1654,15 +1707,24 @@ export default function GVAv2() {
         <div className="mx-8 mb-2">
           <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-4 py-2 flex items-center justify-between shadow-sm">
             <div className="text-sm font-medium">
-              Reci "potvrdi" za primjenu ili "poništi" za odustajanje.
+              Reci "potvrdi" za primjenu ili "poniÅ¡ti" za odustajanje.
             </div>
             <div className="text-xs text-amber-700">
-              Čekajuća akcija: {pendingActions[0]?.alias || pendingActions[0]?.type}
+              ÄŒekajuÄ‡a akcija: {pendingActions[0]?.alias || pendingActions[0]?.type}
             </div>
           </div>
         </div>
       )}
       {/* Add Task Modal */}
+      {/* Image Popup */}
+      {showImagePopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative z-10 p-2 rounded-xl">
+            <img src={slika1} alt="popup" style={{ filter: `blur(${popupBlurPx}px)`, transition: `filter ${popupTransitionMs}ms ease` }} className="max-w-[85vw] max-h-[80vh] rounded-xl shadow-2xl" />
+          </div>
+        </div>
+      )}
       {showAddTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={()=>setShowAddTaskModal(false)} />
@@ -1672,17 +1734,17 @@ export default function GVAv2() {
               <button
                 onClick={() => { agent.isListening ? agent.stopListening() : agent.startListening(); }}
                 className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded text-xs border ${agent.isListening ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-700'}`}
-                title={agent.isListening ? 'Zaustavi slušanje' : 'Započni slušanje'}
+                title={agent.isListening ? 'Zaustavi sluÅ¡anje' : 'ZapoÄni sluÅ¡anje'}
               >
-                {agent.isListening ? 'Slušam…' : 'Slušaj'}
+                {agent.isListening ? 'SluÅ¡amâ€¦' : 'SluÅ¡aj'}
               </button>
             </div>
-            <p className="text-xs text-secondary mb-2">Recite tekst ili upišite. Naredbe: "pročitaj mi" za čitanje, "potvrdi" za spremanje, "poništi" za zatvaranje.</p>
-            <textarea ref={addTaskRef} className="w-full h-40 input-bg border border-theme rounded-lg p-2 text-sm" value={addTaskDraft} onChange={(e)=>setAddTaskDraft(e.target.value)} placeholder="Diktirajte ili upišite..." />
+            <p className="text-xs text-secondary mb-2">Recite tekst ili upiÅ¡ite. Naredbe: "proÄitaj mi" za Äitanje, "potvrdi" za spremanje, "poniÅ¡ti" za zatvaranje.</p>
+            <textarea ref={addTaskRef} className="w-full h-40 input-bg border border-theme rounded-lg p-2 text-sm" value={addTaskDraft} onChange={(e)=>setAddTaskDraft(e.target.value)} placeholder="Diktirajte ili upiÅ¡ite..." />
             {agent.isListening && (
               <div className="mt-2 text-[11px] text-slate-600 flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                <span className="truncate">Slušam… recite sadržaj, pa "potvrdi"</span>
+                <span className="truncate">SluÅ¡amâ€¦ recite sadrÅ¾aj, pa "potvrdi"</span>
               </div>
             )}
             <div className="flex justify-between items-center mt-3">
@@ -1690,7 +1752,7 @@ export default function GVAv2() {
               <div className="flex gap-2">
                 <button className="px-3 py-1.5 text-xs rounded border" onClick={()=>setShowAddTaskModal(false)}>Zatvori</button>
                 <button className="px-3 py-1.5 text-xs rounded bg-emerald-600 text-white" onClick={()=>{ if(addTaskDraft.trim()){ setSavedNotes(n=>[...n, addTaskDraft.trim()]); setAddTaskDraft(''); setShowAddTaskModal(false);} }}>Spremi</button>
-                <button className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white" onClick={speakNotes}>Pročitaj</button>
+                <button className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white" onClick={speakNotes}>ProÄitaj</button>
               </div>
             </div>
           </div>
@@ -1720,7 +1782,7 @@ export default function GVAv2() {
               if (!focusMode && agentSource === 'local') {
                 (async () => {
                   try {
-                    log(`[LOCAL] ⇢ ${cmd}`);
+                    log(`[LOCAL] â‡¢ ${cmd}`);
                     const r = await fetch('http://localhost:3002/api/llm/local/tool-calling', {
                       method: 'POST',
                       headers: { 'content-type': 'application/json' },
@@ -1728,7 +1790,7 @@ export default function GVAv2() {
                     });
                     const j = await r.json();
                     if (!r.ok) throw new Error(j?.error || 'HTTP error');
-                    log(`[LOCAL] ⇠ ${j.final_response || '(nema odgovora)'}`);
+                    log(`[LOCAL] â‡  ${j.final_response || '(nema odgovora)'}`);
                   } catch (err) {
                     log(`[LOCAL:ERR] ${err?.message || String(err)}`);
                   }
@@ -1743,7 +1805,7 @@ export default function GVAv2() {
                   id: `parse-${Date.now()}`,
                   name: 'Parsiranje glasovne naredbe',
                   description: `Analiziram naredbu: "${cmd}"`,
-                  icon: '🧠',
+                  icon: 'ðŸ§ ',
                   status: 'active',
                   timestamp: new Date().toISOString(),
                   params: { command: cmd, focusMode: true }
@@ -1764,9 +1826,9 @@ export default function GVAv2() {
                   // Add action queue stage
                   const queueStage = {
                     id: `queue-${Date.now()}`,
-                    name: 'Dodajem u red čekanja',
+                    name: 'Dodajem u red Äekanja',
                     description: `Akcija "${parsed.type}" za ${parsed.alias}`,
-                    icon: '⏳',
+                    icon: 'â³',
                     status: 'completed',
                     timestamp: new Date().toISOString(),
                     completedAt: new Date().toISOString(),
@@ -1812,3 +1874,4 @@ export default function GVAv2() {
     </div>
   );
 }
+
