@@ -9,6 +9,8 @@ import { cycleTheme } from '../../../theme/manager';
 import AgentStepFlow from '../../agent/AgentStepFlow.jsx';
 import AgentConsole from '../../agent/AgentConsole.jsx';
 import AgentTaskCard from '../../agent/AgentTaskCard.jsx';
+import { chatCompletions } from '../../../agent/llmClient.js';
+import { validateParams } from '../../../agent/tooling.js';
 // --- Date helpers (UTC safe) ---
 const ymd = (d) => d.toISOString().slice(0, 10);
 const fromYmd = (s) => new Date(`${s}T00:00:00Z`);
@@ -936,6 +938,31 @@ function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions 
                 </div>
               </React.Fragment>
             );
+            // Trigger LLM fallback suggestions when parse fails
+            if (enableLLMFallback && agentSource === 'local') {
+              (async () => {
+                try {
+                  setFallbackOpen(true);
+                  setFallbackLoading(true);
+                  const context = {
+                    currentDate: new Date().toISOString().slice(0,10),
+                    availableAliases: Object.keys(lineByAlias || {})
+                  };
+                  const sys = 'Vrati JSON: {"suggestions":[{"tool":"...","params":{...},"confidence":0.0},...]} bez dodatnog teksta. ' +
+                    'Dostupni alati: move_start{alias,date:YYYY-MM-DD}, shift{alias,days}, shift_all{days}, distribute_chain{}, normative_extend{days}, add_task_open{}, image_popup{}.';
+                  const user = `Kontekst: ${JSON.stringify(context)}\nNaredba: ${t}`;
+                  const text = await chatCompletions(localAgentUrl, [ { role:'system', content: sys }, { role:'user', content: user } ]);
+                  let suggestions = [];
+                  try { const obj = JSON.parse(text); suggestions = Array.isArray(obj?.suggestions) ? obj.suggestions.slice(0,3) : []; } catch {}
+                  setFallbackSuggestions(suggestions);
+                  setSuperFocus(true);
+                } catch (e) {
+                  log(`LLM fallback error: ${e?.message || String(e)}`);
+                } finally {
+                  setFallbackLoading(false);
+                }
+              })();
+            }
           })}
         </div>
       </div>
@@ -1061,8 +1088,18 @@ export default function GVAv2() {
     try { return localStorage.getItem('gva.agent.mode') || 'server'; } catch { return 'server'; }
   });
   const [localAgentUrl, setLocalAgentUrl] = useState(() => {
-    try { return localStorage.getItem('gva.agent.url') || 'http://10.255.130.136:1234'; } catch { return 'http://10.255.130.136:1234'; }
+    try { return localStorage.getItem('gva.agent.url') || 'http://192.168.30.12:1234'; } catch { return 'http://192.168.30.12:1234'; }
   });
+  const [enableLLMFallback, setEnableLLMFallback] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('gva.llm.fallback') || 'true'); } catch { return true; }
+  });
+  const [llmThreshold, setLlmThreshold] = useState(() => {
+    try { return Number(localStorage.getItem('gva.llm.threshold') || '0.7'); } catch { return 0.7; }
+  });
+  const [fallbackOpen, setFallbackOpen] = useState(false);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [fallbackSuggestions, setFallbackSuggestions] = useState([]);
+  const [fallbackClarification, setFallbackClarification] = useState('');
   const [localPing, setLocalPing] = useState(null);
   const log = useCallback((msg) => {
     setConsoleLogs((prev) => [...prev.slice(-400), { id: Date.now() + Math.random(), t: Date.now(), msg }]);
@@ -1175,17 +1212,17 @@ export default function GVAv2() {
   }, [glowIntensity, glowDurationMs]);
   useEffect(() => { applyGlowVars(); }, [applyGlowVars]);
 
-  // Image popup animation: 100px -> 90px blur over 2s, then to 0px over 0.5s, then close
+  // Image popup animation: 100px -> 90px blur over 2s, then to 0px over 0.0s, then close
   useEffect(() => {
     if (!showImagePopup) return;
     setPopupBlurPx(100);
     setPopupTransitionMs(2000);
     const t1 = setTimeout(() => {
-      setPopupBlurPx(90);
+      setPopupBlurPx(50);
       const t2 = setTimeout(() => {
-        setPopupTransitionMs(500);
+        setPopupTransitionMs(0);
         setPopupBlurPx(0);
-        const t3 = setTimeout(() => setShowImagePopup(false), 550);
+        const t3 = setTimeout(() => setShowImagePopup(false), 200);
         return () => clearTimeout(t3);
       }, 2000);
       return () => clearTimeout(t2);
@@ -1200,8 +1237,10 @@ export default function GVAv2() {
       localStorage.setItem('gva.glow.duration', JSON.stringify(glowDurationMs));
       localStorage.setItem('gva.agent.mode', agentSource);
       localStorage.setItem('gva.agent.url', localAgentUrl);
+      localStorage.setItem('gva.llm.fallback', JSON.stringify(enableLLMFallback));
+      localStorage.setItem('gva.llm.threshold', String(llmThreshold));
     } catch {}
-  }, [glowEnabled, glowIntensity, glowDurationMs, agentSource, localAgentUrl]);
+  }, [glowEnabled, glowIntensity, glowDurationMs, agentSource, localAgentUrl, enableLLMFallback, llmThreshold]);
   // Load persisted settings
   useEffect(() => {
     try {
@@ -1430,6 +1469,31 @@ export default function GVAv2() {
                   : stage
               )
             );
+            // LLM fallback suggestions
+            if (enableLLMFallback && agentSource === 'local') {
+              (async () => {
+                try {
+                  setFallbackOpen(true);
+                  setFallbackLoading(true);
+                  const context = {
+                    currentDate: new Date().toISOString().slice(0,10),
+                    availableAliases: Object.keys(lineByAlias || {})
+                  };
+                  const sys = 'Vrati JSON: {"suggestions":[{"tool":"...","params":{...},"confidence":0.0},...]} bez dodatnog teksta. ' +
+                    'Dostupni alati: move_start{alias,date:YYYY-MM-DD}, shift{alias,days}, shift_all{days}, distribute_chain{}, normative_extend{days}, add_task_open{}, image_popup{}.';
+                  const user = `Kontekst: ${JSON.stringify(context)}\nNaredba: ${t}`;
+                  const text = await chatCompletions(localAgentUrl, [ { role:'system', content: sys }, { role:'user', content: user } ]);
+                  let suggestions = [];
+                  try { const obj = JSON.parse(text); suggestions = Array.isArray(obj?.suggestions) ? obj.suggestions.slice(0,3) : []; } catch {}
+                  setFallbackSuggestions(suggestions);
+                  setSuperFocus(true);
+                } catch (e) {
+                  log(`LLM fallback error: ${e?.message || String(e)}`);
+                } finally {
+                  setFallbackLoading(false);
+                }
+              })();
+            }
           }
         }
       }
@@ -1677,13 +1741,31 @@ export default function GVAv2() {
                   {agentSource === 'local' && (
                     <div className="space-y-2">
                       <label className="text-xs text-secondary">Local LLM URL</label>
-                      <input className="w-full border rounded px-2 py-1 text-sm" value={localAgentUrl} onChange={(e)=>setLocalAgentUrl(e.target.value)} placeholder="http://10.255.130.136:1234" />
+                      <input className="w-full border rounded px-2 py-1 text-sm" value={localAgentUrl} onChange={(e)=>setLocalAgentUrl(e.target.value)} placeholder="http://192.168.30.12:1234" />
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="text-secondary">Enable LLM Fallback</label>
+                        <input type="checkbox" checked={enableLLMFallback} onChange={(e)=>setEnableLLMFallback(e.target.checked)} />
+                      </div>
+                      <div>
+                        <div className="text-xs text-secondary mb-1">Confidence: <span className="font-mono">{llmThreshold.toFixed(2)}</span></div>
+                        <input type="range" min="0.3" max="0.95" step="0.05" value={llmThreshold} onChange={(e)=>setLlmThreshold(parseFloat(e.target.value))} className="w-full" />
+                      </div>
                       <div className="flex items-center gap-2">
                         <button className="px-2 py-1 text-xs border rounded" onClick={async()=>{
                           try {
                             setLocalPing({ loading: true });
-                            const u = new URL('/api/llm/local/health', 'http://localhost:3002'); u.searchParams.set('base', localAgentUrl);
-                            const r = await fetch(u.toString()); const j = await r.json(); setLocalPing(j);
+                            const base = String(localAgentUrl || '').replace(/\/+$/,'');
+                            const r = await fetch(`${base}/v1/models`, { headers:{ 'accept':'application/json' } });
+                            const ct = r.headers.get('content-type') || '';
+                            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                            if (!ct.includes('application/json')) {
+                              const txt = await r.text();
+                              throw new Error(`Non-JSON response: ${txt.slice(0,80)}`);
+                            }
+                            const j = await r.json();
+                            const data = Array.isArray(j?.data) ? j.data : (Array.isArray(j?.models) ? j.models : []);
+                            const first = (data[0]?.id) || (data[0]) || null;
+                            setLocalPing({ ok:true, models: data.length || 0, model:first });
                           } catch (e) { setLocalPing({ ok:false, error: String(e?.message||e) }); }
                         }}>Ping</button>
                         {localPing?.loading ? (
@@ -1722,6 +1804,98 @@ export default function GVAv2() {
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative z-10 p-2 rounded-xl">
             <img src={slika1} alt="popup" style={{ filter: `blur(${popupBlurPx}px)`, transition: `filter ${popupTransitionMs}ms ease` }} className="max-w-[85vw] max-h-[80vh] rounded-xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+      {fallbackOpen && (
+        <div className="fixed inset-0 z-[60]">
+          <div className="absolute inset-0 backdrop-blur-md bg-black/20" />
+          <div className="absolute right-8 top-20 w-[420px] max-w-[92vw] panel border border-theme rounded-xl shadow-2xl p-4 bg-white/95">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold text-primary">Asistent prijedlozi (LLM)</div>
+              <button className="text-xs px-2 py-1 rounded border" onClick={()=>{ setFallbackOpen(false); setSuperFocus(false); }}>Zatvori</button>
+            </div>
+            {fallbackLoading ? (
+              <div className="text-sm text-secondary">Tražim prijedloge...</div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-2 max-h-64 overflow-auto pr-1">
+                  {fallbackSuggestions.map((sug, i) => (
+                    <div key={i} className="border border-theme rounded-lg p-2">
+                      <div className="text-xs text-secondary">Prijedlog {i+1} • {(sug?.confidence ?? 0).toFixed(2)}</div>
+                      <div className="text-sm font-mono break-words">{JSON.stringify({tool:sug?.tool, params:sug?.params})}</div>
+                      <div className="mt-2 flex gap-2">
+                        <button className="px-2 py-1 text-xs border rounded" onClick={()=>{
+                          try {
+                            const v = validateParams(sug?.tool, sug?.params);
+                            if (!v.ok) { log(`Prijedlog neispravan: ${v.error}`); return; }
+                            const tool = sug.tool; const params = sug.params || {};
+                            if (tool === 'move_start') {
+                              const aliasKey = String(params.alias||'').toUpperCase();
+                              const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+                              setPendingActions(q => [{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso: params.date }, ...q].slice(0,5));
+                            } else if (tool === 'shift') {
+                              const aliasKey = String(params.alias||'').toUpperCase(); const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+                              try { const pos=(ganttJson?.pozicije||[]).find(p=>p.id===lineId); const curStart=pos?.montaza?.datum_pocetka; if(curStart&&Number.isFinite(params.days)){ const d=new Date(curStart+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+params.days); const iso=d.toISOString().slice(0,10); setPendingActions(q=>[{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso }, ...q].slice(0,5)); } } catch {}
+                            } else if (tool === 'shift_all') {
+                              setPendingActions(q => [{ id:`${Date.now()}`, type:'shift_all', days: params.days }, ...q].slice(0,5));
+                            } else if (tool === 'distribute_chain') {
+                              setPendingActions(q => [{ id:`${Date.now()}`, type:'distribute_chain' }, ...q].slice(0,5));
+                            } else if (tool === 'normative_extend') {
+                              setPendingActions(q => [{ id:`${Date.now()}`, type:'normative_extend', days: params.days }, ...q].slice(0,5));
+                            } else if (tool === 'add_task_open') {
+                              setShowAddTaskModal(true);
+                            } else if (tool === 'image_popup') {
+                              setShowImagePopup(true);
+                            }
+                            setFallbackOpen(false); setSuperFocus(false);
+                            log(`✅ Pokrećem alat: ${tool}`);
+                          } catch (e) { log(`Greška: ${e?.message||String(e)}`); }
+                        }}>Pokreni</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-2 border-t border-theme">
+                  <div className="text-xs text-secondary mb-1">Pojašnjenje</div>
+                  <div className="flex gap-2">
+                    <input className="flex-1 input-bg border border-theme rounded px-2 py-1 text-sm" value={fallbackClarification} onChange={(e)=>setFallbackClarification(e.target.value)} placeholder="Npr. odaberi prijedlog 2 i za PR5" />
+                    <button className="px-2 py-1 text-xs border rounded" onClick={async()=>{
+                      try {
+                        setFallbackLoading(true);
+                        const context = { suggestions: fallbackSuggestions.map(s=>({tool:s.tool, params:s.params, confidence:s.confidence})) };
+                        const sys = 'Vrati točno jedan JSON: {"tool":"...","params":{...},"confidence":0.0}. Bez objašnjenja.';
+                        const user = `Kontekst: ${JSON.stringify(context)}\nPojašnjenje: ${fallbackClarification}`;
+                        const text = await chatCompletions(localAgentUrl, [{role:'system',content:sys},{role:'user',content:user}]);
+                        let chosen=null; try{ chosen=JSON.parse(text);}catch{}
+                        if(!chosen||!chosen.tool){ log('LLM nije vratio valjanu odluku.'); return; }
+                        const v = validateParams(chosen.tool, chosen.params); if(!v.ok){ log(`Neispravni parametri: ${v.error}`); return; }
+                        const tool=chosen.tool, params=chosen.params||{};
+                        if (tool === 'move_start') {
+                          const aliasKey = String(params.alias||'').toUpperCase(); const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+                          setPendingActions(q => [{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso: params.date }, ...q].slice(0,5));
+                        } else if (tool === 'shift') {
+                          const aliasKey = String(params.alias||'').toUpperCase(); const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+                          try { const pos=(ganttJson?.pozicije||[]).find(p=>p.id===lineId); const curStart=pos?.montaza?.datum_pocetka; if(curStart&&Number.isFinite(params.days)){ const d=new Date(curStart+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+params.days); const iso=d.toISOString().slice(0,10); setPendingActions(q=>[{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso }, ...q].slice(0,5)); } } catch {}
+                        } else if (tool === 'shift_all') {
+                          setPendingActions(q => [{ id:`${Date.now()}`, type:'shift_all', days: params.days }, ...q].slice(0,5));
+                        } else if (tool === 'distribute_chain') {
+                          setPendingActions(q => [{ id:`${Date.now()}`, type:'distribute_chain' }, ...q].slice(0,5));
+                        } else if (tool === 'normative_extend') {
+                          setPendingActions(q => [{ id:`${Date.now()}`, type:'normative_extend', days: params.days }, ...q].slice(0,5));
+                        } else if (tool === 'add_task_open') {
+                          setShowAddTaskModal(true);
+                        } else if (tool === 'image_popup') {
+                          setShowImagePopup(true);
+                        }
+                        setFallbackOpen(false); setSuperFocus(false);
+                        log(`✅ Pokrećem alat: ${tool}`);
+                      } catch(e){ log(`Greška klarifikacije: ${e?.message||String(e)}`);} finally { setFallbackLoading(false); }
+                    }}>Razriješi</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1783,14 +1957,16 @@ export default function GVAv2() {
                 (async () => {
                   try {
                     log(`[LOCAL] â‡¢ ${cmd}`);
-                    const r = await fetch('http://localhost:3002/api/llm/local/tool-calling', {
-                      method: 'POST',
-                      headers: { 'content-type': 'application/json' },
-                      body: JSON.stringify({ prompt: cmd, base_url: localAgentUrl, model: 'local', tools: [] })
-                    });
+                    const base = String(localAgentUrl || '').replace(/\/+$/,'');
+                    // Detect local model if available
+                    let model = 'local';
+                    try { const mr = await fetch(`${base}/v1/models`); if (mr.ok) { const mj = await mr.json(); model = (mj?.data?.[0]?.id) || (Array.isArray(mj?.models) ? (mj.models[0]?.id || model) : model); } } catch {}
+                    const r = await fetch(`${base}/v1/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role:'system', content: 'Ti si asistent za Gantt agenta. Odgovaraj kratko i jasno.' }, { role:'user', content: cmd }] }) });
                     const j = await r.json();
                     if (!r.ok) throw new Error(j?.error || 'HTTP error');
-                    log(`[LOCAL] â‡  ${j.final_response || '(nema odgovora)'}`);
+                    const text = j?.choices?.[0]?.message?.content?.trim() || '(nema odgovora)';
+                    log(`[LOCAL] ✓ ${text}`);
+                    agent.setLastResponse({ tts: text });
                   } catch (err) {
                     log(`[LOCAL:ERR] ${err?.message || String(err)}`);
                   }
