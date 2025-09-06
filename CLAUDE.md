@@ -478,7 +478,7 @@ VITE_OPENWEBUI_URL=http://localhost:8080
 #### Server Crashes
 1. Check Node.js version ≥18
 2. `rm -rf node_modules .vite package-lock.json && npm install`
-3. Kill processes: `taskkill /f /im node.exe` (Windows)
+3. Kill processes: `wmic process where "name='node.exe'" delete` (Windows)
 4. Port conflicts: `npm run dev --port 3001`
 
 #### HMR Issues

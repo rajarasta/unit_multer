@@ -751,4 +751,197 @@ app.listen(PORT, () => {
   }
 });
 
+/* ====================== GVA Voice Intent (tool-calling) ====================== */
+app.post('/api/gva/voice-intent', async (req, res) => {
+  if (!openai) {
+    return res.status(503).json({ error: 'openai_not_configured' });
+  }
+  try {
+    const { transcript, context = {} } = req.body || {};
+    if (!transcript || typeof transcript !== 'string') {
+      return res.status(400).json({ error: 'missing_transcript' });
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('[GVA] (voice-server) OPENAI_API_KEY missing');
+      return res.status(503).json({ error: 'openai_not_configured' });
+    }
+
+    const aliasToLine = context.aliasToLine || {};
+    const activeLineId = context.activeLineId || null;
+    const defaultYear = Number(context.defaultYear) || new Date().getUTCFullYear();
+    const nowISO = (context.nowISO || new Date().toISOString()).slice(0, 10);
+
+    console.log(`[GVA] (voice-server) IN → t:"${transcript}" | aliases:${Object.keys(aliasToLine).length} active:${activeLineId} year:${defaultYear}`);
+    const tools = [
+      {
+        type: 'function',
+        function: {
+          name: 'move_start',
+          description: 'Set start date of a single position (by alias or ref).',
+          strict: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              alias: { type: 'string', description: 'PR code, e.g. PR1 (normalize to uppercase, no spaces).' },
+              date: { type: 'string', description: 'ISO date YYYY-MM-DD.' }
+            },
+            required: ['alias', 'date'],
+            additionalProperties: false
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'shift',
+          description: 'Shift one or more positions by ±days, preserving duration.',
+          strict: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              alias: {
+                anyOf: [ { type: 'string' }, { type: 'array', items: { type: 'string' } } ],
+                description: "PR code(s), e.g. 'PR3' or ['PR3','PR5']."
+              },
+              days: { type: 'integer', description: 'Can be negative.' }
+            },
+            required: ['alias', 'days'],
+            additionalProperties: false
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'shift_all',
+          description: 'Shift every visible position by ±days.',
+          strict: true,
+          parameters: { type: 'object', properties: { days: { type: 'integer' } }, required: ['days'], additionalProperties: false }
+        }
+      },
+      { type: 'function', function: { name: 'distribute_chain', description: 'Make each start = previous end + 1 day.', strict: true, parameters: { type: 'object', properties: {}, required: [], additionalProperties: false } } },
+      { type: 'function', function: { name: 'normative_extend', description: 'Extend end dates by +days according to normative.', strict: true, parameters: { type: 'object', properties: { days: { type: 'integer' } }, required: ['days'], additionalProperties: false } } },
+      { type: 'function', function: { name: 'add_task_open', description: "Open 'add task' modal.", strict: true, parameters: { type: 'object', properties: {}, required: [], additionalProperties: false } } },
+      { type: 'function', function: { name: 'image_popup', description: 'Show the image popup.', strict: true, parameters: { type: 'object', properties: {}, required: [], additionalProperties: false } } },
+      {
+        type: 'function',
+        function: {
+          name: 'ask_clarify',
+          description: 'If exactly one key detail is missing/ambiguous, ask a SHORT clarifying question in Croatian.',
+          strict: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              question: { type: 'string' },
+              missing: { type: 'array', items: { type: 'string' } }
+            },
+            required: ['question', 'missing'],
+            additionalProperties: false
+          }
+        }
+      }
+    ];
+
+    const SYSTEM_PROMPT = `
+Ti si Gantt Tool Router.
+- Jezik: hrvatski. Popravi ASR greške (razmaci, dijakritici, nazivi mjeseci), dodaj potrebnu interpunkciju.
+- UVIJEK preferiraj TOOL CALLS. Ako nedostaje točno JEDAN ključni podatak, pozovi ask_clarify sa kratkim pitanjem.
+- Normaliziraj alias: ukloni razmake, pretvori u VELIKA SLOVA (npr. "pr 5"→"PR5").
+- Prihvati "aktivna (linija)" kao alias aktivnog reda iz konteksta.
+- Datumi: ako korisnik kaže "1.9.", uzmi godinu iz defaultYear i vrati ISO "YYYY-MM-DD".
+- Relativno: "+2 dana", "za -1 dan" → cijeli broj days (može biti negativan).
+- Više meta: razdvoji po zarezima i "i"; za shift vrati niz aliasa.
+- Ako je čista UI radnja (npr. "otvori zadatak", "slika"), pozovi odgovarajući UI tool.
+- Nikad ne vraćaj slobodan tekst osim ako je eksplicitno traženo; u suprotnom samo tool pozivi.
+`.trim();
+
+    const knownAliases = Object.keys(aliasToLine);
+    const userBlock = [
+      `Naredba: ${transcript}`,
+      '',
+      'Kontekst:',
+      `- today: ${nowISO} (Europe/Zagreb)`,
+      `- defaultYear: ${defaultYear}`,
+      `- activeLineId: ${activeLineId || 'null'}`,
+      `- knownAliases: ${knownAliases.join(', ')}`
+    ].join('\n');
+
+    console.log(`[GVA] (voice-server) OpenAI model: ${process.env.VITE_RESPONSES_MODEL || 'gpt-4o-mini'}`);
+    const response = await openai.chat.completions.create({
+      model: process.env.VITE_RESPONSES_MODEL || 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userBlock }
+      ],
+      tools,
+      tool_choice: 'auto',
+      parallel_tool_calls: false,
+      temperature: 0.1
+    });
+
+    const message = response.choices?.[0]?.message || {};
+    const toolCalls = message.tool_calls || [];
+    console.log(`[GVA] (voice-server) tool_calls: ${toolCalls.length}`);
+
+    const norm = (s = '') => String(s).toUpperCase().replace(/\s+/g, '');
+    const resolveActiveAlias = () => {
+      if (!activeLineId) return null;
+      for (const [alias, lineId] of Object.entries(aliasToLine)) {
+        if (lineId === activeLineId) return alias;
+      }
+      return null;
+    };
+    const mapAlias = (a) => {
+      const v = norm(a || '');
+      if (!v) return v;
+      if (v === 'AKTIVNA' || v === 'AKTIVNALINIJA' || v === 'ACTIVE' || v === 'ACTIVELINE') {
+        return resolveActiveAlias() || v;
+      }
+      return v;
+    };
+
+    if (toolCalls.length) {
+      const actions = [];
+      for (const call of toolCalls) {
+        const fn = call.function || {};
+        const name = fn.name;
+        let args = {};
+        try { args = JSON.parse(fn.arguments || '{}'); } catch {}
+        console.log(`[GVA] (voice-server) → tool: ${name} args: ${JSON.stringify(args)}`);
+
+        if (name === 'ask_clarify') {
+          return res.json({ type: 'clarify', question: args.question, missing: args.missing });
+        }
+        if (name === 'move_start') {
+          const alias = mapAlias(args.alias);
+          actions.push({ type: 'move_start', alias, lineId: aliasToLine[alias], iso: args.date });
+        } else if (name === 'shift') {
+          const arr = Array.isArray(args.alias) ? args.alias : [args.alias];
+          for (const raw of arr) {
+            const alias = mapAlias(raw);
+            actions.push({ type: 'shift', alias, days: args.days });
+          }
+        } else if (name === 'shift_all') {
+          actions.push({ type: 'shift_all', days: args.days });
+        } else if (name === 'distribute_chain') {
+          actions.push({ type: 'distribute_chain' });
+        } else if (name === 'normative_extend') {
+          actions.push({ type: 'normative_extend', days: args.days });
+        } else if (name === 'add_task_open' || name === 'image_popup') {
+          actions.push({ type: name });
+        }
+      }
+      console.log(`[GVA] (voice-server) actions mapped: ${JSON.stringify(actions)}`);
+      return res.json({ type: 'actions', actions });
+    }
+
+    return res.json({ type: 'none', text: message.content || '' });
+  } catch (e) {
+    try { console.error('Voice intent error (voice-server):', e?.stack || e); } catch {}
+    const payload = { error: e?.message || 'internal_error' };
+    if (process.env.NODE_ENV !== 'production') payload.stack = String(e?.stack || '');
+    try { return res.status(500).json(payload); } catch { res.setHeader('Content-Type','application/json'); res.statusCode=500; res.end(JSON.stringify(payload)); }
+  }
+});
+
 module.exports = app;

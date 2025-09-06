@@ -29,7 +29,7 @@ const ProjectView = lazy(() => import('./components/tabs/ProjectView'));
 const PlannerGanttTab = lazy(() => import('./components/tabs/PlannerGanttTab'));
 const PlannerGanttTab1 = lazy(() => import('./components/planner'));
 const PlannerGantt = lazy(() => import('./components/tabs/PlannerGantt'));
-const Asistent = lazy(() => import('./components/tabs/Asistent'));
+const Asistent = lazy(() => import('./components/tabs/AsistentTab'));
 /* 
  * CHANGE: 2025-09-01 - Added lazy-loaded AIInference component import
  * WHY: User requested new AI Inference tab functionality
@@ -59,7 +59,7 @@ const LLMServerManager = lazy(() => import('./components/tabs/LLMServerManager')
 const Circus = lazy(() => import('./components/tabs/Circus'));
 const UserManagement = lazy(() => import('./components/tabs/UserManagement'));
 const Employogram = lazy(() => import('./components/tabs/PlannerGanttV2'));
-const EmployogramOriginal = lazy(() => import('./components/tabs/Employogram'));
+const EmployogramOriginal = lazy(() => import('./components/tabs/EmployogramOriginal'));
 const Employogram2 = lazy(() => import('./components/tabs/Employogram2'));
 const AgbimFieldSimulatorTab = lazy(() => import('./components/tabs/AgbimFieldSimulatorTab'));
 const TaskHub = lazy(() => import('./components/tabs/TaskHub'));
@@ -73,6 +73,7 @@ const GanttAgent = lazy(() => import('./components/tabs/GanttAgent'));
 const VoiceOrchestratorTab = lazy(() => import('./components/tabs/VoiceOrchestrator'));
 const GVAv2 = lazy(() => import('./components/tabs/GVAv2'));
 const CodexControl = lazy(() => import('./components/tabs/CodexControl'));
+const DocumentSorterTab = lazy(() => import('./components/tabs/DocumentSorterTab'));
 
 
 // Loading component
@@ -131,6 +132,8 @@ export default function App() {
     // Wrap each component in TabErrorBoundary
     const getComponent = () => {
       switch (activeTab) {
+        case 'document-sorter':
+          return <DocumentSorterTab />;
         case 'invoice':
           return <InvoiceProcessing />;
         case 'invoice2':

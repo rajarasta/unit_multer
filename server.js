@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import cors from "cors";
 import dotenv from "dotenv";
+import { v4 as uuidv4 } from 'uuid';
 
 // Document Registry implementation (inline)
 class DocumentRegistry {
@@ -242,6 +243,217 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
     console.error("❌ Stack trace:", err.stack);
     res.status(500).json({ error: err.message, fallback_text: "Fallback transcript" });
   }
+});
+
+/* ========== GVA VOICE INTENT (tool-calling to UI actions) ========== */
+// === VOICE INTENT PROCESSING ENDPOINT (MEGA SPEC) ===
+
+// === STRICT TOOL DEFINITIONS (MEGA SPEC Section 3) ===
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "emit_action",
+      description: "Emit a single, atomic, backend-ready action.",
+      parameters: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["shift", "set_status", "move_start", "move_end", "set_range", "set_duration", "shift_all", "distribute_chain", "normative_extend"] },
+          targets: {
+            type: "array",
+            description: "List of normalized alias/badge codes (e.g., ['KIA7', '334']).",
+            items: { type: "string", pattern: "^[A-ZČĆĐŠŽ0-9]+$" }, 
+            minItems: 1
+          },
+          params: {
+            type: "object",
+            description: "Action-specific parameters.",
+            oneOf: [
+                { properties: { days: { type: "integer" } }, required: ["days"], additionalProperties: false },
+                { properties: { status: { type: "string" } }, required: ["status"], additionalProperties: false },
+                { properties: { date: { type: "string", format: "date" } }, required: ["date"], additionalProperties: false },
+                { properties: { start: { type: "string", format: "date" }, end: { type: "string", format: "date" } }, required: ["start", "end"], additionalProperties: false },
+                { properties: { duration_days: { type: "integer" } }, required: ["duration_days"], additionalProperties: false },
+            ]
+          },
+        },
+        required: ["type", "targets", "params"],
+        additionalProperties: false
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ask_clarify",
+      description: "Ask a single, precise question when exactly one slot is missing.",
+      parameters: {
+        type: "object",
+        properties: {
+          question: { type: "string" },
+          missing_slots: { type: "array", items: { type: "string" } },
+        },
+        required: ["question", "missing_slots"],
+        additionalProperties: false
+      },
+    },
+  },
+];
+
+// === SYSTEM PROMPT (MEGA SPEC Section 4.1) ===
+const SYSTEM_PROMPT = `
+Ti si "Voice → Actions Orchestrator" za Employogram/GVAv2.
+Zadatak: Pretvori hrvatske transkripte u točno jednu atomsku akciju koristeći dostupne alate.
+U svakom odgovoru napravi točno jedno:
+1) Pozovi tool \`emit_action\` ako su svi slotovi jasni.
+2) Inače pozovi tool \`ask_clarify\` s jednim kratkim pitanjem.
+
+Nikad ne odgovaraj narativnim tekstom. Ne koristi paralelne tool-pozive. Poštuj stroge sheme alata.
+
+Normalizacije (HR):
+- Aliasi/badgevi: STROGO normaliziraj: makni razmake/točke/crtice, velika slova. "Kia 7"→KIA7; "POZICIJA 9"→POZICIJA9.
+- Ako je transkript "KIA 7.3.3.4", interpretiraj kao listu targeta: ["KIA7", "334"].
+- Brojevi: "tri" → 3.
+- Smjer (za shift): naprijed/plus ⇒ +; nazad/unazad/minus ⇒ −. Ako smjer izostane, pretpostavi naprijed (+).
+- Datumi: Koristi YYYY-MM-DD format.
+
+Status whitelist (za set_status): Planirano, U TIJEKU, Blokirano, Završeno.
+Sinonimi: "blokirane"→Blokirano; "u procesu"→U TIJEKU; "gotovo"→Završeno.
+`;
+
+app.post('/api/gva/voice-intent', async (req, res) => {
+  console.log('🎤 [VOICE-INTENT] === REQUEST START ===');
+  console.log('🎤 [VOICE-INTENT] Full payload:', JSON.stringify(req.body, null, 2));
+  
+  const { transcript, context } = req.body;
+  console.log('🎤 [VOICE-INTENT] Extracted transcript:', transcript);
+  console.log('🎤 [VOICE-INTENT] Extracted context:', context);
+
+  if (!transcript) {
+    console.log('❌ [VOICE-INTENT] Missing transcript');
+    return res.status(400).json({ error: "Transcript missing" });
+  }
+
+  if (!context) {
+    console.log('❌ [VOICE-INTENT] Missing context');
+    return res.status(400).json({ error: "Context missing" });
+  }
+
+  // Prepare context for prompt
+  const availableAliases = Object.keys(context.aliasToLine || {}).join(', ');
+  const userMessage = `Kontekst: DefaultYear=${context.defaultYear}; NowISO=${context.nowISO}; Dostupni aliasi: [${availableAliases}]\n\nTranskript: "${transcript}"`;
+  
+  console.log('🎤 [VOICE-INTENT] Available aliases:', availableAliases);
+  console.log('🎤 [VOICE-INTENT] User message for OpenAI:', userMessage);
+  console.log('🚀 [VOICE-INTENT] Calling OpenAI API...');
+  
+  try {
+    
+    // --- REAL LLM CALL (OpenAI Example) ---
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o", // Recommended for reliable function calling
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      tools: TOOLS,
+      tool_choice: "auto",
+      temperature: 0,
+    });
+
+    console.log('✅ [VOICE-INTENT] OpenAI API response received');
+    const responseMessage = completion.choices[0].message;
+    console.log('🎤 [VOICE-INTENT] Response message:', JSON.stringify(responseMessage, null, 2));
+    
+    const toolCalls = responseMessage.tool_calls;
+    console.log('🔧 [VOICE-INTENT] Tool calls:', toolCalls ? toolCalls.length : 0, 'found');
+
+    if (!toolCalls || toolCalls.length === 0) {
+      console.log('❌ [VOICE-INTENT] No tool calls - returning clarify');
+      return res.json({ type: 'clarify', question: "Nisam razumio naredbu. Možete li ponoviti specifičnije?" });
+    }
+
+    const toolCall = toolCalls[0];
+    const functionName = toolCall.function.name;
+    console.log('🔧 [VOICE-INTENT] Function name:', functionName);
+    console.log('🔧 [VOICE-INTENT] Function arguments (raw):', toolCall.function.arguments);
+    
+    let functionArgs;
+    try {
+        functionArgs = JSON.parse(toolCall.function.arguments);
+        console.log('🔧 [VOICE-INTENT] Function arguments (parsed):', JSON.stringify(functionArgs, null, 2));
+    } catch (e) {
+        console.error("❌ [VOICE-INTENT] AI returned invalid JSON:", toolCall.function.arguments);
+        return res.status(500).json({ type: 'error', message: 'AI internal error (Invalid JSON)' });
+    }
+
+    if (functionName === 'ask_clarify') {
+      console.log('❓ [VOICE-INTENT] Returning clarify response');
+      return res.json({
+        type: 'clarify',
+        question: functionArgs.question,
+        missing_slots: functionArgs.missing_slots,
+      });
+    }
+
+    if (functionName === 'emit_action') {
+      console.log('⚡ [VOICE-INTENT] Emitting action:', functionArgs.type);
+      // Generate ID and timestamp on server (MEGA SPEC Section 9)
+      const clientActionId = uuidv4();
+      const requestedAt = new Date().toISOString();
+
+      const action = {
+        type: functionArgs.type,
+        targets: functionArgs.targets,
+        params: functionArgs.params,
+        client_action_id: clientActionId,
+        requested_at: requestedAt,
+      };
+
+      console.log('⚡ [VOICE-INTENT] Final action:', JSON.stringify(action, null, 2));
+      console.log('✅ [VOICE-INTENT] Sending actions response to frontend');
+
+      // Return format that frontend (index.jsx) expects
+      return res.json({
+        type: 'actions',
+        actions: [action],
+      });
+    }
+
+    /*
+    // --- MOCK RESPONSE (for testing integration without real LLM call) ---
+    console.log("[MOCK API] Received transcript:", transcript);
+    const t = transcript.toLowerCase();
+    let mockAction = null;
+
+    if ((t.includes('kia 7') || t.includes('kia7')) && (t.includes('pomakni') || t.includes('naprijed'))) {
+        mockAction = { type: "shift", targets: ["KIA7"], params: { days: 3 }};
+    } else if ((t.includes('kia 7') || t.includes('334')) && t.includes('blokiran')) {
+        // Example batch action
+        mockAction = { type: "set_status", targets: ["KIA7", "334"], params: { status: "Blokirano" }};
+    }
+    
+    if (mockAction) {
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+        return res.json({
+            type: 'actions',
+            actions: [{
+                ...mockAction,
+                client_action_id: uuidv4(),
+                requested_at: new Date().toISOString()
+            }]
+        });
+    }
+    return res.status(404).json({ type: 'none', message: 'Naredba nije prepoznata.' });
+    */
+
+  } catch (error) {
+    console.error("❌ [VOICE-INTENT] ERROR:", error.message);
+    console.error("❌ [VOICE-INTENT] Full error:", error);
+    res.status(500).json({ error: "Internal Server Error", message: error.message });
+  }
+  
+  console.log('🎤 [VOICE-INTENT] === REQUEST END ===');
 });
 
 /* ========== LLM DRAFT (prvi jasni zvuk) ========== */
@@ -1271,6 +1483,119 @@ app.post("/api/gantt/draft", async (req, res) => {
     res.status(500).json({
       error: true,
       message: 'Draft operation error: ' + error.message
+    });
+  }
+});
+
+/* ========== PDF Document Endpoints ========== */
+
+// GET /api/documents/list - Lista dostupnih PDF dokumenata
+app.get('/api/documents/list', (req, res) => {
+  try {
+    const backendPath = path.resolve('src/backend');
+    const files = fs.readdirSync(backendPath);
+    
+    const pdfDocs = files
+      .filter(file => file.toLowerCase().endsWith('.pdf'))
+      .map(filename => ({
+        filename: filename.replace('.pdf', ''),
+        fullFilename: filename,
+        path: path.join(backendPath, filename)
+      }));
+
+    res.json({
+      success: true,
+      documents: pdfDocs,
+      count: pdfDocs.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Documents list error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/documents/:filename/info - PDF metadata (broj stranica)
+app.get('/api/documents/:filename/info', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const pdfPath = path.resolve('src/backend', `${filename}.pdf`);
+    
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(404).json({
+        success: false,
+        error: `Dokument "${filename}.pdf" nije pronađen`
+      });
+    }
+
+    // For now, return basic info without PDF.js
+    // TODO: Implement PDF.js page counting
+    const stats = fs.statSync(pdfPath);
+    
+    res.json({
+      success: true,
+      document: {
+        filename: filename,
+        fullFilename: `${filename}.pdf`,
+        path: pdfPath,
+        size: stats.size,
+        pages: 'unknown' // Placeholder until PDF.js integration
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Document info error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/documents/:filename/pages/:pageNumber - Ekstraktiranje stranice
+app.get('/api/documents/:filename/pages/:pageNumber', async (req, res) => {
+  try {
+    const { filename, pageNumber } = req.params;
+    const page = parseInt(pageNumber, 10);
+    
+    if (!page || page < 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Broj stranice mora biti pozitivni broj'
+      });
+    }
+
+    const pdfPath = path.resolve('src/backend', `${filename}.pdf`);
+    
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(404).json({
+        success: false,
+        error: `Dokument "${filename}.pdf" nije pronađen`
+      });
+    }
+
+    // For now, return PDF path for direct browser rendering
+    // TODO: Implement PDF.js page extraction to base64/PNG
+    const relativePath = `/src/backend/${filename}.pdf#page=${page}`;
+    
+    res.json({
+      success: true,
+      page: {
+        filename: filename,
+        pageNumber: page,
+        url: relativePath,
+        extractedImage: null // Placeholder for base64 image
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Page extraction error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });

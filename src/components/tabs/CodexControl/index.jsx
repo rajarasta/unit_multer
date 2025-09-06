@@ -140,20 +140,43 @@ export default function CodexControlTab() {
   }, [active]);
 
   const commandPills = [
+    // Focus mode
     'agent',
+    // Individual positioning
     'pomakni pr4 za jedan dan',
     'pomakni pr5 plus 2 dana',
     'pomakni početak pr3 na 2025-10-01',
     'pomakni početak pr2 na početak rujna',
     'start pr4 na 1.9',
     'start pz02 na 1.9',
+    // Mass operations (NEW NORMATIVE COMMANDS)
     'pomakni sve za 2 dana',
+    'dodaj svim procesima po jedan dan',
+    'dodaj svim procesima po 3 dana',
+    'rasporedi procese prema normativu 1',
+    'rasporedi procese prema normativu 2',
+    'primijeni normativ 1',
+    'normativ 2',
+    'korigiraj trajanje prema normativu jedan',
+    'korigiraj trajanje prema normativu 1',
+    'korigiraj trajanje prema normativu dva', 
+    'korigiraj trajanje prema normativu 2',
+    'rasporedi prema trajanju',
     'rasporedi početke sa krajevima',
+    'rasporedi lanac',
+    // Legacy normative
     'korigiraj trajanje prema normativu',
+    // Document commands (NEW PDF FUNCTIONALITY)
+    'otvori subota stranica 1',
+    'prikaži petak stranica 5',
+    'dokument subota 3',
+    // UI commands
     'dodaj zadatak',
     'upiši projekt sastanak u ponedjeljak',
     'pročitaj mi',
+    // Confirmation
     'potvrdi',
+    'potvrdi sve',
     'poništi',
     'dalje',
     'prekini',

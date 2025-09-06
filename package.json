@@ -19,8 +19,10 @@
     "dev-with-api": "concurrently \"npm run server\" \"npm run dev\"",
     "dev-voice": "concurrently \"npm run voice-server\" \"npm run dev\"",
     "dev-gantt": "concurrently \"npm run file-writer\" \"npm run server\" \"npm run dev\"",
-    "runner": "cross-env RUNNER_PORT=3004 node runner.js",
-    "servers:all": "concurrently -n ui,voice,file,registry,runner -c cyan,blue,magenta,green,yellow \"npm:dev\" \"npm:voice-server\" \"npm:file-writer\" \"npm:server\" \"npm:runner\""
+    "runner": "cross-env RUNNER_PORT=3004 node runner.cjs",
+    "servers:all": "concurrently -n ui,voice,file,registry,runner -c cyan,blue,magenta,green,yellow \"npm:dev\" \"npm:voice-server\" \"npm:file-writer\" \"npm:server\" \"npm:runner\"",
+    "start": "node start-dev.js",
+    "dev-all": "node start-dev.js"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",

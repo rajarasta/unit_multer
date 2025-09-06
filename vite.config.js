@@ -16,7 +16,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3000", // Voice server port
+        target: "http://localhost:3002", // Voice server port (server.js)
         changeOrigin: true,
         secure: false
       }

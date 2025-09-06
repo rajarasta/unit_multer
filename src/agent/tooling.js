@@ -5,6 +5,18 @@ export const toolSchemas = {
     required: ['alias', 'date'],
     props: { alias: 'string', date: 'date' },
   },
+  move_end: {
+    required: ['alias', 'date'],
+    props: { alias: 'string', date: 'date' },
+  },
+  set_range: {
+    required: ['alias', 'start', 'end'],
+    props: { alias: 'string', start: 'date', end: 'date' },
+  },
+  set_duration: {
+    required: ['alias', 'duration_days'],
+    props: { alias: 'string', duration_days: 'number' },
+  },
   shift: {
     required: ['alias', 'days'],
     props: { alias: 'string', days: 'number' },
@@ -21,7 +33,19 @@ export const toolSchemas = {
     required: ['days'],
     props: { days: 'number' },
   },
+  apply_normative: {
+    required: ['profile'],
+    props: { profile: 'number' },
+  },
+  open_document: {
+    required: ['document', 'page'],
+    props: { document: 'string', page: 'number' },
+  },
   add_task_open: {
+    required: [],
+    props: {},
+  },
+  cancel_pending: {
     required: [],
     props: {},
   },
@@ -52,4 +76,3 @@ export function validateParams(tool, params) {
   }
   return { ok: true };
 }
-

@@ -12,6 +12,16 @@ import AgentTaskCard from '../../agent/AgentTaskCard.jsx';
 import { chatCompletions } from '../../../agent/llmClient.js';
 import { validateParams } from '../../../agent/tooling.js';
 // Using inline AgentInteractionPanel and loadProdajaData in this file
+import AgentInteractionPanel from './components/AgentInteractionPanel.jsx';
+import useGanttAgent from './hooks/useGanttAgent.js';
+import ProcessCarousel from './components/ProcessCarousel.jsx';
+import PDFPagePopup from './components/PDFPagePopup.jsx';
+// (JsonHighlighter, ProcessStagesPanel, InspectorSidebar are now standalone; import when used)
+
+import GanttCanvas from './components/GanttCanvas.jsx';
+import { parseCroatianCommand } from './parser/parseCroatianCommand.js';
+import DocumentService from '../../../services/DocumentService.js';
+
 
 // --- JSON helper: safely parse raw model output (handles code fences) ---
 function parseJsonSafe(text) {
@@ -34,6 +44,137 @@ const fromYmd = (s) => new Date(`${s}T00:00:00Z`);
 const addDays = (s, n) => { if (!s) return s; const d = fromYmd(s); d.setUTCDate(d.getUTCDate() + n); return ymd(d); };
 const diffDays = (a, b) => { if (!a || !b) return 0; const d1 = fromYmd(a), d2 = fromYmd(b); return Math.round((d2 - d1) / (1000*60*60*24)); };
 const rangeDays = (from, to) => { if (!from || !to) return []; const out=[]; let cur=fromYmd(from), end=fromYmd(to); while(cur<=end){ out.push(ymd(cur)); cur.setUTCDate(cur.getUTCDate()+1);} return out; };
+
+// --- Normative helpers ---
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const hashStr = (s) => [...String(s)].reduce((h,c)=>((h<<5)-h + c.charCodeAt(0))|0, 0);
+
+// Deterministic random number generator based on string hash
+const seededRandom = (str, min, max) => {
+  const hash = Math.abs(hashStr(str));
+  const normalized = (hash % 10000) / 10000; // 0-1 range
+  return Math.floor(normalized * (max - min + 1)) + min;
+};
+
+function computeNormativeDurations(profile, pozicije) {
+  const out = {};
+  const base = {};
+
+  pozicije.forEach((p) => {
+    const name = (p?.naziv || '').toLowerCase();
+    const curDur = Math.max(1, (diffDays(p.montaza.datum_pocetka, p.montaza.datum_zavrsetka) || 0) + 1);
+
+    let d1;
+    if (/staklo/.test(name)) d1 = 3;
+    else if (/aluminij/.test(name) || /aluminijski/.test(name)) d1 = 2;
+    else d1 = clamp(curDur || 2, 2, 4);
+
+    base[p.id] = d1;
+  });
+
+  if (profile === 1) {
+    return outAssign(out, base);
+  }
+
+  if (profile === 2) {
+    Object.keys(base).forEach((id) => {
+      const h = Math.abs(hashStr(id)) % 3;
+      const b = base[id];
+      out[id] = clamp(b + (h === 0 ? +1 : (h === 1 ? -1 : 0)), 1, b + 2);
+    });
+    return out;
+  }
+
+  return outAssign(out, base);
+
+  function outAssign(dst, src) { Object.keys(src).forEach(k => dst[k] = src[k]); return dst; }
+}
+
+// Batched ghost action addition helper - prevents UI jerking
+const addGhostActionsBatched = (ghosts, setPendingActions, batchSize = 3) => {
+  let index = 0;
+  const addBatch = () => {
+    if (index >= ghosts.length) return;
+    const batch = ghosts.slice(index, index + batchSize);
+    setPendingActions(q => [...batch, ...q]);
+    index += batchSize;
+    if (index < ghosts.length) {
+      requestAnimationFrame(() => setTimeout(addBatch, 16)); // 60fps staggering
+    }
+  };
+  addBatch();
+};
+
+// --- Ghost builders (grupirane akcije) ---
+function buildGhostActionsForNormative(profile, { pozicije, aliasByLine }) {
+  const groupId = `norm-${profile}-${Date.now()}`;
+  
+  return pozicije.map(p => {
+    const currentStart = p.montaza.datum_pocetka;
+    const currentEnd = p.montaza.datum_zavrsetka;
+    
+    let startShift, endShift;
+    
+    if (profile === 1) {
+      // NORMATIV 1: početak +1 do +2 dana, kraj +1 do +4 dana
+      startShift = seededRandom(`${p.id}-start`, 1, 2);
+      endShift = seededRandom(`${p.id}-end`, 1, 4);
+    } else if (profile === 2) {
+      // NORMATIV 2: početak +1 do +5 dana, kraj +4 do +8 dana  
+      startShift = seededRandom(`${p.id}-start`, 1, 5);
+      endShift = seededRandom(`${p.id}-end`, 4, 8);
+    } else {
+      // Default: no change
+      startShift = 0;
+      endShift = 0;
+    }
+    
+    return {
+      id: `${groupId}-${p.id}`,
+      client_action_id: groupId,
+      type: 'set_range',
+      lineId: p.id,
+      alias: aliasByLine[p.id] || p.id,
+      start: addDays(currentStart, startShift),
+      end: addDays(currentEnd, endShift)
+    };
+  });
+}
+
+function buildGhostActionsForShiftAll(days, { pozicije, aliasByLine }) {
+  const groupId = `shiftall-${days}-${Date.now()}`;
+  return pozicije.map(p => ({
+    id: `${groupId}-${p.id}`,
+    client_action_id: groupId,
+    type: 'set_range',
+    lineId: p.id,
+    alias: aliasByLine[p.id] || p.id,
+    start: addDays(p.montaza.datum_pocetka, days),
+    end: addDays(p.montaza.datum_zavrsetka, days)
+  }));
+}
+
+function buildGhostActionsForDistributeChain({ pozicije, aliasByLine }) {
+  const groupId = `chain-${Date.now()}`;
+  const arr = [...pozicije].sort((a,b)=> (a.montaza.datum_pocetka||'').localeCompare(b.montaza.datum_pocetka||''));  
+  const list = [];
+  for (let i=0;i<arr.length;i++) {
+    const p = arr[i];
+    const dur = Math.max(0, diffDays(p.montaza.datum_pocetka, p.montaza.datum_zavrsetka));
+    const newStart = i === 0 ? p.montaza.datum_pocetka : addDays(arr[i-1].montaza.datum_zavrsetka, 1);
+    const newEnd = addDays(newStart, dur);
+    list.push({
+      id: `${groupId}-${p.id}`,
+      client_action_id: groupId,
+      type: 'set_range',
+      lineId: p.id,
+      alias: aliasByLine[p.id] || p.id,
+      start: newStart,
+      end: newEnd
+    });
+  }
+  return list;
+}
 // --- Load prodaja processes from all_projects JSON ---
 let PRODAJA_GANTT_JSON = null;
 const loadProdajaData = async () => {
@@ -124,921 +265,10 @@ const MOCK_GANTT_JSON = {
   metadata: { version:'2.0', loading:true }
 };
 // --- Agent Interaction Panel Component ---
-function AgentInteractionPanel({ agent, focusMode, processCommand, pendingActions, confirmAction, cancelAction, aliasByLine }) {
-  const [textInput, setTextInput] = useState('');
-  // handle quick command events
-  useEffect(() => {
-    const h = (e) => {
-      const t = e?.detail?.t;
-      if (typeof t === 'string' && t.trim()) {
-        processCommand(t.trim());
-      }
-    };
-    window.addEventListener('gva:quickCommand', h);
-    return () => window.removeEventListener('gva:quickCommand', h);
-  }, [processCommand]);
-  
-  const hasActiveContent = focusMode || pendingActions.length > 0 || agent.transcript || agent.isListening;
-  
-  return (
-    <div className="h-full flex flex-col">
-      {hasActiveContent && (
-        <div className="panel rounded-2xl p-4 mb-4 shadow-lg">
-          <h3 className="font-semibold text-primary flex items-center gap-2">
-            <Bot className="w-4 h-4" />
-            Chat & Glasovni Agent
-          </h3>
-        </div>
-      )}
-      
-      <div className="flex-1 overflow-y-auto">
-        {!hasActiveContent ? (
-          <div 
-            className="p-4 h-full flex items-center justify-center cursor-pointer"
-            onClick={agent.startListening}
-          >
-            <div className="text-center text-subtle">
-              <Mic className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="text-sm">Chat & Glasovni Agent</p>
-              <p className="text-xs mt-1">Kliknite za poÄetak snimanja</p>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4">
-        {/* Voice Control */}
-        <div className="mb-4">
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={agent.isListening ? agent.stopListening : agent.startListening}
-              className={`flex-1 p-3 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
-                agent.isListening 
-                  ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-accent hover:bg-accent/80 text-white'
-              }`}
-            >
-              {agent.isListening ? <Square size={16} /> : <Mic size={16} />}
-              {agent.isListening ? 'Stop' : 'Voice'}
-            </button>
-          </div>
-          
-          {agent.transcript && (
-            <div className="p-2 bg-gray-100 rounded text-sm text-gray-700 mb-2">
-              {agent.transcript}
-            </div>
-          )}
-        </div>
-        {/* Text Input */}
-        <div className="mb-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && textInput.trim()) {
-                  processCommand(textInput);
-                  setTextInput('');
-                }
-              }}
-              placeholder={focusMode ? "Recite naredbu..." : "Recite 'agent' za fokus"}
-              className="flex-1 p-2 rounded-lg input-bg border border-theme text-sm"
-            />
-            <button
-              onClick={() => {
-                if (textInput.trim()) {
-                  processCommand(textInput);
-                  setTextInput('');
-                }
-              }}
-              disabled={!textInput.trim()}
-              className="px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send size={16} />
-            </button>
-          </div>
-        </div>
-        {/* Focus Mode Indicator */}
-        {focusMode && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-amber-800">Focus Mode Aktivan</span>
-            </div>
-            <p className="text-xs text-amber-700">Reci "dalje" za izlaz iz focus moda</p>
-          </div>
-        )}
-        {/* Pending Actions */}
-        {pendingActions.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-primary">ÄŒekaju potvrdu:</h4>
-            {pendingActions.map(action => (
-              <div key={action.id} className="p-3 input-bg rounded-lg border border-theme">
-                <div className="text-xs text-secondary mb-1">Akcija</div>
-                <div className="text-sm font-medium text-primary mb-2">Pomakni poÄetak</div>
-                <div className="text-xs text-secondary mb-1">
-                  Meta: <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded">{aliasByLine[action.lineId] || action.alias}</span>
-                </div>
-                <div className="text-xs text-secondary mb-3">
-                  Vrijeme: <span className="font-mono">{action.iso}</span>
-                </div>
-                <div className="text-[11px] text-amber-700 mb-2">Reci "potvrdi" ili "poni1ti"</div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => confirmAction(action)}
-                    className="px-2 py-1 rounded bg-emerald-600 text-white text-xs flex items-center gap-1"
-                  >
-                    <CheckCircle size={12}/> Potvrdi
-                  </button>
-                  <button 
-                    onClick={() => cancelAction(action.id)}
-                    className="px-2 py-1 rounded border text-xs"
-                  >
-                    PoniÅ¡ti
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+
 // --- Process Timeline Panel Component ---
-function ProcessTimelinePanel({ processStages, clearStages }) {
-  return (
-    <div className="h-[600px] flex flex-col">
-      {processStages.length > 0 && (
-        <div className="panel rounded-2xl p-4 mb-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-primary flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Proces obrade
-            </h3>
-            <button
-              onClick={clearStages}
-              className="text-xs text-subtle hover:text-primary transition-colors"
-            >
-              OÄisti
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="flex-1 overflow-y-auto">
-        {processStages.length === 0 ? (
-          <div className="p-4 h-full flex items-center justify-center">
-            <div className="text-center text-subtle">
-              <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="text-sm">Nema aktivnih procesa</p>
-              <p className="text-xs mt-1">Timeline Ä‡e se prikazati kad pokrenete glasovnu naredbu</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <AnimatePresence>
-                {processStages.map((stage, index) => (
-                  <motion.div
-                    key={stage.id}
-                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                    animate={{ 
-                      opacity: 1, 
-                      scale: 1, 
-                      y: 0,
-                      transition: { delay: index * 0.1 }
-                    }}
-                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                    className={`
-                      relative p-3 rounded-lg border-2 transition-all duration-300
-                      ${stage.status === 'active' ? 'border-blue-200 bg-blue-50/50' : ''}
-                      ${stage.status === 'completed' ? 'border-green-200 bg-green-50/50' : ''}
-                      ${stage.status === 'failed' ? 'border-red-200 bg-red-50/50' : ''}
-                      ${stage.status === 'idle' ? 'border-gray-200 bg-gray-50/30' : ''}
-                    `}
-                  >
-                    {/* Timeline connector */}
-                    {index < processStages.length - 1 && (
-                      <div className="absolute left-6 top-12 w-0.5 h-6 bg-gray-300" />
-                    )}
-                    
-                    {/* Status indicator */}
-                    <div className="absolute top-3 left-3">
-                      {stage.status === 'active' && (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                          className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full"
-                        />
-                      )}
-                      {stage.status === 'completed' && (
-                        <CheckCircle className="w-3 h-3 text-green-600" />
-                      )}
-                      {stage.status === 'failed' && (
-                        <AlertCircle className="w-3 h-3 text-red-600" />
-                      )}
-                      {stage.status === 'idle' && (
-                        <div className="w-3 h-3 rounded-full border-2 border-gray-400" />
-                      )}
-                    </div>
-                    {/* Stage content */}
-                    <div className="ml-6">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm">{stage.icon}</span>
-                        <h4 className={`font-medium text-sm ${
-                          stage.status === 'active' ? 'text-blue-900' :
-                          stage.status === 'completed' ? 'text-green-900' :
-                          stage.status === 'failed' ? 'text-red-900' : 'text-gray-900'
-                        }`}>
-                          {stage.name}
-                        </h4>
-                      </div>
-                      <p className={`text-xs mb-2 ${
-                        stage.status === 'active' ? 'text-blue-700' :
-                        stage.status === 'completed' ? 'text-green-700' :
-                        stage.status === 'failed' ? 'text-red-700' : 'text-gray-600'
-                      }`}>
-                        {stage.description}
-                      </p>
-                      {/* Parameters */}
-                      {stage.params && Object.keys(stage.params).length > 0 && (
-                        <div className="mb-2">
-                          <div className="text-xs font-medium text-gray-600 mb-1">Parametri:</div>
-                          <div className="space-y-1">
-                            {Object.entries(stage.params).map(([key, value]) => (
-                              <div key={key} className="flex justify-between text-xs">
-                                <span className="text-gray-500">{key}:</span>
-                                <span className="text-gray-700 font-mono max-w-[100px] truncate">
-                                  {typeof value === 'string' ? value : JSON.stringify(value)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {/* Result */}
-                      {stage.result && (
-                        <div className="mb-2">
-                          <div className="text-xs font-medium text-green-600 mb-1">Rezultat:</div>
-                          <div className="text-xs text-green-700 font-mono">
-                            {typeof stage.result === 'string' 
-                              ? stage.result 
-                              : JSON.stringify(stage.result, null, 2).substring(0, 50) + '...'
-                            }
-                          </div>
-                        </div>
-                      )}
-                      {/* Error */}
-                      {stage.error && (
-                        <div className="mb-2">
-                          <div className="text-xs font-medium text-red-600 mb-1">GreÅ¡ka:</div>
-                          <div className="text-xs text-red-700 font-mono">
-                            {typeof stage.error === 'string' 
-                              ? stage.error 
-                              : JSON.stringify(stage.error, null, 2).substring(0, 50) + '...'
-                            }
-                          </div>
-                        </div>
-                      )}
-                      {/* Timing */}
-                      <div className="flex justify-between items-center text-xs text-gray-500 mt-2">
-                        <span>
-                          {stage.timestamp && new Date(stage.timestamp).toLocaleTimeString('hr-HR', { 
-                            hour: '2-digit', 
-                            minute: '2-digit', 
-                            second: '2-digit' 
-                          })}
-                        </span>
-                        {stage.completedAt && (
-                          <span>
-                            ({Math.round((new Date(stage.completedAt) - new Date(stage.timestamp)) / 1000)}s)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-            </AnimatePresence>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+import ProcessTimelinePanel from './components/ProcessTimelinePanel.jsx';
 // --- Quick Command Cards (right side) ---
-function QuickCommandCards({ onSend }) {
-  // Flat list of colored command chips (no grouping)
-  const cmds = [
-    { id: 'shift-1', title: 'Pomakni PZ-01 +2 dana', text: 'pomakni pz-01 za +2 dana', icon: Activity, tint: 'sky' },
-    { id: 'shift-2', title: 'Pomakni aktivnu -1 dan', text: 'pomakni aktivnu liniju za -1 dan', icon: Activity, tint: 'sky' },
-    { id: 'date-1',  title: 'Start PZ-02 na 1.9.',   text: 'postavi poÄetak pz-02 na 2025-09-01', icon: CalendarDays, tint: 'indigo' },
-    { id: 'date-2',  title: 'Kraj PZ-03 na 5.9.',     text: 'postavi kraj pz-03 na 2025-09-05',   icon: CalendarDays, tint: 'indigo' },
-    { id: 'conf-1',  title: 'Potvrdi aktivnu liniju', text: 'potvrdi',                            icon: CheckCircle,  tint: 'emerald' },
-    { id: 'nav-1',   title: 'Izlaz i spremi',         text: 'dalje',                              icon: X,            tint: 'rose' },
-  ];
-  const tintToGradient = (t) => {
-    switch (t) {
-      case 'sky':     return { from: '#38bdf8', via: '#0ea5e9', to: '#0284c7' };
-      case 'indigo':  return { from: '#818cf8', via: '#6366f1', to: '#4f46e5' };
-      case 'emerald': return { from: '#34d399', via: '#10b981', to: '#059669' };
-      case 'rose':    return { from: '#fb7185', via: '#f43f5e', to: '#e11d48' };
-      default:        return { from: '#94a3b8', via: '#64748b', to: '#475569' };
-    }
-  };
-  return (
-    <div className="panel h-full rounded-2xl p-4 shadow-lg flex flex-col">
-      <h3 className="font-semibold text-primary mb-3">Brze naredbe</h3>
-      <div className="flex flex-wrap gap-2">
-        {cmds.map((c) => {
-          const Icon = c.icon || Sparkles;
-          const g = tintToGradient(c.tint);
-          const style = {
-            background: `linear-gradient(135deg, ${g.from}22, ${g.via}22 45%, ${g.to}26), rgba(255,255,255,0.04)`,
-            boxShadow: `inset 0 1px 0 0 rgba(255,255,255,.12), 0 8px 20px rgba(0,0,0,.12)`,
-            borderColor: 'rgba(255,255,255,.18)'
-          };
-          return (
-            <button
-              key={c.id}
-              onClick={()=>onSend(c.text)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-white/90 backdrop-blur-md border transition hover:translate-y-[-1px]`}
-              style={style}
-              title={c.text}
-            >
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/85 text-slate-700 shadow-sm">
-                <Icon size={12} />
-              </span>
-              <span className="text-xs font-medium">{c.title}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-auto" />
-    </div>
-  );
-}
-// --- Agent simulation ---
-function useGanttAgent() {
-  const [state, setState] = useState('idle');
-  const [isListening, setIsListening] = useState(false);
-  const [processStages, setProcessStages] = useState([]);
-  const [lastResponse, setLastResponse] = useState(null);
-  const [transcript, setTranscript] = useState('');
-  const startListening = () => { setIsListening(true); setState('listening'); setTranscript('SluÅ¡am...'); };
-  const stopListening = () => { setIsListening(false); if (state==='listening') setState('idle'); setTranscript(''); };
-  const processTextCommand = async (command, updateGanttJson) => {
-    setState('processing'); setTranscript(`Obrada: "${command}"`);
-    // trigger background highlight for context
-    window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } }));
-    const stages = [
-      { id:'nlu', name:'NLU', icon:'ðŸ§ ', status:'active' },
-      { id:'ctx', name:'Kontekst', icon:'ðŸ“‹', status:'idle' },
-      { id:'plan', name:'Planiranje', icon:'âœï¸', status:'idle' },
-      { id:'apply', name:'Primjena', icon:'ðŸ’¾', status:'idle' },
-    ];
-    setProcessStages(stages);
-    const step = (id) => new Promise(r=>setTimeout(()=>{
-      setProcessStages(prev=>prev.map((s,i)=> s.id===id?{...s,status:'completed'}: (prev[i-1]?.id===id?{...s,status:'active'}:s)));
-      r();
-    }, 400));
-    await step('nlu'); await step('ctx'); await step('plan');
-    let modification=null, responseText='Nisam prepoznao naredbu.';
-    const lowerCommand = command.toLowerCase();
-    
-    // Enhanced prodaja-specific commands
-    if (lowerCommand.includes('pomakni') && lowerCommand.includes('prodaja')) {
-      // Find first prodaja process ID for demo
-      const firstProdajaId = updateGanttJson.ganttJson?.pozicije?.[0]?.id;
-      if (firstProdajaId) {
-        if (lowerCommand.includes('za 2 dana')) {
-          modification={ operation:'shift_date', pozicija_id: firstProdajaId, days:2 };
-          responseText=`Pomaknuo sam proces prodaje ${firstProdajaId} za 2 dana unaprijed.`;
-        } else if (lowerCommand.includes('za 1 dan')) {
-          modification={ operation:'shift_date', pozicija_id: firstProdajaId, days:1 };
-          responseText=`Pomaknuo sam proces prodaje ${firstProdajaId} za 1 dan unaprijed.`;
-        }
-      }
-    }
-    // Legacy P-001 format for backward compatibility
-    else if (lowerCommand.includes('pomakni p-001 za 2 dana')) {
-      modification={ operation:'shift_date', pozicija_id:'P-001', days:2 };
-      responseText='Pomaknuo sam poziciju P-001 za 2 dana unaprijed.';
-    }
-    // Enhanced process identification by project name
-    else if (lowerCommand.includes('stambena zgrada') && lowerCommand.includes('pomakni')) {
-      // Find processes related to "Stambena zgrada"
-      const stambenoId = updateGanttJson.ganttJson?.pozicije?.find(p => 
-        p.naziv?.toLowerCase().includes('stambena zgrada')
-      )?.id;
-      if (stambenoId) {
-        modification={ operation:'shift_date', pozicija_id: stambenoId, days:1 };
-        responseText=`Pomaknuo sam prodaju za Stambenu zgradu za 1 dan unaprijed.`;
-      }
-    }
-    
-    if (modification) updateGanttJson(modification);
-    await step('apply');
-    setTimeout(()=> setProcessStages([]), 1200);
-    setLastResponse({ tts: responseText });
-    setState('idle'); setTranscript('');
-  };
-  return { 
-    state, isListening, processStages, lastResponse, transcript, 
-    startListening, stopListening, 
-    setTranscript: (t) => setTranscript(t), 
-    setProcessStages: (updater) => setProcessStages(updater),
-    addStage: (stage) => setProcessStages(prev => [...prev, stage]),
-    processTextCommand, 
-    resetAgent: () => {setLastResponse(null); setProcessStages([]); setState('idle');} 
-  };
-}
-// --- Simple Croatian command parser (heuristic) ---
-function resolveMonthToken(tok) {
-  const m = {
-    'prvog':1,'drugog':2,'treÄ‡eg':3,'treceg':3,'Äetvrtog':4,'cetvrtog':4,'petog':5,'Å¡estog':6,'sestog':6,'sedmog':7,'osmog':8,'devetog':9,'desetog':10,'jedanaestog':11,'dvanaestog':12,
-    'sijeÄnja':1,'veljaÄe':2,'oÅ¾ujka':3,'travnja':4,'svibnja':5,'lipnja':6,'srpnja':7,'kolovoza':8,'rujna':9,'listopada':10,'studenog':11,'prosinca':12,
-    'sijecnja':1,'veljace':2,'ozujka':3,'travnja':4,'svibnja':5,'lipnja':6,'srpnja':7,'kolovoza':8,'rujna':9,'listopada':10,'studenog':11,'prosinca':12,
-    '1.':1,'2.':2,'3.':3,'4.':4,'5.':5,'6.':6,'7.':7,'8.':8,'9.':9,'10.':10,'11.':11,'12.':12,
-    '1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'11':11,'12':12
-  };
-  return m[tok] || null;
-}
-function parseCroatianCommand(text, { aliasToLine, defaultYear }) {
-  if (!text) return null;
-  const t = text.toLowerCase().trim();
-  // Pattern: "pomakni poÄetak PR5 na poÄetak <mjeseca>"
-  const m = t.match(/pomakni\s+po(?:Ä|c)etak\s+(pr\d+)\s+na\s+(po(?:Ä|c)etak\s+([^.\s]+)\s+mjeseca|([0-9]{4}-[0-9]{2}-[0-9]{2}))/);
-  if (m) {
-    const alias = m[1].toUpperCase();
-    let iso = null;
-    if (m[4]) {
-      iso = m[4];
-    } else {
-      const monthTok = (m[2] || '').split(/\s+/).pop();
-      const month = resolveMonthToken(monthTok);
-      if (month) {
-        const y = defaultYear || new Date().getUTCFullYear();
-        iso = `${y}-${String(month).padStart(2,'0')}-01`;
-      }
-    }
-    const lineId = aliasToLine[alias];
-    if (!lineId || !iso) return null;
-    return { type: 'move_start', alias, lineId, iso, confidence: 0.82 };
-  }
-  // Pattern: "pomakni PR5 za 2 dana" (shift by N days)
-  // Accept fillers (pa, ajde, molim te, ok) and verb synonyms (pomakni|makni|pomjeri|premjesti|prebaci)
-  // Allow space in alias: "pr 6" ? normalize later
-  const s = t.match(/^(?:pa|ajmo|ajde|hajde|molim(?:\s+te)?|ma|hej|ok|okej)?\s*(?:pomakni|makni|pomjeri|premjesti|prebaci)\s+(pr\s*\d+)\s+za\s+(-?\d+)\s+dana?/u);
-  if (s) {
-    const alias = s[1].replace(/\\s+/g,'').toUpperCase();
-    const delta = parseInt(s[2], 10);
-    const lineId = aliasToLine[alias];
-    if (!lineId || !Number.isFinite(delta)) return null;
-    return { type: 'shift', alias, lineId, days: delta, confidence: 0.8 };
-  }
-  // Pattern: natural numbers and plus/minus wording (e.g., "pomakni pr4 za jedan dan", "pomakni pr4 plus jedan dan")
-  const s2 = t.match(/^(?:pa|ajmo|ajde|hajde|molim(?:\s+te)?|ma|hej|ok|okej)?\s*(?:pomakni|makni|pomjeri|premjesti|prebaci)\s+(pr\s*\d+)\s+(?:za\s+)?(?:(plus|minu[sz])\s+)?([a-zccdï¿½ï¿½]+|\d+)\s+(dan|dana|tjedan|tjedna)/u);
-  if (s2) {
-    const alias = s2[1].replace(/\\s+/g,'').toUpperCase();
-    const signWord = s2[2];
-    const numWord = s2[3];
-     const unit = s2[4];
-     const numMap = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'četiri':4,'cetiri':4,'pet':5,'šest':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
-    let n = (/^\d+$/.test(numWord) ? parseInt(numWord,10) : (numMap[numWord] ?? null));
-    if (n == null) return null;
-    if (/tjedan/.test(unit)) n *= 7;
-    if (signWord && /minu[sz]/.test(signWord)) n = -n;
-    const lineId = aliasToLine[alias];
-    if (!lineId) return null;
-    return { type: 'shift', alias, lineId, days: n, confidence: 0.8 };
-  }
-  // Global: "pomakni sve za N dana"
-  const g1 = t.match(/pomakni\s+sve\s+za\s+(-?\d+|[a-zÄÄ‡Å¡Ä‘Å¾]+)\s+dana?/);
-  if (g1) {
-    // FIX: Corrected character encoding for 'c' and 'ï¿½'.
-    const numMapAll = { 'nula':0,'jedan':1,'jedna':1,'jedno':1,'dva':2,'dvije':2,'tri':3,'cetiri':4,'cetiri':4,'pet':5,'ï¿½est':6,'sest':6,'sedam':7,'osam':8,'devet':9,'deset':10 };
-    
-    // Use toLowerCase() for case-insensitive matching with the map keys.
-    const input = g1[1].toLowerCase();
-
-    let n = /^-?\d+$/.test(input) ? parseInt(input, 10) : (numMapAll[input] ?? null);
-    
-    if (n == null) return null;
-    return { type: 'shift_all', days: n };
-}
-
-// Global: "rasporedi pocetke sa krajevima"
-// FIX: Added case-insensitivity (i), unicode support (u), and optional 'a' in 'sa' (sa?)
-//      to correctly handle "s krajevima" as well.
-if (/rasporedi\s+po(?:c|c)etke\s+sa?\s+krajevima/iu.test(t)) {
-    return { type: 'distribute_chain' };
-}
-
-// Global: "korigiraj trajanje prema normativu"
-// FIX: Added case-insensitivity (i flag).
-if (/korigiraj\s+trajanje.*normativ/i.test(t)) {
-    return { type: 'normative_extend', days: 2 };
-}
-
-// Global UI: open Add Task modal (synonyms)
-// FIX: Combined multiple conditions into one efficient regex.
-//      Handles "dodaj zadatak", "zadatak", "dodaj biljeï¿½ku", "dodaj biljesku" case-insensitively.
-if (/(?:dodaj\s+)?(?:zadatak|bilje(?:ï¿½|s)ku)/iu.test(t)) {
-    return { type: 'add_task_open' };
-}
-
-// Modal-scoped commands (will only apply if modal is open)
-
-// Handles commands like: "upiï¿½i Naziv novog zadatka"
-// FIX: Changed to a non-capturing group (?:ï¿½|s) and added case-insensitivity.
-if (/^upi(?:ï¿½|s)i\s+.+/iu.test(t)) {
-    const mU = t.match(/^upi(?:ï¿½|s)i\s+(.+)$/iu);
-    return { type: 'add_task_append', text: (mU && mU[1]) ? mU[1] : '' };
-}
-
-// Handles save/confirm commands in a modal.
-// FIX: Added case-insensitivity and more synonyms for "save".
-if (/^(spremi|potvrdi|unesi|dodaj)$/i.test(t)) {
-    return { type: 'modal_save' };
-}
-
-// Handles cancel/close commands in a modal.
-// FIX: Replaced a syntax error with a specific regex for canceling,
-//      including common synonyms and case-insensitivity.
-if (/^(odustani|prekini|zatvori|izadi)$/i.test(t)) {
-    return { type: 'modal_cancel' };
-}
-  // Global: show image popup (supports: "popup", "pop up", "digni/otvori/prikaï¿½i popup/sliku")
-  if (/(?:\bpop\s*up\b|\bpopup\b|\b(?:digni|otvori|prikaï¿½i|prikazi)\s+(?:popup|sliku)\b)/iu.test(t)) {
-    return { type: 'image_popup' };
-  }
-  // Global: "procitaj mi"
-  // Global: "procitaj mi"
-  if (/(pro\u010Ditaj|procitaj)\s+mi/u.test(t)) {
-    return { type: 'tts_read' };
-  }
-  if (/\bprekini\b/.test(t)) {
-    return { type: 'exit_focus' };
-  }
-  // Pattern: "start pr4 na 1.9[.2025]" or "start pz02 na 1.9" -> set start date
-  const s3 = t.match(/start\s+([a-z]{2}\d+|pr\d+)\s+na\s+([0-3]?\d)\.([01]?\d)(?:\.([12]\d{3}))?/);
-  if (s3) {
-    const ref = s3[1];
-    const aliasKey = ref.toUpperCase();
-    const d = parseInt(s3[2],10);
-    const mth = parseInt(s3[3],10);
-    const y = s3[4] ? parseInt(s3[4],10) : (defaultYear || new Date().getUTCFullYear());
-    const iso = `${y}-${String(mth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const lineId = aliasToLine[aliasKey];
-    if (!lineId) return null;
-    return { type: 'move_start', alias: aliasKey, lineId, iso, confidence: 0.78 };
-  }
-  return null;
-}
-function JsonHighlighter({ data }) {
-  return <pre className="text-xs code-font input-bg rounded-lg p-4 overflow-auto h-full border-theme border text-secondary">{JSON.stringify(data, null, 2)}</pre>;
-}
-function ProcessStagesPanel({ processStages=[] }) {
-  return (
-    <AnimatePresence>
-      {processStages.length>0 && (
-        <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:20}} className="absolute bottom-full left-0 right-0 mb-4 px-8">
-          <div className="panel rounded-xl p-4 shadow-xl">
-            <div className="flex justify-center gap-4 overflow-x-auto">
-              {processStages.map((s,i)=> (
-                <div key={s.id} className="flex items-center gap-3 flex-shrink-0">
-                  <div className={`flex items-center gap-3 p-2 rounded-lg input-bg ${s.status==='active'?'ring-2 ring-accent':''}`}>
-                    <span className="text-md">{s.icon}</span>
-                    <span className="text-sm font-medium text-primary">{s.name}</span>
-                    {s.status==='active' && (<motion.div animate={{rotate:360}} transition={{duration:1,repeat:Infinity,ease:'linear'}} className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full" />)}
-                    {s.status==='completed' && (<CheckCircle className="w-4 h-4 text-green-500" />)}
-                  </div>
-                  {i<processStages.length-1 && (<ChevronRight className="text-subtle w-4 h-4" />)}
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-function InspectorSidebar({ ganttJson, activeLine, jsonHistory, historyIndex, canUndo, canRedo, onUndo, onRedo }) {
-  const [tab, setTab] = useState('line');
-  return (
-    <div className="panel w-80 flex flex-col h-full rounded-2xl overflow-hidden">
-      <div className="p-4 border-b border-theme flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-primary">Inspektor</h2>
-        <div className="flex items-center gap-2">
-          <button onClick={onUndo} disabled={!canUndo} className="p-2 input-bg rounded-lg text-subtle disabled:opacity-40 hover:text-accent transition" title="Undo"><Undo2 size={18}/></button>
-          <button onClick={onRedo} disabled={!canRedo} className="p-2 input-bg rounded-lg text-subtle disabled:opacity-40 hover:text-accent transition" title="Redo"><Redo2 size={18}/></button>
-        </div>
-      </div>
-      <div className="flex border-b border-theme input-bg">
-        <button onClick={()=>setTab('line')} className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition ${tab==='line'?'text-accent border-b-2 border-accent':'text-subtle'}`}><Activity size={16}/> Linija</button>
-        <button onClick={()=>setTab('data')} className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition ${tab==='data'?'text-accent border-b-2 border-accent':'text-subtle'}`}><Database size={16}/> Podaci</button>
-      </div>
-      <div className="flex-1 overflow-hidden">
-        {tab==='line' ? (
-          <div className="p-4 overflow-y-auto h-full">
-            <h3 className="text-md font-semibold mb-4 text-secondary">Detalji Aktivne Linije</h3>
-            {activeLine ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 input-bg rounded-full text-sm font-medium text-primary">{activeLine.pozicija_id}</span>
-                  <h4 className="text-xl font-bold text-primary">{activeLine.label}</h4>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">PoÄetak</p><p className="font-medium text-primary">{activeLine.start}</p></div>
-                  <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">Kraj</p><p className="font-medium text-primary">{activeLine.end}</p></div>
-                  <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">Trajanje</p><p className="font-medium text-primary">{activeLine.duration_days} dana</p></div>
-                  <div className="input-bg p-3 rounded-lg"><p className="text-xs text-subtle">Osoba</p><p className="font-medium text-primary flex items-center gap-1"><User size={14}/> {activeLine.osoba}</p></div>
-                </div>
-                <div className="input-bg p-3 rounded-lg text-sm"><p className="text-xs text-subtle mb-1">Opis</p><p className="text-secondary">{activeLine.opis}</p></div>
-              </div>
-            ) : (<p className="text-subtle italic text-center mt-10">Odaberite liniju na Gantt dijagramu.</p>)}
-          </div>
-        ) : (
-          <div className="p-4 overflow-y-auto h-full">
-            <div className="flex justify-between items-center mb-4"><h3 className="text-md font-semibold text-secondary">Gantt JSON Data</h3><span className="text-xs text-subtle">Povijest: {historyIndex+1}/{jsonHistory.length}</span></div>
-            <JsonHighlighter data={ganttJson} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions }) {
-  const [isListening, setIsListening] = useState(false);
-  const [ganttVisible, setGanttVisible] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [textInput, setTextInput] = useState('');
-  const { dateRange, lines } = useMemo(() => {
-    if (!ganttJson?.pozicije) return { dateRange: {}, lines: [] };
-    const jsonLines = ganttJson.pozicije.map(p=>({
-      id:p.id, pozicija_id:p.id, label:p.naziv, start:p.montaza.datum_pocetka, end:p.montaza.datum_zavrsetka,
-      duration_days: diffDays(p.montaza.datum_pocetka, p.montaza.datum_zavrsetka)+1, osoba:p.montaza.osoba, opis:p.montaza.opis
-    }));
-    const all = jsonLines.flatMap(l=>[l.start,l.end]).filter(Boolean).sort();
-    if (!all.length) return { dateRange:{}, lines: jsonLines };
-    return { dateRange: { from: all[0], to: all[all.length-1] }, lines: jsonLines };
-  }, [ganttJson]);
-  const days = useMemo(()=> rangeDays(dateRange.from, dateRange.to), [dateRange]);
-  const totalDays = days.length || 1;
-  // Voice recognition for "gantt" wake word
-  useEffect(() => {
-    if (!isListening) return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    
-    const rec = new SR();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = 'hr-HR';
-    
-    const onresult = (e) => {
-      let finalText = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i];
-        if (res.isFinal) finalText += res[0].transcript;
-      }
-      
-      if (finalText) {
-        const text = finalText.trim().toLowerCase();
-        setTranscript(text);
-        
-        if (/\bgantt\b/.test(text) || /\bgant\b/.test(text)) {
-          setGanttVisible(true);
-          setIsListening(false);
-          setTimeout(() => window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } })), 0);
-        }
-      }
-    };
-    
-    rec.onresult = onresult;
-    rec.onerror = () => {};
-    rec.start();
-    
-    return () => { try { rec.stop(); } catch {} };
-  }, [isListening]);
-  const startListening = () => {
-    setIsListening(true);
-    setTranscript('');
-  };
-  const handleTextSearch = () => {
-    if (textInput.trim()) {
-      const searchText = textInput.trim().toLowerCase();
-      if (searchText.includes('gantt') || searchText.includes('gant')) {
-        setGanttVisible(true);
-        setTimeout(() => window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } })), 0);
-      }
-      // TODO: Later implement search functionality for specific gantt elements
-      console.log('Searching for:', searchText);
-    }
-  };
-  if (!ganttVisible) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center text-subtle p-8 w-full max-w-md">
-          {/* Voice Control */}
-          <div 
-            className="cursor-pointer mb-6"
-            onClick={startListening}
-          >
-            <motion.div
-              animate={isListening ? { scale: [1, 1.2, 1] } : {}}
-              transition={{ duration: 1, repeat: isListening ? Infinity : 0 }}
-            >
-              <Mic className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            </motion.div>
-            <p className="text-lg mb-2">Gantt Dijagram</p>
-            <p className="text-sm mb-4">
-              {isListening ? 'SluÅ¡am... Recite "gantt"' : 'Kliknite za glasovnu aktivaciju'}
-            </p>
-            {transcript && (
-              <div className="text-xs text-secondary bg-gray-100 rounded px-3 py-1 inline-block mb-4">
-                {transcript}
-              </div>
-            )}
-          </div>
-          {/* Text Input */}
-          <div className="w-full">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && textInput.trim()) {
-                    handleTextSearch();
-                    setTextInput('');
-                  }
-                }}
-                placeholder="UpiÅ¡ite 'gantt' ili pretraÅ¾ite elemente..."
-                className="flex-1 p-3 rounded-lg input-bg border border-theme text-sm text-primary placeholder-text-subtle focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-              <button
-                onClick={() => {
-                  handleTextSearch();
-                  setTextInput('');
-                }}
-                disabled={!textInput.trim()}
-                className="px-4 py-3 bg-accent text-white rounded-lg hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  if (!lines.length) return <div className="panel flex-1 rounded-2xl flex items-center justify-center text-subtle">UÄitavanje podataka...</div>;
-  const barColors = ['from-indigo-500 to-purple-600','from-sky-500 to-blue-600','from-emerald-500 to-teal-600','from-amber-500 to-orange-600','from-rose-500 to-pink-600'];
-  return (
-    <div className="panel flex-1 rounded-2xl overflow-hidden flex flex-col">
-      <div className="p-6 border-b border-theme flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-primary">{ganttJson.project.name}</h2>
-          <p className="text-sm text-subtle mt-1">{ganttJson.project.description}</p>
-        </div>
-        <div className="flex items-center gap-4 text-sm text-secondary">
-          <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4"/> {dateRange.from} â€“ {dateRange.to}</div>
-        </div>
-      </div>
-      <div className="flex-1 overflow-auto">
-        <div className="grid" style={{ gridTemplateColumns: `280px repeat(${totalDays}, 45px)` }}>
-          <div className="text-sm font-semibold sticky top-0 left-0 z-30 panel px-6 py-3 border-b border-theme">Pozicija</div>
-          {days.map((d)=>{ const dateObj = fromYmd(d); const dayNum = dateObj.getUTCDate(); const dayName = dateObj.toLocaleDateString('hr-HR',{weekday:'short', timeZone:'UTC'}).toUpperCase(); return (
-            <div key={d} className="text-xs text-center py-3 sticky top-0 z-10 panel border-b border-l gantt-grid-line border-theme">
-              <div className="font-bold text-sm text-primary">{dayNum}</div>
-              <div className="text-subtle">{dayName}</div>
-            </div>
-          );})}
-          {lines.map((ln,idx)=>{
-            const startIdx = Math.max(0, diffDays(dateRange.from, ln.start));
-            const span = ln.duration_days;
-            const isActive = ln.id===activeLineId; const barColor = barColors[idx%barColors.length];
-            return (
-              <React.Fragment key={ln.id}>
-                <div className={`px-6 py-2 text-sm sticky left-0 z-20 panel border-t border-theme flex flex-col justify-center h-12 cursor-pointer transition-shadow ${isActive?'ring-2 ring-inset ring-accent':''}`} onClick={()=>setActiveLineId(ln.id)}>
-                  <div className="font-medium text-primary truncate" title={ln.label}>{ln.label}</div>
-                  <div className="text-xs text-subtle mt-1 flex items-center gap-2"><span className="px-2 py-0.5 input-bg rounded-md text-xs">{ln.pozicija_id}</span><span>{ln.osoba}</span></div>
-                </div>
-                <div className="relative col-span-full grid" style={{ gridTemplateColumns: `repeat(${totalDays}, 45px)`, gridColumnStart: 2 }}>
-          {days.map((d,i)=> (<div key={`${ln.id}-${d}`} className="h-12 border-t border-l gantt-grid-line border-theme"/>))}
-                  <motion.div layoutId={`gantt-bar-${ln.id}`} data-bar-id={ln.id} className={`absolute top-1 h-10 rounded-lg shadow-xl bg-gradient-to-r ${barColor} flex flex-col justify-center pl-3 pr-3 text-white cursor-pointer`}
-                    style={{ gridColumnStart: startIdx+1, gridColumnEnd: startIdx+1+span, width:`calc(${span*45}px - 8px)`, left:'4px', filter: isActive? 'brightness(1.1) drop-shadow(0 0 15px var(--color-accent))':'none' }}
-                    initial={{opacity:0.8}} animate={{opacity:1}} whileHover={{scale:1.02}} transition={{type:'spring',stiffness:300,damping:25}}
-                    onMouseEnter={(e)=>{ const r = e.currentTarget.getBoundingClientRect(); const x = r.left + r.width/2; const y = r.top + r.height/2; window.dispatchEvent(new CustomEvent('bg:highlight',{ detail:{ x, y, radius: Math.max(r.width,r.height), durationMs: 900 } })); if (window.__gvaFocusAssignAlias) window.__gvaFocusAssignAlias(ln.id); }}
-                    onClick={()=>setActiveLineId(ln.id)}>
-                    {/* Alias badge (focus mode only) injected via CSS toggle */}
-                    <span className="alias-badge hidden mr-2 px-2 py-0.5 rounded bg-white/20 text-xs">PR?</span>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs font-medium truncate block leading-tight">{ln.label}</span>
-                      <span className="text-xs opacity-80 leading-tight">
-                        {ln.duration_days} {ln.duration_days === 1 ? 'dan' : 'dana'}
-                      </span>
-                    </div>
-                  </motion.div>
-                  {/* Ghost preview when action pending for this line */}
-                  {pendingActions && pendingActions.filter(a=>a.lineId===ln.id).map((a)=>{
-                    const newStart = a.iso || ln.start;
-                    const newStartIdx = Math.max(0, diffDays(dateRange.from, newStart));
-                    const newEndIdx = newStartIdx + span;
-                    return (
-                      <div key={`ghost-${a.id}`} className="absolute top-1 h-10 rounded-lg border-2 border-dashed border-amber-400/80 bg-amber-200/20 pointer-events-none"
-                        style={{ gridColumnStart: newStartIdx+1, gridColumnEnd: newEndIdx+1, width:`calc(${span*45}px - 8px)`, left:'4px', backdropFilter:'blur(1px)' }}
-                        title={`Preview: ${a.iso}`}>
-                        <div className="absolute inset-0 rounded-lg" style={{boxShadow:'inset 0 0 0 2px rgba(251,191,36,.5)'}} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </React.Fragment>
-            );
-            // Trigger LLM fallback suggestions when parse fails
-            if (enableLLMFallback && agentSource === 'local') {
-              (async () => {
-                try {
-                  setFallbackOpen(true);
-                  setFallbackLoading(true);
-                  const context = {
-                    currentDate: new Date().toISOString().slice(0,10),
-                    availableAliases: Object.keys(lineByAlias || {})
-                  };
-                  const sys = 'Vrati JSON: {"suggestions":[{"tool":"...","params":{...},"confidence":0.0},...]} bez dodatnog teksta. ' +
-                    'Dostupni alati: move_start{alias,date:YYYY-MM-DD}, shift{alias,days}, shift_all{days}, distribute_chain{}, normative_extend{days}, add_task_open{}, image_popup{}.';
-                  const user = `Kontekst: ${JSON.stringify(context)}\nNaredba: ${t}`;
-                  const text = await chatCompletions(localAgentUrl, [ { role:'system', content: sys }, { role:'user', content: user } ]);
-                  let suggestions = [];
-                  const obj = parseJsonSafe(text);
-                  suggestions = Array.isArray(obj?.suggestions) ? obj.suggestions.slice(0,3) : [];
-                  setFallbackSuggestions(suggestions);
-                  // if the best suggestion asks for a value, show the question in chat and focus input
-                  const first = suggestions[0];
-                  if (first?.ask) {
-                    setFallbackChat(c => [...c, { role: 'assistant', text: first.ask }]);
-                    try { fallbackInputRef.current?.focus(); } catch {}
-                  }
-                  setSuperFocus(true);
-                } catch (e) {
-                  log(`LLM fallback error: ${e?.message || String(e)}`);
-                } finally {
-                  setFallbackLoading(false);
-                }
-              })();
-            }
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-function AgentInteractionBar({ agent, processCommand }) {
-  const [textInput, setTextInput] = useState('');
-  const handleTextSubmit = (e) => { e.preventDefault(); if (textInput.trim()) { processCommand(textInput.trim()); setTextInput(''); } };
-  const toggleListening = () => { agent.isListening ? agent.stopListening() : agent.startListening(); };
-  const isProcessing = agent.state==='processing';
-  return (
-    <div className="relative">
-      {/* legacy stages removed in favor of top stepper */}
-      <div className="px-8 pb-6 pt-2">
-        {false && agent.lastResponse && !isProcessing && (
-          <AnimatePresence>
-            <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0}} className="mb-3 text-sm text-center text-secondary flex items-center justify-center gap-2">
-              <Sparkles className="w-4 h-4 text-accent"/>
-              <span className="font-medium">{agent.lastResponse.tts}</span>
-              <button onClick={agent.resetAgent} className="text-subtle hover:text-primary transition" title="OÄisti odgovor"><X size={14}/></button>
-            </motion.div>
-          </AnimatePresence>
-        )}
-        <div className="panel rounded-full shadow-2xl p-2 flex items-center gap-3">
-          <div className="pl-3">
-            {isProcessing ? (
-              <motion.div animate={{rotate:360}} transition={{duration:1.5,repeat:Infinity,ease:'linear'}}>
-                <Loader2 className="w-6 h-6 text-accent"/>
-              </motion.div>
-            ) : agent.isListening ? (
-              <motion.div animate={{scale:[1,1.2,1]}} transition={{duration:1,repeat:Infinity}}>
-                <Bot className="w-6 h-6 text-red-500"/>
-              </motion.div>
-            ) : (
-              <Bot className="w-6 h-6 text-subtle"/>
-            )}
-          </div>
-          <form onSubmit={handleTextSubmit} className="flex-1">
-            <input type="text" value={agent.transcript || textInput} onChange={(e)=>setTextInput(e.target.value)} placeholder={agent.isListening? 'Govorite sada...' : "Naredi agentu (npr. 'Pomakni P-001 za 2 dana')..."} className="w-full bg-transparent focus:outline-none text-primary placeholder-text-subtle" disabled={isProcessing || agent.isListening} />
-          </form>
-          <div className="flex items-center gap-2">
-            <button onClick={toggleListening} className={`p-3 rounded-full transition-colors shadow-md ${agent.isListening ? 'bg-red-500 text-white' : 'input-bg text-subtle hover:text-primary border border-theme'}`} title="Glasovna naredba">{agent.isListening ? <Square size={20}/> : <Mic size={20}/>}</button>
-            <button onClick={handleTextSubmit} className="p-3 rounded-full bg-accent text-white transition hover:opacity-90 disabled:opacity-50 shadow-md" disabled={isProcessing || agent.isListening || (!textInput.trim() && !agent.transcript)} title="PoÅ¡alji naredbu"><Send size={20}/></button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 export default function GVAv2() {
   const [jsonHistory, setJsonHistory] = useState([MOCK_GANTT_JSON]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -1069,11 +299,19 @@ export default function GVAv2() {
   }, []);
   const [focusMode, setFocusMode] = useState(false);
   const [superFocus, setSuperFocus] = useState(false);
-  const [aliasByLine, setAliasByLine] = useState({}); // lineId -> PRn
-  const [lineByAlias, setLineByAlias] = useState({}); // PRn -> lineId
+  const [aliasByLine, setAliasByLine] = useState({}); // lineId -> "KIA 7" (Display)
+  const [lineByAlias, setLineByAlias] = useState({}); // "KIA7" -> lineId (Internal/Normalized)
   const [pendingActions, setPendingActions] = useState([]); // { id, type, alias, lineId, iso }
   const [pendingPatches, setPendingPatches] = useState([]); // persistence queue
-  const nextAliasNumRef = useRef(1);
+  const nextAliasIndexRef = useRef(0); // Replaces nextAliasNumRef
+
+  // === MEGA SPEC: Normalization and Badges (Section 8) ===
+  const normalizeAlias = (alias) => String(alias || '').toUpperCase().replace(/[\s.]+/g, '');
+
+  const CUSTOM_BADGES = [
+    'POZ 1', 'POZICIJA 9', '5561', 'POZICIJA 35', 'POZ 14',
+    'PZR 3', 'PZ 78', 'KIA 7', 'AKO 5', '334'
+  ];
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [activities, setActivities] = useState([]); // completed task cards
   const [flowActive, setFlowActive] = useState(0); // 0..4 stepper
@@ -1083,10 +321,10 @@ export default function GVAv2() {
   const [addTaskDraft, setAddTaskDraft] = useState('');
   const [savedNotes, setSavedNotes] = useState([]); // array of strings
   const addTaskRef = useRef(null);
-  // Image popup state
+  // PDF popup state
+  const [showPDFPopup, setShowPDFPopup] = useState(false);
+  const [pdfPopupData, setPdfPopupData] = useState({ url: slika1, documentName: 'Uzorak dokumenta', pageNumber: 1 });
   const [showImagePopup, setShowImagePopup] = useState(false);
-  const [popupBlurPx, setPopupBlurPx] = useState(100);
-  const [popupTransitionMs, setPopupTransitionMs] = useState(2000);
   const speakNotes = useCallback(() => {
     try {
       const text = addTaskDraft || savedNotes[savedNotes.length-1] || 'Nema spremljenog teksta.';
@@ -1127,12 +365,26 @@ export default function GVAv2() {
   const [fallbackSuggestions, setFallbackSuggestions] = useState([]);
   const [fallbackClarification, setFallbackClarification] = useState('');
   const [fallbackChat, setFallbackChat] = useState([]); // [{role:'assistant'|'user', text:string}]
+  
+  // NEW: Matrix chat state - replaces old fallback
+  const [matrixChatActive, setMatrixChatActive] = useState(false);
 
   const [fallbackMode, setFallbackMode] = useState('idle'); const [fallbackPending, setFallbackPending] = useState(null); const [fallbackPrimarySuggestion, setFallbackPrimarySuggestion] = useState(null); const fallbackInputRef = useRef(null);
   const [localPing, setLocalPing] = useState(null);
+  
+  // Log function - must be defined before other callbacks that use it
   const log = useCallback((msg) => {
     setConsoleLogs((prev) => [...prev.slice(-400), { id: Date.now() + Math.random(), t: Date.now(), msg }]);
   }, []);
+
+  // Function to trigger Matrix chat instead of old fallback
+  const triggerMatrixChat = useCallback((initialMessage = '') => {
+    log('Aktiviranje Matrix chat fallback umjesto starog');
+    setMatrixChatActive(true);
+    // Disable old fallback
+    setFallbackOpen(false);
+    setSuperFocus(false);
+  }, [log]);
   // Focus fallback chat input and ensure listening when fallback opens
   useEffect(() => {
     if (fallbackOpen) {
@@ -1140,23 +392,37 @@ export default function GVAv2() {
       try { if (!agent.isListening) agent.startListening(); } catch {}
     }
   }, [fallbackOpen, agent]);
-  // Assign alias helper (usable by hover and by auto-assignment)
+  // === UPDATED: assignAliasToLine using CUSTOM_BADGES ===
   const assignAliasToLine = useCallback((lineId) => {
     if (!lineId) return null;
     let outAlias = null;
     setAliasByLine((prev) => {
       if (prev[lineId]) { outAlias = prev[lineId]; return prev; }
-      const alias = `PR${nextAliasNumRef.current++}`;
+      
+      let alias;
+      if (nextAliasIndexRef.current < CUSTOM_BADGES.length) {
+          alias = CUSTOM_BADGES[nextAliasIndexRef.current];
+      } else {
+          alias = `PR${nextAliasIndexRef.current + 1}`; // Fallback
+      }
+      nextAliasIndexRef.current++;
+      
       outAlias = alias;
-      setLineByAlias((r) => ({ ...r, [alias]: lineId }));
-      // Render badge text in DOM immediately
+      const normalized = normalizeAlias(alias); // Key: KIA 7 -> KIA7
+      
+      // Update internal normalized aliases map
+      setLineByAlias((r) => ({ ...r, [normalized]: lineId }));
+      
+      // Render in DOM (Shows original "KIA 7") - batched update
       requestAnimationFrame(() => {
-        const el = document.querySelector(`[data-bar-id="${lineId}"] .alias-badge`);
-        if (el) {
-          el.textContent = alias;
-          el.classList.remove('hidden');
-          el.classList.add('alias-badge--active');
-        }
+        requestAnimationFrame(() => { // Double RAF for smooth transition
+          const el = document.querySelector(`[data-bar-id="${lineId}"] .alias-badge`);
+          if (el) {
+            el.textContent = alias; 
+            el.classList.remove('hidden');
+            el.classList.add('alias-badge--active');
+          }
+        });
       });
       return { ...prev, [lineId]: alias };
     });
@@ -1167,16 +433,30 @@ export default function GVAv2() {
     window.__gvaFocusAssignAlias = (lineId) => { if (!focusMode || !lineId) return; assignAliasToLine(lineId); };
     return () => { delete window.__gvaFocusAssignAlias; };
   }, [focusMode, assignAliasToLine]);
-  // Toggle alias badge visibility on focus on/off
+  // Reset index and badges when Focus Mode is disabled
   useEffect(() => {
     if (!focusMode) {
-      document.querySelectorAll('.alias-badge').forEach(el => el.classList.add('hidden'));
-    } else {
-      // Reapply visible badges for already assigned
-      Object.entries(aliasByLine).forEach(([lineId, alias]) => {
-        const el = document.querySelector(`[data-bar-id="${lineId}"] .alias-badge`);
-        if (el) { el.textContent = alias; el.classList.remove('hidden'); }
-      });
+        nextAliasIndexRef.current = 0;
+        // Reset maps (important for clean start)
+        setAliasByLine({}); 
+        setLineByAlias({});
+        // Hide badges - batched update
+        requestAnimationFrame(() => {
+          document.querySelectorAll('.alias-badge').forEach(el => el.classList.add('hidden'));
+        });
+    }
+  }, [focusMode]);
+
+  // Separate effect to reapply badges when aliasByLine changes (and focusMode is true)
+  useEffect(() => {
+    if (focusMode && Object.keys(aliasByLine).length > 0) {
+        // Reapply visible badges for already assigned - batched update
+        requestAnimationFrame(() => {
+          Object.entries(aliasByLine).forEach(([lineId, alias]) => {
+              const el = document.querySelector(`[data-bar-id="${lineId}"] .alias-badge`);
+              if (el) { el.textContent = alias; el.classList.remove('hidden'); }
+          });
+        });
     }
   }, [focusMode, aliasByLine]);
   // When Focus Mode activates, auto-assign aliases to first N visible bars and flash them
@@ -1223,15 +503,26 @@ export default function GVAv2() {
   }, [focusMode, ganttJson, assignAliasToLine]);
   // Global ambient glow: focus (server: yellow, local: blue) / superfocus (green)
   useEffect(() => {
-    try {
-      const b = document.body;
-      b.classList.remove('app-focus', 'app-superfocus', 'app-focus-local');
-      if (glowEnabled) {
-        if (superFocus) b.classList.add('app-superfocus');
-        else if (focusMode) b.classList.add(agentSource === 'local' ? 'app-focus-local' : 'app-focus');
-      }
-      return () => { b.classList.remove('app-focus', 'app-superfocus', 'app-focus-local'); };
-    } catch {}
+    const updateBodyClasses = () => {
+      try {
+        const b = document.body;
+        b.classList.remove('app-focus', 'app-superfocus', 'app-focus-local');
+        if (glowEnabled) {
+          if (superFocus) b.classList.add('app-superfocus');
+          else if (focusMode) b.classList.add(agentSource === 'local' ? 'app-focus-local' : 'app-focus');
+        }
+      } catch {}
+    };
+    
+    // Defer to next frame to prevent layout thrashing
+    const timeoutId = setTimeout(updateBodyClasses, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      try {
+        document.body.classList.remove('app-focus', 'app-superfocus', 'app-focus-local');
+      } catch {}
+    };
   }, [focusMode, superFocus, glowEnabled, agentSource]);
   // Apply CSS variables for intensity/duration
   const applyGlowVars = useCallback(() => {
@@ -1239,14 +530,23 @@ export default function GVAv2() {
     const clamp = (v, a=0, b=1) => Math.max(a, Math.min(b, v));
     const I = clamp(Number(glowIntensity) || 0);
     const fd = Math.max(50, Math.min(2000, Number(glowDurationMs)||200));
-    root.style.setProperty('--focus-glow-border', String(0.35 * I));
-    root.style.setProperty('--focus-glow-outer', String(0.18 * I));
-    root.style.setProperty('--focus-glow-duration', `${fd}ms`);
-    root.style.setProperty('--superfocus-glow-border', String(0.45 * I));
-    root.style.setProperty('--superfocus-glow-outer', String(0.22 * I));
-    root.style.setProperty('--superfocus-glow-duration', `${fd}ms`);
+    
+    // Batch style updates to prevent reflows
+    requestAnimationFrame(() => {
+      root.style.setProperty('--focus-glow-border', String(0.35 * I));
+      root.style.setProperty('--focus-glow-outer', String(0.18 * I));
+      root.style.setProperty('--focus-glow-duration', `${fd}ms`);
+      root.style.setProperty('--superfocus-glow-border', String(0.45 * I));
+      root.style.setProperty('--superfocus-glow-outer', String(0.22 * I));
+      root.style.setProperty('--superfocus-glow-duration', `${fd}ms`);
+    });
   }, [glowIntensity, glowDurationMs]);
-  useEffect(() => { applyGlowVars(); }, [applyGlowVars]);
+  
+  useEffect(() => {
+    // Debounce glow variable updates to prevent excessive DOM updates
+    const timeoutId = setTimeout(applyGlowVars, 16); // ~60fps
+    return () => clearTimeout(timeoutId);
+  }, [applyGlowVars]);
 
   // Image popup animation: 100px -> 90px blur over 2s, then to 0px over 0.0s, then close
   useEffect(() => {
@@ -1291,7 +591,11 @@ export default function GVAv2() {
     if(t==='distribute_chain') return 'Rasporedi pocetke sa krajevima';
     if(t==='normative_extend') return `Produï¿½i trajanje po normativu (+${p.days} dana)`;
     if(t==='add_task_open') return 'Otvori modal za zadatak';
-    if(t==='image_popup') return 'Prikaï¿½i sliku';
+    if(t==='image_popup') return 'Prikaži PDF dokument';
+    if(t==='analyze_document') return `Analiziraj dokument: ${p.target}`;
+    if(t==='apply_normative_profile') return `Primijeni ${p.profile?.id || 'normativ'} (start:+${p.profile?.offsets?.start_days || 0}d, end:+${p.profile?.offsets?.end_days || 0}d)`;
+    if(t==='show_standard_plan') return `Standardni plan - poravnaj krajeve na početke`;
+    if(t==='cancel_pending') return `Poništi sve pending naredbe`;
     return JSON.stringify({tool:t,params:p});
   }
 
@@ -1308,16 +612,151 @@ export default function GVAv2() {
         const aliasKey = String(a||'').toUpperCase(); const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
         try { const pos=(ganttJson?.pozicije||[]).find(p=>p.id===lineId); const curStart=pos?.montaza?.datum_pocetka; if(curStart&&Number.isFinite(params.days)){ const d=new Date(curStart+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+params.days); const iso=d.toISOString().slice(0,10); setPendingActions(q=>[{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso }, ...q].slice(0,5)); } } catch {}
       });
+    } else if (tool === 'apply_normative') {
+      const profile = Number(params?.profile) || 1;
+      const ghosts = buildGhostActionsForNormative(profile, { 
+        pozicije: ganttJson?.pozicije || [], 
+        aliasByLine: lineByAlias 
+      });
+      addGhostActionsBatched(ghosts, setPendingActions);
+      return;
     } else if (tool === 'shift_all') {
-      setPendingActions(q => [{ id:`${Date.now()}`, type:'shift_all', days: params.days }, ...q].slice(0,5));
+      const ghosts = buildGhostActionsForShiftAll(params.days || 1, { 
+        pozicije: ganttJson?.pozicije || [], 
+        aliasByLine: lineByAlias 
+      });
+      addGhostActionsBatched(ghosts, setPendingActions);
+      return;
     } else if (tool === 'distribute_chain') {
-      setPendingActions(q => [{ id:`${Date.now()}`, type:'distribute_chain' }, ...q].slice(0,5));
+      const ghosts = buildGhostActionsForDistributeChain({ 
+        pozicije: ganttJson?.pozicije || [], 
+        aliasByLine: lineByAlias 
+      });
+      addGhostActionsBatched(ghosts, setPendingActions);
+      return;
     } else if (tool === 'normative_extend') {
       setPendingActions(q => [{ id:`${Date.now()}`, type:'normative_extend', days: params.days }, ...q].slice(0,5));
     } else if (tool === 'add_task_open') {
       setShowAddTaskModal(true);
+    } else if (tool === 'analyze_document') {
+      // Activate Matrix chat for document analysis
+      triggerMatrixChat(`analiza ${params.target}`);
+    } else if (tool === 'apply_normative_profile') {
+      // Generate structured shift_all actions for normative profile
+      const { profile, scope, execution_mode } = params;
+      const { start_days, end_days } = profile.offsets;
+      
+      if (execution_mode === 'preview') {
+        // Show what would change in focus mode
+        const startAction = {
+          id: `${Date.now()}_start`,
+          type: 'shift_all',
+          field: 'start',
+          days: start_days,
+          targets: scope.targets,
+          unit: scope.unit,
+          client_action_id: `${profile.id}_shift_start`
+        };
+        
+        const endAction = {
+          id: `${Date.now()}_end`, 
+          type: 'shift_all',
+          field: 'end',
+          days: end_days,
+          targets: scope.targets,
+          unit: scope.unit,
+          client_action_id: `${profile.id}_shift_end`
+        };
+        
+        setPendingActions(q => [startAction, endAction, ...q].slice(0, 10));
+        log(`📋 ${profile.id} Preview: Start +${start_days}d, End +${end_days}d`);
+        
+      } else if (execution_mode === 'commit') {
+        // Execute immediately - implement later
+        log(`⚡ Izvršavam ${profile.id}: Start +${start_days}d, End +${end_days}d`);
+      }
+    } else if (tool === 'show_standard_plan') {
+      // Chain distribution for standard plan
+      const { targets, gap_days, anchor, adjust, duration_policy, execution_mode } = params;
+      
+      if (execution_mode === 'preview') {
+        const planAction = {
+          id: `${Date.now()}_plan`,
+          type: 'distribute_chain',
+          targets: targets,
+          gap_days: gap_days,
+          anchor: anchor,
+          adjust: adjust,
+          duration_policy: duration_policy,
+          client_action_id: 'show_standard_plan'
+        };
+        
+        setPendingActions(q => [planAction, ...q].slice(0, 5));
+        log(`📋 Standardni plan: ${adjust} → ${anchor} (gap: ${gap_days}d)`);
+        
+      } else if (execution_mode === 'commit') {
+        log(`⚡ Izvršavam standardni plan`);
+      }
+    } else if (tool === 'cancel_pending') {
+      // Clear all pending actions
+      setPendingActions([]);
+      log('🚫 Sve naredbe poništene');
+    } else if (tool === 'open_document') {
+      const { document, page } = params;
+      const logMsg = (msg) => agent.addStage({ 
+        id: `log-${Date.now()}`, 
+        name: 'PDF Document', 
+        description: msg, 
+        icon: '📄', 
+        status: 'completed',
+        timestamp: new Date().toISOString(),
+        completedAt: new Date().toISOString()
+      });
+      
+      (async () => {
+        try {
+          logMsg(`Otviram dokument "${document}" na stranici ${page}...`);
+          
+          const availableDocs = await DocumentService.getAvailableDocuments();
+          const exactDoc = availableDocs.find(doc => doc.filename.toLowerCase() === document.toLowerCase());
+          
+          if (!exactDoc) {
+            const suggestion = DocumentService.findClosestMatch(document, availableDocs);
+            const errorMsg = suggestion 
+              ? `Dokument "${document}" nije pronađen. Možda: "${suggestion}"?`
+              : `Dokument "${document}" nije pronađen. Dostupni: ${availableDocs.map(d => d.filename).join(', ')}`;
+            logMsg(errorMsg);
+            return;
+          }
+          
+          const pageData = await DocumentService.extractPage(exactDoc.filename, page);
+          
+          setPdfPopupData({
+            url: pageData.url,
+            documentName: `${exactDoc.filename}.pdf`,
+            pageNumber: page
+          });
+          setShowPDFPopup(true);
+          logMsg(`✅ Dokument otvoren: ${exactDoc.filename}.pdf, stranica ${page}`);
+          
+        } catch (error) {
+          logMsg(`❌ Greška: ${error.message}`);
+        }
+      })();
     } else if (tool === 'image_popup') {
-      setShowImagePopup(true);
+      setShowPDFPopup(true);
+    } else if (tool === 'move_end') {
+      const aliasKey = String(params.alias||'').toUpperCase();
+      const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+      setPendingActions(q => [{ id:`${Date.now()}`, type:'move_end', alias:aliasKey, lineId, iso: params.date }, ...q].slice(0,5));
+    } else if (tool === 'set_range') {
+      const aliasKey = String(params.alias||'').toUpperCase();
+      const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+      setPendingActions(q => [{ id:`${Date.now()}`, type:'set_range', alias:aliasKey, lineId, start: params.start, end: params.end }, ...q].slice(0,5));
+    } else if (tool === 'set_duration') {
+      const aliasKey = String(params.alias||'').toUpperCase();
+      const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
+      setPendingActions(q => [{ id:`${Date.now()}`, type:'set_duration', alias:aliasKey, lineId, days: params.duration_days }, ...q].slice(0,5));
     }
     setFallbackOpen(false); setSuperFocus(false);
     log(`? Pokrecem alat: ${tool}`);
@@ -1355,6 +794,22 @@ export default function GVAv2() {
           if (prevDur >= 0) {
             const newEnd = addDays(mod.newStart, prevDur);
             p.montaza.datum_zavrsetka = newEnd;
+          }
+          break;
+        }
+        case 'move_end': {
+          p.montaza.datum_zavrsetka = mod.newEnd;
+          break;
+        }
+        case 'set_range': {
+          p.montaza.datum_pocetka = mod.start;
+          p.montaza.datum_zavrsetka = mod.end;
+          break;
+        }
+        case 'set_duration': {
+          const currentStart = p.montaza.datum_pocetka;
+          if (currentStart && Number.isFinite(mod.days)) {
+            p.montaza.datum_zavrsetka = addDays(currentStart, mod.days - 1);
           }
           break;
         }
@@ -1398,8 +853,41 @@ export default function GVAv2() {
         const t = finalText.trim().toLowerCase();
         if (fallbackOpen) {
           if (/^prijedlog\\s*[123]$/.test(t)) { const n=parseInt((t.match(/\\d/)[0]),10)-1; const sug=fallbackSuggestions[n]; if(sug){ runSuggestion(sug);} return; }
-          if (/^(zatvori|odustani|prekini)$/.test(t)) { setFallbackOpen(false); setSuperFocus(false); return; }
-          if (/^potvrdi\\s+sve\\s+izmjene$/.test(t)) { persistQueuedChanges(); setFallbackOpen(false); setSuperFocus(false); return; }
+          if (/^(zatvori|odustani|prekini)$/.test(t)) { 
+            setFallbackOpen(false); 
+            setSuperFocus(false); 
+            log('Chat zatvoren glasovno - povratak na glasovni mod');
+            
+            // Reset voice session
+            try {
+              agent.stopListening();
+              setTimeout(() => {
+                agent.startListening();
+                log('Voice session resetovan - spreman za nove komande');
+              }, 300);
+            } catch (e) {
+              log(`Greška pri reset voice session: ${e.message}`);
+            }
+            return; 
+          }
+          if (/^potvrdi\\s+sve\\s+izmjene$/.test(t)) { 
+            persistQueuedChanges(); 
+            setFallbackOpen(false); 
+            setSuperFocus(false); 
+            log('Chat zatvorovan após potvrda sve - povratak na glasovni mod');
+            
+            // Reset voice session
+            try {
+              agent.stopListening();
+              setTimeout(() => {
+                agent.startListening();
+                log('Voice session resetovan - spreman za nove komande');
+              }, 300);
+            } catch (e) {
+              log(`Greška pri reset voice session: ${e.message}`);
+            }
+            return; 
+          }
           setFallbackChat(c=>[...c,{role:'user',text:t}]); setFallbackClarification(t); try{ fallbackInputRef.current?.focus(); }catch{};
           return;
         }
@@ -1447,11 +935,57 @@ export default function GVAv2() {
               confirmAction(pendingActions[0]);
               return;
             }
-            if (/\b(odustani|poni[sÅ¡]ti|ne)\b/.test(t)) {
-              cancelAction(pendingActions[0].id);
+            if (/\b(odustani|poništi|ponisti|ne)\b/.test(t)) {
+              // Complete exit: cancel action + exit focus + close chats + reset agent
+              if (pendingActions.length > 0) {
+                cancelAction(pendingActions[0].id);
+              }
+              
+              // Exit focus mode
+              setFocusMode(false);
+              setSuperFocus(false);
+              setAliasByLine({});
+              setLineByAlias({});
+              nextAliasIndexRef.current = 0;
+              
+              // Close all chats
+              setFallbackOpen(false);
+              setMatrixChatActive(false);
+              
+              // Stop listening
+              try { 
+                agent.stopListening(); 
+                agent.resetAgent(); // Clear console/stages
+              } catch {}
+              
+              log('❌ Kompletno poništeno - izašao iz focus moda i zatvoreni chatovi');
               return;
             }
           }
+          
+          // Global cancel handler - works even when no pending actions
+          if (/\b(odustani|poništi|ponisti|ne)\b/.test(t) && focusMode) {
+            // Exit focus mode completely
+            setFocusMode(false);
+            setSuperFocus(false);
+            setAliasByLine({});
+            setLineByAlias({});
+            nextAliasIndexRef.current = 0;
+            
+            // Close all chats
+            setFallbackOpen(false);
+            setMatrixChatActive(false);
+            
+            // Stop listening and reset agent
+            try { 
+              agent.stopListening(); 
+              agent.resetAgent(); // Clear console/stages
+            } catch {}
+            
+            log('❌ Kompletno poništeno - izašao iz focus moda i zatvoreni chatovi');
+            return;
+          }
+          
           if (/\bdalje\b/.test(t)) {
             // Add exit focus stage
             const exitStage = {
@@ -1472,7 +1006,7 @@ export default function GVAv2() {
             // Persist and exit focus
             persistQueuedChanges();
             setFocusMode(false);
-            setAliasByLine({}); setLineByAlias({}); nextAliasNumRef.current = 1;
+            setAliasByLine({}); setLineByAlias({}); nextAliasIndexRef.current = 0;
             return;
           }
           // Try parse command
@@ -1488,6 +1022,263 @@ export default function GVAv2() {
             params: { command: t, focusMode: true }
           };
           agent.addStage(parseStage);
+          // Prefer GPT tool-calling endpoint; fallback to local parser
+          (async () => {
+            try {
+              // Enhanced payload with position details for better LLM understanding
+              const pozicijeForLLM = (ganttJson?.pozicije || []).map(pos => ({
+                id: pos.id,
+                naziv: pos.naziv,
+                alias: Object.keys(lineByAlias).find(key => lineByAlias[key] === pos.id) || null,
+                datum_pocetka: pos.montaza.datum_pocetka,
+                datum_zavrsetka: pos.montaza.datum_zavrsetka,
+                trajanje_dana: diffDays(pos.montaza.datum_pocetka, pos.montaza.datum_zavrsetka) + 1,
+                osoba: pos.montaza.osoba,
+                opis: pos.montaza.opis,
+                status: pos.status || 'aktivna'
+              }));
+              
+              const payload = {
+                transcript: t,
+                context: {
+                  aliasToLine: lineByAlias,
+                  activeLineId,
+                  defaultYear: Number(year),
+                  nowISO: new Date().toISOString().slice(0,10),
+                  pozicije: pozicijeForLLM, // Complete position data for fuzzy matching
+                  projektNaziv: ganttJson?.project?.name || 'Nepoznat projekt',
+                  ukupnoPozicija: pozicijeForLLM.length,
+                  // Context hints for LLM reasoning
+                  hints: {
+                    fuzzyMatching: true,
+                    canInferPositions: true,
+                    supportsBatchOperations: true,
+                    supportsDateParsing: true
+                  }
+                }
+              };
+              
+              console.log('🔍 PAYLOAD ŠALJE:', JSON.stringify(payload, null, 2));
+              try { log(`[API] → /api/gva/voice-intent payload: ${JSON.stringify({ transcript: t, ctx:{ aliases:Object.keys(lineByAlias||{}).length, active: activeLineId, defaultYear: Number(year) } })}`); } catch {}
+              const r = await fetch('/api/gva/voice-intent', {
+                method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload)
+              });
+              try { log(`[API] ← /api/gva/voice-intent status: ${r.status}`); } catch {}
+              let j = null;
+              try {
+                if (!r.ok) {
+                  const raw = await r.text();
+                  try { const parsed = raw ? JSON.parse(raw) : null; log(`[API] ← error body: ${raw || '(empty)'}`); } catch { log(`[API] ← error body: ${raw || '(empty)'}`); }
+                  throw new Error(`HTTP ${r.status}`);
+                }
+                const raw = await r.text();
+                j = raw ? JSON.parse(raw) : null;
+                console.log('📥 ODGOVOR BACKEND:', j);
+              } catch (e) {
+                try { log(`[API:ERR] parsing response JSON: ${e?.message || String(e)}`); } catch {}
+                throw e;
+              }
+              try { log(`[API] ← result: ${j?.type || 'none'} ${j?.type==='actions'?`(${(j.actions||[]).length})`:''}`); } catch {}
+
+              // Mark parse stage as completed
+              agent.setProcessStages(prev => prev.map(stage => stage.id === parseStage.id
+                ? { ...stage, status: 'completed', completedAt: new Date().toISOString(), result: j }
+                : stage));
+
+              if (j?.type === 'clarify') {
+                triggerMatrixChat(j.question);
+                setFallbackSuggestions([]);
+                setFallbackChat([{ role: 'assistant', text: j.question }]);
+                setFallbackClarification('');
+                return;
+              }
+
+              // === KEY CHANGE: Structured response handling (MEGA SPEC Section 9) ===
+              if (j?.type === 'actions' && Array.isArray(j.actions) && j.actions.length > 0) {
+                
+                const newPendingActions = [];
+
+                // Process each action returned by API (usually one, but supports multiple)
+                for (const apiAction of j.actions) {
+                    const { type, targets, params, client_action_id } = apiAction;
+
+                    // 1. Global actions (shift_all...)
+                    if (['shift_all', 'distribute_chain', 'normative_extend'].includes(type)) {
+                        newPendingActions.push({
+                            id: client_action_id,
+                            client_action_id,
+                            type: type,
+                            params: params,
+                            // Preview mapping
+                            days: params.days 
+                        });
+                        continue;
+                    }
+
+                    // 2. Targeted actions (Batch - e.g., "KIA7 and 334")
+                    // API returns normalized targets (e.g., ["KIA7", "334"])
+                    for (const targetAliasNormalized of targets) {
+                        const lineId = lineByAlias[targetAliasNormalized];
+                        if (!lineId) {
+                            log(`[API] Warning: Unknown normalized alias: ${targetAliasNormalized}`);
+                            continue;
+                        }
+                        
+                        // Get original alias for display (e.g., "KIA 7")
+                        const displayAlias = aliasByLine[lineId] || targetAliasNormalized;
+
+                        const pendingAction = {
+                            id: `${client_action_id}-${targetAliasNormalized}`, // Unique ID for frontend
+                            client_action_id, // Group ID (for batch confirmation)
+                            type: type,
+                            alias: displayAlias,
+                            lineId: lineId,
+                            params: params,
+                        };
+
+                        // Parameter mapping for PREVIEW (Ghost)
+                        if (type === 'set_status') {
+                            pendingAction.status = params.status;
+                        } else if (type === 'move_start' || type === 'set_start' || type === 'move_end' || type === 'set_end') {
+                            pendingAction.iso = params.date;
+                        } else if (type === 'set_range') {
+                            pendingAction.start = params.start;
+                            pendingAction.end = params.end;
+                        } else if (type === 'set_duration') {
+                            pendingAction.days = params.duration_days;
+                        } else if (type === 'shift') {
+                            // Handle 'shift' - calculate new date for PREVIEW
+                            try {
+                                const pos = (ganttJson?.pozicije || []).find(p => p.id === lineId);
+                                const curStart = pos?.montaza?.datum_pocetka;
+                                if (curStart && Number.isFinite(params.days)) {
+                                    const duration = diffDays(pos.montaza.datum_pocetka, pos.montaza.datum_zavrsetka) || 0;
+                                    const newStart = addDays(curStart, params.days);
+                                    // Set ISO for GanttCanvas ghost preview
+                                    pendingAction.iso = newStart; 
+                                    // Also calculate end for more complete preview
+                                    pendingAction.endIso = addDays(newStart, duration);
+                                }
+                            } catch (e) {
+                                continue;
+                            }
+                        }
+
+                        newPendingActions.push(pendingAction);
+                    }
+                }
+
+                if (newPendingActions.length > 0) {
+                    // Add all new actions to the queue
+                    setPendingActions(q => [...newPendingActions, ...q]);
+                }
+                return; // Successfully processed
+              }
+
+              // Fallback to local parser
+              const parsed = parseCroatianCommand(t, { aliasToLine: lineByAlias, defaultYear: Number(year) });
+              if (parsed) {
+                agent.addStage({ id:`queue-${Date.now()}`, name:'Dodajem u red čekanja', description:`Akcija "${parsed.type}" za ${parsed.alias}`, icon:'🧩', status:'completed', timestamp:new Date().toISOString(), completedAt:new Date().toISOString(), params:parsed });
+                
+                if (parsed.type === 'apply_normative') {
+                  const ghosts = buildGhostActionsForNormative(parsed.profile || 1, { 
+                    pozicije: ganttJson?.pozicije || [], 
+                    aliasByLine: lineByAlias 
+                  });
+                  addGhostActionsBatched(ghosts, setPendingActions);
+                } else if (parsed.type === 'shift_all') {
+                  const ghosts = buildGhostActionsForShiftAll(parsed.days || 1, { 
+                    pozicije: ganttJson?.pozicije || [], 
+                    aliasByLine: lineByAlias 
+                  });
+                  addGhostActionsBatched(ghosts, setPendingActions);
+                } else if (parsed.type === 'distribute_chain') {
+                  const ghosts = buildGhostActionsForDistributeChain({ 
+                    pozicije: ganttJson?.pozicije || [], 
+                    aliasByLine: lineByAlias 
+                  });
+                  addGhostActionsBatched(ghosts, setPendingActions);
+                } else if (parsed.type === 'batch_operations') {
+                  // Handle multiple operations from batch command
+                  log(`🔄 Batch operacija: ${parsed.operations.length} akcija`);
+                  const batchActions = parsed.operations.map((op, idx) => {
+                    const pos = (ganttJson?.pozicije || []).find(p => p.id === op.lineId);
+                    const curStart = pos?.montaza?.datum_pocetka;
+                    if (curStart && Number.isFinite(op.days)) {
+                      const target = addDays(curStart, op.days);
+                      return { 
+                        id: `batch-${Date.now()}-${idx}`, 
+                        type: 'move_start', 
+                        alias: op.alias, 
+                        lineId: op.lineId, 
+                        iso: target 
+                      };
+                    }
+                    return null;
+                  }).filter(Boolean);
+                  
+                  addGhostActionsBatched(batchActions, setPendingActions);
+                } else if (parsed.type === 'extend_all_duration') {
+                  // Extend duration of all positions by N days
+                  log(`⏰ Produžavam trajanje svih pozicija za ${parsed.days} dana`);
+                  const extendActions = (ganttJson?.pozicije || []).map((pos, idx) => {
+                    const currentEnd = pos.montaza.datum_zavrsetka;
+                    const newEnd = addDays(currentEnd, parsed.days);
+                    const alias = Object.keys(lineByAlias).find(key => lineByAlias[key] === pos.id) || pos.id;
+                    return {
+                      id: `extend-${Date.now()}-${idx}`,
+                      type: 'move_end',
+                      alias: alias,
+                      lineId: pos.id,
+                      iso: newEnd
+                    };
+                  });
+                  
+                  addGhostActionsBatched(extendActions, setPendingActions);
+                } else if (parsed.type === 'move_unfinished_to_date') {
+                  // Move unfinished positions to specific date
+                  log(`📅 Premještam nezavršene pozicije na datum ${parsed.iso}`);
+                  const unfinishedActions = (ganttJson?.pozicije || [])
+                    .filter(pos => {
+                      const endDate = new Date(pos.montaza.datum_zavrsetka + 'T00:00:00Z');
+                      const today = new Date();
+                      return endDate > today; // Unfinished if end date is in future
+                    })
+                    .map((pos, idx) => {
+                      const alias = Object.keys(lineByAlias).find(key => lineByAlias[key] === pos.id) || pos.id;
+                      return {
+                        id: `unfinished-${Date.now()}-${idx}`,
+                        type: 'move_start',
+                        alias: alias,
+                        lineId: pos.id,
+                        iso: parsed.iso
+                      };
+                    });
+                  
+                  addGhostActionsBatched(unfinishedActions, setPendingActions);
+                } else {
+                  let normalized = { id: `${Date.now()}`, type: parsed.type, alias: parsed.alias, lineId: parsed.lineId, iso: parsed.iso };
+                  if (parsed.type === 'shift') {
+                    try { const pos=(ganttJson?.pozicije||[]).find(p=>p.id===parsed.lineId); const curStart=pos?.montaza?.datum_pocetka; if(curStart&&Number.isFinite(parsed.days)){ const target=addDays(curStart, parsed.days); normalized={ id:`${Date.now()}`, type:'move_start', alias:parsed.alias, lineId:parsed.lineId, iso:target }; } } catch {}
+                  } else if (parsed.type === 'normative_extend') { normalized = { id:`${Date.now()}`, type:'normative_extend', days: parsed.days }; }
+                  setPendingActions((q) => [normalized, ...q].slice(0, 5));
+                }
+              } else {
+                log(`Naredba nije prepoznata: "${t}"`);
+              }
+            } catch (err) {
+              try { log(`[API:ERR] voice-intent: ${err?.message || String(err)}`); } catch {}
+              // On endpoint/network error → try local parser
+              const parsed = parseCroatianCommand(t, { aliasToLine: lineByAlias, defaultYear: Number(year) });
+              if (parsed) {
+                const normalized = { id: `${Date.now()}`, type: parsed.type, alias: parsed.alias, lineId: parsed.lineId, iso: parsed.iso };
+                setPendingActions((q) => [normalized, ...q].slice(0, 5));
+              } else {
+                log(`Naredba nije prepoznata: "${t}"`);
+              }
+            }
+          })();
+          return;
           
           const parsed = parseCroatianCommand(t, { aliasToLine: lineByAlias, defaultYear: Number(year) });
           if (parsed) {
@@ -1519,10 +1310,36 @@ export default function GVAv2() {
             // Handle global and local actions
             if (parsed.type === 'exit_focus') {
               try { agent.stopListening(); } catch {}
-              setFocusMode(false); setAliasByLine({}); setLineByAlias({}); nextAliasNumRef.current=1; return;
+              setFocusMode(false); setAliasByLine({}); setLineByAlias({}); nextAliasIndexRef.current=0; return;
             }
             if (parsed.type === 'add_task_open') { setShowAddTaskModal(true); return; }
-            if (parsed.type === 'image_popup') { setShowImagePopup(true); return; }
+            if (parsed.type === 'image_popup') { setShowPDFPopup(true); return; }
+            if (parsed.type === 'cancel_pending') { 
+              setPendingActions([]); 
+              log('🗑️ Sve čekajuće akcije poništene');
+              return; 
+            }
+            if (parsed.type === 'analyze_document') { 
+              // Activate Matrix chat for document analysis
+              triggerMatrixChat(`analiza ${parsed.target}`);
+              return; 
+            }
+            if (parsed.type === 'apply_normative_profile') {
+              // Run structured normative profile
+              runSuggestion({ tool: 'apply_normative_profile', params: parsed });
+              return;
+            }
+            if (parsed.type === 'show_standard_plan') {
+              // Run standard plan distribution
+              runSuggestion({ tool: 'show_standard_plan', params: parsed });
+              return;
+            }
+            if (parsed.type === 'cancel_pending') {
+              // Clear all pending actions
+              setPendingActions([]);
+              log('🚫 Sve naredbe poništene');
+              return;
+            }
             if (parsed.type === 'modal_save') { if (showAddTaskModal) { if (addTaskDraft.trim()) setSavedNotes(n=>[...n, addTaskDraft.trim()]); setAddTaskDraft(''); setShowAddTaskModal(false); } return; }
             if (parsed.type === 'modal_cancel') { if (showAddTaskModal) setShowAddTaskModal(false); return; }
             if (parsed.type === 'add_task_append') { if (showAddTaskModal && parsed.text) setAddTaskDraft(prev => (prev ? prev + ' ' : '') + parsed.text); return; }
@@ -1543,6 +1360,10 @@ export default function GVAv2() {
               normalized = { id: `${Date.now()}`, type: 'distribute_chain' };
             } else if (parsed.type === 'normative_extend') {
               normalized = { id: `${Date.now()}`, type: 'normative_extend', days: parsed.days };
+            } else if (parsed.type === 'apply_normative_profile') {
+              normalized = { id: `${Date.now()}`, ...parsed };
+            } else if (parsed.type === 'show_standard_plan') {
+              normalized = { id: `${Date.now()}`, ...parsed };
             }
             setPendingActions((q) => [normalized, ...q].slice(0, 5));
           } else {
@@ -1561,14 +1382,14 @@ export default function GVAv2() {
             if (enableLLMFallback && agentSource === 'local') {
               (async () => {
                 try {
-                  setFallbackOpen(true);
+                  triggerMatrixChat(`Nepoznata naredba: "${cmd}"`);
                   setFallbackLoading(true);
                   const context = {
                     currentDate: new Date().toISOString().slice(0,10),
                     availableAliases: Object.keys(lineByAlias || {})
                   };
                   const sys = 'Vrati JSON strogo ovog oblika: {"suggestions":[{"tool":"...","params":{...},"confidence":0.0,"ask":"(ako je potrebna TOCNO jedna najnejasnija varijabla ï¿½ postavi kratko pitanje na hrvatskom; inace izostavi)"},...]}.' +
-                    ' Alati: move_start{alias:string,date:YYYY-MM-DD}, shift{alias:(string|array),days:number}, shift_all{days:number}, distribute_chain{}, normative_extend{days:number}, add_task_open{}, image_popup{}.' +
+                    ' Alati: move_start{alias:string,date:YYYY-MM-DD}, shift{alias:(string|array),days:number}, shift_all{days:number}, distribute_chain{}, normative_extend{days:number}, add_task_open{}, image_popup{}, analyze_document{target:petak|subota|sve}, apply_normative_profile{profile:{id:NORMATIV_1|NORMATIV_2|CUSTOM,offsets:{start_days:number,end_days:number}},scope:{targets:array,unit:calendar_days|work_days},execution_mode:preview|commit}, show_standard_plan{targets:array,gap_days:number,execution_mode:preview|commit}, cancel_pending{}.' +
                     ' Normaliziraj alias: ukloni razmake ("pr 10"?"PR10"), velika slova. Ako korisnik navede viï¿½e aliasa, koristi polje alias:["PR10","PR12"].' +
                     ' Izvedi inferenciju gdje moï¿½eï¿½ i postavi samo JEDNO pitanje (ask) za najnejasniju varijablu.';
                   const user = `Kontekst: ${JSON.stringify(context)}\nNaredba: ${t}`;
@@ -1632,6 +1453,30 @@ export default function GVAv2() {
     }
   }
   const confirmAction = async (action) => {
+    // Auto-close Matrix chat when action is confirmed
+    if (matrixChatActive) {
+      setMatrixChatActive(false);
+      log('Matrix chat zatvoren nakon potvrde');
+    }
+    
+    // Auto-close chat fallback when action is confirmed
+    if (fallbackOpen) {
+      setFallbackOpen(false);
+      setSuperFocus(false);
+      log('Chat zatvorovan após potvrda - povratak na glasovni mod');
+      
+      // Reset voice session like "agent" command
+      try {
+        agent.stopListening();
+        setTimeout(() => {
+          agent.startListening();
+          log('Voice session resetovan - spreman za nove komande');
+        }, 300);
+      } catch (e) {
+        log(`Greška pri reset voice session: ${e.message}`);
+      }
+    }
+
     // Add confirmation stage to timeline
     const confirmStage = {
       id: `confirm-${Date.now()}`,
@@ -1703,6 +1548,19 @@ export default function GVAv2() {
         // Mark processing and skip the single-line path
         const processingStage = { id: `processing-${Date.now()}`, name: 'Primjena promjene', description: 'Globalna operacija primijenjena', icon: 'âš™ï¸', status: 'active', timestamp: new Date().toISOString(), params: action };
         agent.addStage(processingStage);
+        
+        // CRITICAL FIX: Remove from pending queue for batch actions
+        const groupId = action.client_action_id || action.id;
+        if (groupId) {
+          setPendingActions(prev => prev.filter(a => (a.client_action_id || a.id) !== groupId));
+          log(`✅ Batch operacija završena: ${action.type}`);
+        }
+        
+        // MATRIX CHAT FIX: Close Matrix Chat for batch operations
+        if (matrixChatActive) {
+          setMatrixChatActive(false);
+          log('Matrix chat zatvoren nakon batch potvrde');
+        }
         return;
       }
       
@@ -1717,10 +1575,34 @@ export default function GVAv2() {
       };
       agent.addStage(processingStage);
       
-      // Apply local change keeping duration
-      updateGanttJson({ operation:'set_start', pozicija_id: action.lineId, newStart: action.iso });
-      // Queue patch for persistence
-      setPendingPatches((p) => [{ type:'setStart', positionId: action.lineId, newStart: action.iso }, ...p]);
+      // Apply local change based on action type
+      if (action.type === 'move_start') {
+        updateGanttJson({ operation: 'set_start', pozicija_id: action.lineId, newStart: action.iso });
+      } else if (action.type === 'move_end') {
+        updateGanttJson({ operation: 'move_end', pozicija_id: action.lineId, newEnd: action.iso });
+      } else if (action.type === 'set_range') {
+        updateGanttJson({ operation: 'set_range', pozicija_id: action.lineId, start: action.start, end: action.end });
+      } else if (action.type === 'set_duration') {
+        updateGanttJson({ operation: 'set_duration', pozicija_id: action.lineId, days: action.days });
+      } else {
+        // Fallback for unknown types (move_start)
+        updateGanttJson({ operation: 'set_start', pozicija_id: action.lineId, newStart: action.iso });
+      }
+      // Queue patch for persistence based on action type
+      let patchData;
+      if (action.type === 'move_start') {
+        patchData = { type: 'setStart', positionId: action.lineId, newStart: action.iso };
+      } else if (action.type === 'move_end') {
+        patchData = { type: 'setEnd', positionId: action.lineId, newEnd: action.iso };
+      } else if (action.type === 'set_range') {
+        patchData = { type: 'setRange', positionId: action.lineId, start: action.start, end: action.end };
+      } else if (action.type === 'set_duration') {
+        patchData = { type: 'setDuration', positionId: action.lineId, days: action.days };
+      } else {
+        // Fallback for unknown types
+        patchData = { type: 'setStart', positionId: action.lineId, newStart: action.iso };
+      }
+      setPendingPatches((p) => [patchData, ...p]);
     }, 900);
     
     setTimeout(()=>{ 
@@ -1775,8 +1657,21 @@ export default function GVAv2() {
       const params = [ { key:'alias', value: aliasByLine[action.lineId] || action.alias }, { key:'newStart', value: action.iso } ];
       const resultSnippet = JSON.stringify({ positionId: action.lineId, newStart: action.iso }).slice(0, 120) + '...';
       setActivities((a) => [{ id: action.id, startedAt: Date.now(), title: 'Pomicanje poÄetka procesa', subtitle: `Primjena na ${action.lineId}`, params, resultSnippet, durationMs: 1300 }, ...a].slice(0, 5));
-      // Clear that action from queue
-      setPendingActions((q) => q.filter(a => a.id !== action.id));
+      // === MEGA SPEC: Remove entire batch group from queue ===
+      // Remove entire group from queue based on client_action_id
+      const groupId = action.client_action_id || action.id;
+      if (groupId) {
+        const idsToRemove = new Set();
+        pendingActions.forEach(a => {
+          if ((a.client_action_id || a.id) === groupId) {
+            idsToRemove.add(a.id);
+          }
+        });
+        setPendingActions((q) => q.filter(a => !idsToRemove.has(a.id)));
+      } else {
+        // Fallback for single action
+        setPendingActions((q) => q.filter(a => a.id !== action.id));
+      }
     }, 1500);
   };
   const cancelAction = (id) => setPendingActions((q) => q.filter(a => a.id !== id));
@@ -1790,19 +1685,66 @@ export default function GVAv2() {
           <span className="input-bg px-3 py-1 rounded-full text-sm text-secondary border border-theme">{ganttJson.project.name}</span>
         </div>
         <div className="flex items-center gap-4">
-          <div className={`text-xs px-2 py-1 rounded-full ${isFocusOn ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'input-bg text-subtle border border-theme'}`}>{isFocusOn ? 'FOCUS MODE' : 'IDLE'}</div>
+          {(() => {
+            const groups = {};
+            for (const a of pendingActions) {
+              const g = a.client_action_id || a.id;
+              groups[g] = (groups[g] || 0) + 1;
+            }
+            const groupList = Object.entries(groups).map(([id, count]) => ({ id, count }));
+            return groupList.length > 0 ? (
+              <div className="flex gap-2">
+                {groupList.map(g => (
+                  <button
+                    key={g.id}
+                    className="text-xs px-2 py-1 rounded border bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                    onClick={async () => {
+                      const batch = pendingActions.filter(a => (a.client_action_id || a.id) === g.id);
+                      for (const a of batch) {
+                        await confirmAction(a);
+                      }
+                    }}
+                  >
+                    Potvrdi sve ({g.count})
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className={`text-xs px-2 py-1 rounded-full ${isFocusOn ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'input-bg text-subtle border border-theme'}`}>{isFocusOn ? 'FOCUS MODE' : 'IDLE'}</div>
+            );
+          })()}
           {(focusMode || superFocus) && (
-            <button
-              onClick={() => {
-                try { agent.stopListening(); } catch {}
-                setSuperFocus(false);
-                setFocusMode(false);
-              }}
-              className="px-3 py-1.5 rounded border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 text-sm"
-              title="IzaÄ‘i iz focus/superfocus"
-            >
-              IzaÄ‘i
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Focus Mode Status */}
+              <div className="flex items-center gap-2 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs">
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                <span className="text-amber-800 font-medium">Focus Mode Aktivan</span>
+              </div>
+              
+              {/* Voice Control */}
+              <button
+                onClick={agent.isListening ? agent.stopListening : agent.startListening}
+                className={`px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 ${
+                  agent.isListening ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-accent hover:bg-accent/80 text-white'
+                }`}
+                title={agent.isListening ? 'Zaustavi slušanje' : 'Započni slušanje'}
+              >
+                {agent.isListening ? 'Stop' : 'Slušaj'}
+              </button>
+
+              {/* Exit Button */}
+              <button
+                onClick={() => {
+                  try { agent.stopListening(); } catch {}
+                  setSuperFocus(false);
+                  setFocusMode(false);
+                }}
+                className="px-3 py-1.5 rounded border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 text-sm"
+                title="Izađi iz focus/superfocus"
+              >
+                Izađi
+              </button>
+            </div>
           )}
           <div className="relative">
             <button onClick={()=>setShowGlowSettings(v=>!v)} className="panel p-2 rounded-full text-subtle hover:text-primary transition shadow-md" title="Glow postavke"><Sliders size={18}/></button>
@@ -1875,32 +1817,23 @@ export default function GVAv2() {
           <button onClick={()=>cycleTheme()} className="panel p-2 rounded-full text-subtle hover:text-primary transition shadow-md" title="Promijeni stil"><Palette size={20}/></button>
         </div>
       </header>
-      {focusMode && pendingActions.length > 0 && (
-        <div className="mx-8 mb-2">
-          <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-4 py-2 flex items-center justify-between shadow-sm">
-            <div className="text-sm font-medium">
-              Reci "potvrdi" za primjenu ili "poniÅ¡ti" za odustajanje.
-            </div>
-            <div className="text-xs text-amber-700">
-              ÄŒekajuÄ‡a akcija: {pendingActions[0]?.alias || pendingActions[0]?.type}
-            </div>
-          </div>
-        </div>
-      )}
       {/* Add Task Modal */}
-      {/* Image Popup */}
-      {showImagePopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" />
-          <div className="relative z-10 p-2 rounded-xl">
-            <img src={slika1} alt="popup" style={{ filter: `blur(${popupBlurPx}px)`, transition: `filter ${popupTransitionMs}ms ease` }} className="max-w-[85vw] max-h-[80vh] rounded-xl shadow-2xl" />
-          </div>
-        </div>
-      )}
+      {/* PDF Popup */}
+      <PDFPagePopup 
+        isOpen={showPDFPopup}
+        onClose={() => setShowPDFPopup(false)}
+        pdfUrl={pdfPopupData.url}
+        pageNumber={pdfPopupData.pageNumber}
+        documentName={pdfPopupData.documentName}
+        isListening={agent.isListening}
+        onStartListening={() => { try { agent.startListening(); } catch {} }}
+        onStopListening={() => { try { agent.stopListening(); } catch {} }}
+      />
       {fallbackOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 backdrop-blur-md bg-black/20" />
-          <div className="relative z-10 w-[720px] max-w-[95vw] panel border border-theme rounded-2xl shadow-2xl p-5 bg-white/95">
+        <div className="fixed bottom-0 left-0 right-0 z-[60] px-8 pb-6">
+          <div className="absolute inset-0" />
+          <div className="relative z-10 max-w-[calc(33.333%-1rem)] ml-auto mr-[calc(66.666%+1rem)] panel border border-theme rounded-2xl shadow-2xl p-5 bg-white/95 backdrop-blur-md"
+               style={{filter: 'none', backdropFilter: 'blur(8px)'}}>
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm font-semibold text-primary">Asistent (LLM) ï¿½ razjaï¿½njenje naredbe</div>
               <button className="text-xs px-2 py-1 rounded border" onClick={()=>{ setFallbackOpen(false); setSuperFocus(false); }}>Zatvori</button>
@@ -1944,7 +1877,7 @@ export default function GVAv2() {
                             } else if (tool === 'add_task_open') {
                               setShowAddTaskModal(true);
                             } else if (tool === 'image_popup') {
-                              setShowImagePopup(true);
+                              setShowPDFPopup(true);
                             }
                             setFallbackOpen(false); setSuperFocus(false);
                             log(`? Pokrecem alat: ${tool}`);
@@ -1983,16 +1916,30 @@ export default function GVAv2() {
                         } else if (tool === 'shift') {
                           const aliasKey = String(params.alias||'').toUpperCase(); const lineId = lineByAlias[aliasKey]; if (!lineId) { log(`Nepoznat alias: ${aliasKey}`); return; }
                           try { const pos=(ganttJson?.pozicije||[]).find(p=>p.id===lineId); const curStart=pos?.montaza?.datum_pocetka; if(curStart&&Number.isFinite(params.days)){ const d=new Date(curStart+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+params.days); const iso=d.toISOString().slice(0,10); setPendingActions(q=>[{ id:`${Date.now()}`, type:'move_start', alias:aliasKey, lineId, iso }, ...q].slice(0,5)); } } catch {}
+                        } else if (tool === 'apply_normative') {
+                          const ghosts = buildGhostActionsForNormative(params.profile || 1, { 
+                            pozicije: ganttJson?.pozicije || [], 
+                            aliasByLine: lineByAlias 
+                          });
+                          addGhostActionsBatched(ghosts, setPendingActions);
                         } else if (tool === 'shift_all') {
-                          setPendingActions(q => [{ id:`${Date.now()}`, type:'shift_all', days: params.days }, ...q].slice(0,5));
+                          const ghosts = buildGhostActionsForShiftAll(params.days || 1, { 
+                            pozicije: ganttJson?.pozicije || [], 
+                            aliasByLine: lineByAlias 
+                          });
+                          addGhostActionsBatched(ghosts, setPendingActions);
                         } else if (tool === 'distribute_chain') {
-                          setPendingActions(q => [{ id:`${Date.now()}`, type:'distribute_chain' }, ...q].slice(0,5));
+                          const ghosts = buildGhostActionsForDistributeChain({ 
+                            pozicije: ganttJson?.pozicije || [], 
+                            aliasByLine: lineByAlias 
+                          });
+                          addGhostActionsBatched(ghosts, setPendingActions);
                         } else if (tool === 'normative_extend') {
                           setPendingActions(q => [{ id:`${Date.now()}`, type:'normative_extend', days: params.days }, ...q].slice(0,5));
                         } else if (tool === 'add_task_open') {
                           setShowAddTaskModal(true);
                         } else if (tool === 'image_popup') {
-                          setShowImagePopup(true);
+                          setShowPDFPopup(true);
                         }
                         setFallbackOpen(false); setSuperFocus(false);
                         log(`? Pokrecem alat: ${tool}`);
@@ -2038,17 +1985,9 @@ export default function GVAv2() {
           </div>
         </div>
       )}
-      <div className="flex-1 flex gap-4 px-8 overflow-hidden min-h-[560px]">
-        {/* Process Timeline Panel - Left (1/6 width) */}
-        <div className="w-1/6 flex-shrink-0 h-full max-h-[calc(100vh-200px)]">
-          <ProcessTimelinePanel 
-            processStages={agent.processStages} 
-            clearStages={agent.resetAgent}
-          />
-        </div>
-        
-        {/* Main Gantt Canvas - Center (4/6 width) */}
-        <div className="w-4/6 flex-shrink-0">
+      <div className={`flex-1 flex gap-4 px-8 overflow-hidden min-h-[560px] transition-all duration-300 ${fallbackOpen ? 'blur-[1px] opacity-80' : ''}`}>
+        {/* Main Gantt Canvas - Full Width */}
+        <div className="flex-1">
           <GanttCanvas
             ganttJson={ganttJson}
             activeLineId={activeLineId}
@@ -2098,16 +2037,129 @@ export default function GVAv2() {
                 })();
                 return;
               }
-              // In focus mode, treat text as a command to parse and confirm
+              // In focus mode, route to GPT tool-calling endpoint for strict actions
               if (focusMode) {
-                const year = (ganttJson?.pozicije?.[0]?.montaza?.datum_pocetka || '2025-01-01').slice(0,4);
-                const parsed = parseCroatianCommand(cmd, { aliasToLine: lineByAlias, defaultYear: Number(year) });
-                if (parsed) {
-                  const action = { id: `${Date.now()}`, type: parsed.type, alias: parsed.alias, lineId: parsed.lineId, iso: parsed.iso };
-                  setPendingActions((q) => [action, ...q].slice(0, 5));
-                } else {
-                  log(`Naredba nije prepoznata: "${cmd}"`);
-                }
+                (async () => {
+                  try {
+                    const defaultYear = Number((ganttJson?.pozicije?.[0]?.montaza?.datum_pocetka || '2025-01-01').slice(0,4));
+                    
+                    // Enhanced payload with position details for better LLM understanding (same as above)
+                    const pozicijeForLLM = (ganttJson?.pozicije || []).map(pos => ({
+                      id: pos.id,
+                      naziv: pos.naziv,
+                      alias: Object.keys(lineByAlias).find(key => lineByAlias[key] === pos.id) || null,
+                      datum_pocetka: pos.montaza.datum_pocetka,
+                      datum_zavrsetka: pos.montaza.datum_zavrsetka,
+                      trajanje_dana: diffDays(pos.montaza.datum_pocetka, pos.montaza.datum_zavrsetka) + 1,
+                      osoba: pos.montaza.osoba,
+                      opis: pos.montaza.opis,
+                      status: pos.status || 'aktivna'
+                    }));
+                    
+                    const payload = {
+                      transcript: cmd,
+                      context: {
+                        aliasToLine: lineByAlias,
+                        activeLineId,
+                        defaultYear,
+                        nowISO: new Date().toISOString().slice(0,10),
+                        pozicije: pozicijeForLLM, // Complete position data for fuzzy matching
+                        projektNaziv: ganttJson?.project?.name || 'Nepoznat projekt',
+                        ukupnoPozicija: pozicijeForLLM.length,
+                        // Context hints for LLM reasoning
+                        hints: {
+                          fuzzyMatching: true,
+                          canInferPositions: true,
+                          supportsBatchOperations: true,
+                          supportsDateParsing: true
+                        }
+                      }
+                    };
+                    
+                    console.log('🔍 BATCH PAYLOAD ŠALJE:', JSON.stringify(payload, null, 2));
+                    try { log(`[API] → /api/gva/voice-intent payload: ${JSON.stringify({ transcript: cmd, ctx:{ aliases:Object.keys(lineByAlias||{}).length, active: activeLineId, defaultYear } })}`); } catch {}
+                    const r = await fetch('/api/gva/voice-intent', {
+                      method: 'POST',
+                      headers: { 'content-type': 'application/json' },
+                      body: JSON.stringify(payload)
+                    });
+                    try { log(`[API] ← /api/gva/voice-intent status: ${r.status}`); } catch {}
+                    let j = null;
+                    try {
+                      if (!r.ok) {
+                        const raw = await r.text();
+                        try { const parsed = raw ? JSON.parse(raw) : null; log(`[API] ← error body: ${raw || '(empty)'}`); } catch { log(`[API] ← error body: ${raw || '(empty)'}`); }
+                        throw new Error(`HTTP ${r.status}`);
+                      }
+                      const raw = await r.text();
+                      j = raw ? JSON.parse(raw) : null;
+                      console.log('📥 BATCH ODGOVOR BACKEND:', j);
+                    } catch (e) {
+                      try { log(`[API:ERR] parsing response JSON: ${e?.message || String(e)}`); } catch {}
+                      throw e;
+                    }
+                    try { log(`[API] ← result: ${j?.type || 'none'} ${j?.type==='actions'?`(${(j.actions||[]).length})`:''}`); } catch {}
+
+                    if (j?.type === 'clarify') {
+                      triggerMatrixChat(j.question);
+                      setFallbackSuggestions([]);
+                      setFallbackChat([{ role: 'assistant', text: j.question }] );
+                      return;
+                    }
+                    if (j?.type === 'actions' && Array.isArray(j.actions)) {
+                      for (const a of j.actions) {
+                        if (a.type === 'move_start') {
+                          runSuggestion({ tool: 'move_start', params: { alias: a.alias, date: a.iso } });
+                        } else if (a.type === 'shift') {
+                          runSuggestion({ tool: 'shift', params: { alias: a.alias, days: a.days } });
+                        } else if (a.type === 'apply_normative') {
+                          const ghosts = buildGhostActionsForNormative(a.profile || 1, { 
+                            pozicije: ganttJson?.pozicije || [], 
+                            aliasByLine: lineByAlias 
+                          });
+                          addGhostActionsBatched(ghosts, setPendingActions);
+                        } else if (a.type === 'shift_all') {
+                          const ghosts = buildGhostActionsForShiftAll(a.days || 1, { 
+                            pozicije: ganttJson?.pozicije || [], 
+                            aliasByLine: lineByAlias 
+                          });
+                          addGhostActionsBatched(ghosts, setPendingActions);
+                        } else if (a.type === 'distribute_chain') {
+                          const ghosts = buildGhostActionsForDistributeChain({ 
+                            pozicije: ganttJson?.pozicije || [], 
+                            aliasByLine: lineByAlias 
+                          });
+                          addGhostActionsBatched(ghosts, setPendingActions);
+                        } else if (a.type === 'normative_extend') {
+                          runSuggestion({ tool: 'normative_extend', params: { days: a.days } });
+                        } else if (a.type === 'add_task_open' || a.type === 'image_popup') {
+                          runSuggestion({ tool: a.type, params: {} });
+                        }
+                      }
+                      return;
+                    }
+
+                    // Fallback to local parser if no tool calls
+                    const parsed = parseCroatianCommand(cmd, { aliasToLine: lineByAlias, defaultYear });
+                    if (parsed) {
+                      const action = { id: `${Date.now()}`, type: parsed.type, alias: parsed.alias, lineId: parsed.lineId, iso: parsed.iso };
+                      setPendingActions((q) => [action, ...q].slice(0, 5));
+                    } else {
+                      log(`Naredba nije prepoznata: "${cmd}"`);
+                    }
+                  } catch (err) {
+                    try { log(`[API:ERR] voice-intent: ${err?.message || String(err)}`); } catch {}
+                    // Network/endpoint error – fallback to local parser
+                    const defaultYear = Number((ganttJson?.pozicije?.[0]?.montaza?.datum_pocetka || '2025-01-01').slice(0,4));
+                    const parsed = parseCroatianCommand(cmd, { aliasToLine: lineByAlias, defaultYear });
+                    if (parsed) {
+                      const action = { id: `${Date.now()}`, type: parsed.type, alias: parsed.alias, lineId: parsed.lineId, iso: parsed.iso };
+                      setPendingActions((q) => [action, ...q].slice(0, 5));
+                    } else {
+                      log(`Naredba nije prepoznata: "${cmd}"`);
+                    }
+                  }
+                })();
                 return;
               }
               // Fallback to old simulation
@@ -2120,16 +2172,49 @@ export default function GVAv2() {
           />
         </div>
       </div>
-      {/* Agent Console - Bottom (split) */}
+      {/* Bottom Panel - Process Carousel + Agent Console + Quick Commands */}
       <div className="px-8 pb-6 pt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <AgentConsole logs={consoleLogs} />
-          <QuickCommandCards onSend={(t)=>{
-            const evt = new CustomEvent('gva:quickCommand', { detail: { t } });
-            window.dispatchEvent(evt);
-          }} />
+          <ProcessCarousel 
+            processStages={agent.processStages} 
+            clearStages={agent.resetAgent}
+            isHidden={fallbackOpen}
+            onStageClick={(stage) => {
+              if (stage.document) {
+                window.open(stage.document.url, '_blank');
+              }
+            }}
+          />
+          <AgentConsole 
+            logs={consoleLogs} 
+            enableFallback={true}
+            matrixChatActive={matrixChatActive}
+            onChatFallback={() => {
+              log('Matrix chat aktiviran iz Agent Console');
+              setMatrixChatActive(true);
+            }}
+            onMatrixChatClose={() => {
+              log('Matrix chat zatvoren');
+              setMatrixChatActive(false);
+            }}
+            onVoiceReset={() => {
+              log('Chat zatvoren putem X - resetiranje voice session');
+              try {
+                agent.stopListening();
+                setTimeout(() => {
+                  agent.startListening();
+                  log('Voice session resetovan - spreman za nove komande');
+                }, 300);
+              } catch (e) {
+                log(`Greška pri reset voice session: ${e.message}`);
+              }
+            }}
+          />
         </div>
       </div>
     </div>
   );
 }
+
+
+
