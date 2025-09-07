@@ -17,18 +17,17 @@ const rangeDays = (from, to) => {
   return out;
 };
 
-export default function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions }) {
-  const [isListening, setIsListening] = useState(false);
-  const [ganttVisible, setGanttVisible] = useState(false);
-  const [transcript, setTranscript] = useState('');
+export default function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, pendingActions, onDataLoadRequest, isDataLoaded }) {
+  // Removed internal voice recognition - now handled by parent
   const [textInput, setTextInput] = useState('');
-
+  
   const { dateRange, lines } = useMemo(() => {
     if (!ganttJson?.pozicije) return { dateRange: {}, lines: [] };
     const jsonLines = ganttJson.pozicije.map(p => ({
       id: p.id,
       pozicija_id: p.id,
       label: p.naziv,
+      alias: p.alias,
       start: p.montaza.datum_pocetka,
       end: p.montaza.datum_zavrsetka,
       duration_days: diffDays(p.montaza.datum_pocetka, p.montaza.datum_zavrsetka) + 1,
@@ -40,54 +39,27 @@ export default function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, 
     return { dateRange: { from: all[0], to: all[all.length - 1] }, lines: jsonLines };
   }, [ganttJson]);
 
+  // Debug log for ghostovi (now using pendingActions)
+  useEffect(() => {
+    if (pendingActions.length > 0) {
+      console.log(`🎨 GanttCanvas received ${pendingActions.length} pendingActions:`, pendingActions);
+      console.log(`🎨 Current lines with aliases:`, lines.map(l => ({ id: l.id, label: l.label, alias: l.alias })));
+      console.log(`🎨 GanttJson pozicije with aliases:`, ganttJson?.pozicije?.map(p => ({ id: p.id, naziv: p.naziv, alias: p.alias })));
+    }
+  }, [pendingActions, lines, ganttJson]);
+
   const days = useMemo(() => rangeDays(dateRange.from, dateRange.to), [dateRange]);
   const totalDays = days.length || 1;
 
-  // Voice recognition for "gantt" wake word
-  useEffect(() => {
-    if (!isListening) return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
+  // Voice recognition now handled by parent component
 
-    const rec = new SR();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = 'hr-HR';
-
-    const onresult = (e) => {
-      let finalText = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i];
-        if (res.isFinal) finalText += res[0].transcript;
-      }
-      if (finalText) {
-        const text = finalText.trim().toLowerCase();
-        setTranscript(text);
-        if (/\bgantt\b/.test(text) || /\bgant\b/.test(text)) {
-          setGanttVisible(true);
-          setIsListening(false);
-          try { setTimeout(() => window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } })), 0); } catch {}
-        }
-      }
-    };
-
-    rec.onresult = onresult;
-    rec.onerror = () => {};
-    rec.start();
-
-    return () => { try { rec.stop(); } catch {} };
-  }, [isListening]);
-
-  const startListening = () => {
-    setIsListening(true);
-    setTranscript('');
-  };
+  // Data loading now handled by parent component
 
   const handleTextSearch = () => {
     if (textInput.trim()) {
       const searchText = textInput.trim().toLowerCase();
       if (searchText.includes('gantt') || searchText.includes('gant')) {
-        setGanttVisible(true);
+        onDataLoadRequest && onDataLoadRequest(searchText);
         try { setTimeout(() => window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } })), 0); } catch {}
       }
       // TODO: implement search for gantt elements
@@ -95,19 +67,17 @@ export default function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, 
     }
   };
 
-  if (!ganttVisible) {
+  // Show waiting message when no data is loaded
+  if (!isDataLoaded) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-subtle p-8 w-full max-w-md">
-          <div className="cursor-pointer mb-6" onClick={startListening}>
-            <motion.div animate={isListening ? { scale: [1, 1.2, 1] } : {}} transition={{ duration: 1, repeat: isListening ? Infinity : 0 }}>
+          <div className="mb-6">
+            <motion.div>
               <Mic className="w-16 h-16 mx-auto mb-4 opacity-30" />
             </motion.div>
             <p className="text-lg mb-2">Gantt Dijagram</p>
-            <p className="text-sm mb-4">{isListening ? 'Slušam... Recite "gantt"' : 'Kliknite za glasovnu aktivaciju'}</p>
-            {transcript && (
-              <div className="text-xs text-secondary bg-gray-100 rounded px-3 py-1 inline-block mb-4">{transcript}</div>
-            )}
+            <p className="text-sm mb-4">Kliknite za glasovnu aktivaciju</p>
           </div>
           <div className="w-full">
             <div className="flex gap-2">
@@ -133,7 +103,7 @@ export default function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, 
     );
   }
 
-  if (!lines.length) return <div className="panel flex-1 rounded-2xl flex items-center justify-center text-subtle">Učitavanje podataka...</div>;
+  if (!lines.length) return <div className="panel flex-1 rounded-2xl flex items-center justify-center text-subtle">Nema podataka za prikaz</div>;
 
   const barColors = [
     'from-indigo-500 to-purple-600',
@@ -243,6 +213,8 @@ export default function GanttCanvas({ ganttJson, activeLineId, setActiveLineId, 
                       />
                     );
                   })}
+
+                  {/* All ghost previews now handled by pendingActions above */}
                 </div>
               </React.Fragment>
             );

@@ -1,0 +1,387 @@
+Radimo plan prema kojem ćemo moći imati mogućnost da pomaknemo početak svih procesa koji imaju početak na isti dan za x dana naprijed.
+
+
+Ovako radimo kada pomičemo jedan proces:
+
+system
+Ti si "Voice → Actions Orchestrator" za Employogram/GVAv2. Zadatak: Pretvori hrvatske transkripte u točno jednu atomsku akciju koristeći dostupne alate. U svakom odgovoru napravi točno jedno: 1) Pozovi tool `emit_action` ako su svi slotovi jasni. 2) Inače pozovi tool `ask_clarify` s jednim kratkim pitanjem. Nikad ne odgovaraj narativnim tekstom. Ne koristi paralelne tool-pozive. Poštuj stroge sheme alata. Normalizacije (HR): - Aliasi/badgevi: STROGO normaliziraj: makni razmake/točke/crtice, velika slova. "Kia 7"→KIA7; "POZICIJA 9"→POZICIJA9. - Ako je transkript "KIA 7.3.3.4", interpretiraj kao listu targeta: ["KIA7", "334"]. - Brojevi: "tri" → 3. - Smjer (za shift): naprijed/plus ⇒ +; nazad/unazad/minus ⇒ −. Ako smjer izostane, pretpostavi naprijed (+). - Datumi: Koristi YYYY-MM-DD format. Status whitelist (za set_status): Planirano, U TIJEKU, Blokirano, Završeno. Sinonimi: "blokirane"→Blokirano; "u procesu"→U TIJEKU; "gotovo"→Završeno.
+user
+Kontekst:DefaultYear=2025; NowISO=2025-09-06; Dostupni aliasi: [334, 5561, POZ1, POZICIJA9, POZICIJA35, POZ14, PZR3, PZ78, KIA7, AKO5, PR11, PR12, PR13, PR14, PR15, PR16] Transkript: "pomakni tri tri četiri za dva naprijed"
+{
+  "id": "call_jusxjsRo5a8Oxv6GWJE1vZ04",
+  "type": "function",
+  "function": {
+    "name": "emit_action",
+    "arguments": "{\"type\":\"shift\",\"targets\":[\"334\"],\"params\":{\"days\":2}}"
+  }
+}
+
+Ovako izgleda kad pomičem više procesa:
+
+system
+Ti si "Voice → Actions Orchestrator" za Employogram/GVAv2. Zadatak: Pretvori hrvatske transkripte u točno jednu atomsku akciju koristeći dostupne alate. U svakom odgovoru napravi točno jedno: 1) Pozovi tool `emit_action` ako su svi slotovi jasni. 2) Inače pozovi tool `ask_clarify` s jednim kratkim pitanjem. Nikad ne odgovaraj narativnim tekstom. Ne koristi paralelne tool-pozive. Poštuj stroge sheme alata. Normalizacije (HR): - Aliasi/badgevi: STROGO normaliziraj: makni razmake/točke/crtice, velika slova. "Kia 7"→KIA7; "POZICIJA 9"→POZICIJA9. - Ako je transkript "KIA 7.3.3.4", interpretiraj kao listu targeta: ["KIA7", "334"]. - Brojevi: "tri" → 3. - Smjer (za shift): naprijed/plus ⇒ +; nazad/unazad/minus ⇒ −. Ako smjer izostane, pretpostavi naprijed (+). - Datumi: Koristi YYYY-MM-DD format. Status whitelist (za set_status): Planirano, U TIJEKU, Blokirano, Završeno. Sinonimi: "blokirane"→Blokirano; "u procesu"→U TIJEKU; "gotovo"→Završeno.
+user
+Kontekst: DefaultYear=2025; NowISO=2025-09-06; Dostupni aliasi: [334, 5561, POZ1, POZICIJA9, POZICIJA35, POZ14, PZR3, PZ78, KIA7, AKO5, PR11, PR12, PR13, PR14, PR15, PR16] Transkript: "pomakni sve za jedan naprijed"
+Output
+83t
+assistant
+{
+  "id": "call_wcDgM5pnsEufcbq60SELUmMx",
+  "type": "function",
+  "function": {
+    "name": "emit_action",
+    "arguments": "{\"type\":\"shift_all\",\"targets\":[\"334\",\"5561\",\"POZ1\",\"POZICIJA9\",\"POZICIJA35\",\"POZ14\",\"PZR3\",\"PZ78\",\"KIA7\",\"AKO5\",\"PR11\",\"PR12\",\"PR13\",\"PR14\",\"PR15\",\"PR16\"],\"params\":{\"days\":1}}"
+  }
+}
+
+Širimo mogučnsti.
+
+Dajet ti namjeru i primjer:
+
+Imamo više procesa koji su nam otvoreni za moficiranje.
+Želim izvdojiti dio procesa prema nekom parametru.
+Taj parametar će biti datum početka.
+Želim pomaknuti početak procesa za 2 dana naprije za sve procese koji imaju početak na datum koji definiram.
+
+
+!!!
+AKO MISLIŠ DA TREBA PROMJENITI SYSTEM PROMPT PROMJENI DA BUDE PRILAGOĐENIJI TOČNO OVOJ OPERACIJI.
+system
+Ti si "Voice → Actions Orchestrator" za Employogram/GVAv2. Zadatak: Pretvori hrvatske transkripte u točno jednu atomsku akciju koristeći dostupne alate. U svakom odgovoru napravi točno jedno: 1) Pozovi tool `emit_action` ako su svi slotovi jasni. 2) Inače pozovi tool `ask_clarify` s jednim kratkim pitanjem. Nikad ne odgovaraj narativnim tekstom. Ne koristi paralelne tool-pozive. Poštuj stroge sheme alata. Normalizacije (HR): - Aliasi/badgevi: STROGO normaliziraj: makni razmake/točke/crtice, velika slova. "Kia 7"→KIA7; "POZICIJA 9"→POZICIJA9. - Ako je transkript "KIA 7.3.3.4", interpretiraj kao listu targeta: ["KIA7", "334"]. - Brojevi: "tri" → 3. - Smjer (za shift): naprijed/plus ⇒ +; nazad/unazad/minus ⇒ −. Ako smjer izostane, pretpostavi naprijed (+). - Datumi: Koristi YYYY-MM-DD format. Status whitelist (za set_status): Planirano, U TIJEKU, Blokirano, Završeno. Sinonimi: "blokirane"→Blokirano; "u procesu"→U TIJEKU; "gotovo"→Završeno.
+!!!
+AKO MISLIŠ DA TREBA PROMJENITI ŠTO IDE U KONTEKTS PROMJENI DA BUDE PRILAGOĐENIJI TOČNO OVOJ OPERACIJI. VOLIO BIH IMATI ŠIRE RAZUMJEVANJE ŠTO NAM JE TOČNO NAMJERA.
+U PRODUCTION FAZIO HTIO BIH IMATI DINAMIČKI KONTEKT KROZ CIJELU APLIKACIJU DA LLM MOŽE BOLJE EVALUIRATI I DAVATI SAVJETE
+user
+Kontekst: DefaultYear=2025; NowISO=2025-09-06; Dostupni aliasi: [334, 5561, POZ1, POZICIJA9, POZICIJA35, POZ14, PZR3, PZ78, KIA7, AKO5, PR11, PR12, PR13, PR14, PR15, PR16] Transkript: "pomakni sve što počinje 18.08. da počinje 20.08"
+!!!
+
+System prompt "Voice → Actions Orchestrator" se definira u server.js:305-322.
+
+  Ovo je backend LLM system prompt koji:
+
+  1. Lokacija: E:\UI REFACTOR\aluminum-store-ui\server.js linija 305
+  2. Endpoint: /api/gva/voice-intent (linija 324)
+  3. Funkcije: emit_action (linija 256) i ask_clarify (linija 288)
+
+  Tok:
+  - Frontend šalje transcript na /api/gva/voice-intent
+  - Server koristi ovaj system prompt s OpenAI
+  - LLM odgovara pozivom emit_action ili ask_clarify
+  - Server vraća JSON s akcijama ili clarification
+
+  Tools definicije:
+  - emit_action: linija 253-283 (atomske akcije)
+  - ask_clarify: linija 285-299 (pojašnjenja)
+
+
+Prikulajnje voice inputa i slanje LLM-u u GVAv2:
+
+  Voice Input prikulja:
+  - Web Speech API - window.SpeechRecognition || window.webkitSpeechRecognition (linija
+  826-840)
+  - agent.startListening() / agent.stopListening() upravlja mikrofon stanjem
+  - Hook useGanttAgent() (linija 278) poskytuje agent objekt
+
+  Lanac naredbi:
+
+  1. Voice Input → Transcript
+    - Browser Speech API prima audio i daje transcript
+    - agent.setTranscript(interim) postavlja live transcript
+  2. Transcript → Backend API
+    - Transcript šalje na /api/gva/voice-intent endpoint (linija 1063, 2081)
+    - Payload uključuje context (aliasi, aktivna linija, godina)
+  3. Backend Processing
+    - Server procesira naredbu kroz LLM
+    - Vraća JSON s actions ili suggestions
+  4. Response → UI Actions
+    - Parsed response izvršava lokalne akcije
+    - Ili otvara fallback modal za pojašnjenje
+
+  Ključne komponente:
+  - useGanttAgent() hook - src/components/tabs/GVAv2/hooks/useGanttAgent.js:278
+  - Voice endpoints - /api/gva/voice-intent endpoint
+  - Parser logic - lokalny Croatian command parser
+
+
+
+Nakon što kažem jedan drugi primjer:
+Kad kažem:
+Promjeni početak svega što počinje 16.08. na 21.08.
+Ovo:
+Proces 1 (PZ-01):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-16",
+    "plannedEnd": "2025-08-16",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 2 (PZ-02):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-18",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 3 (PZ-03):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-16",
+    "plannedEnd": "2025-08-17",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 4 (PZ-04):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-16",
+    "plannedEnd": "2025-08-16",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 5 (PZ-05):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-16",
+    "plannedEnd": "2025-08-16",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 6 (ZP-01):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-16",
+    "plannedEnd": "2025-08-16",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 7 (ZP-02):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-16",
+    "plannedEnd": "2025-08-16",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 8 (ZP-03):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-16",
+    "plannedEnd": "2025-08-16",
+    "actualStart": "2025-08-16",
+    "actualEnd": "2025-08-16",
+    "progress": 100,
+    "notes": ""
+  }
+
+Mi postaje ovo:
+Proces 1 (PZ-01):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-23",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 2 (PZ-02):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-18",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 3 (PZ-03):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-23",
+    "plannedEnd": "2025-08-17",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 4 (PZ-04):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-23",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 5 (PZ-05):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-23",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 6 (ZP-01):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-23",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 7 (ZP-02):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-23",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+  Proces 8 (ZP-03):
+  {
+    "name": "Prodaja",
+    "status": "Završeno",
+    "owner": {
+      "id": "u3",
+      "name": "Marko P.",
+      "email": "marko@example.com"
+    },
+    "plannedStart": "2025-08-23",
+    "plannedEnd": "2025-08-23",
+    "actualStart": "2025-08-23",
+    "actualEnd": "2025-08-23",
+    "progress": 100,
+    "notes": ""
+  }
+
+Samo što mijenjamo plannedStart i plannedEnd, a ne actualStart i actualEnd.
+
+
+Trenutno na našem korisničkom slučaju, voice editora za Gant, možemo mjenjati samo prodaju. Zato jer se tako hard kodano na neki način u Gantu. Sada želim da kad kliknem na u početku i kad kliknem na Gant, ne kliknem više na Gant, nego kliknem na u sredini mikrofonu. Do sada sam tu rekao Gant, podignem se Gant. Sada želim imat tri mohoćnosti reći. Gant, Gant prodaja, Gant proizvodnja, Gant općenito. I ovisno od tome sam li rekao Gant prodaja, Gant proizvodnja, Gant općenito, podignem se Gant, Gantogram svih tih procesa. Ako je proces Gant prodaja, dižem procese Gant prodaja i stavljam ih u traku. Ako je Gant proizvodnja, dižem sve procese što stiču u proizvodnju i stavljam ih u traku. I ako je Gant općenito, dižem sve procese sa tagom općenito, s nazivom općenito i stavljam ih u traku. I nakon toga mi automatski pokreće kao da sam rekao, kao da sam kliknuo desno di agent imam. Sada trebam kliknuti, kažem agent i uđem u fokus modu. Sada želim da kad podignem neki od Gantograma, da ne moram kliknuti, nego da odmah počne taj komad koji je hvatao za agenta slušati. Kažem agent i ulazim u fokus modu.

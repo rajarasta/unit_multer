@@ -13,7 +13,7 @@ import {
   Settings
 } from 'lucide-react';
 
-import VoiceHR from '../voice/VoiceHR';
+import VoiceHR from '../../voice/VoiceHR';
 import useKnownDocsV2 from '../../hooks/useKnownDocsV2';
 
 /**

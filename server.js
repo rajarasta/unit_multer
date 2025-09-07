@@ -7,6 +7,33 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { v4 as uuidv4 } from 'uuid';
 
+// Focus Session Store for sequential interpretation
+class FocusSessionStore {
+  constructor(ttlMs = 30*60*1000) { this.sessions = new Map(); this.ttlMs = ttlMs; }
+  _now() { return new Date().toISOString(); }
+  create(initialCtx) {
+    const id = `focus_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    const s = {
+      id,
+      createdAt: this._now(),
+      lastActivityAt: this._now(),
+      context: { ...initialCtx },
+      history: [],
+      pendingGhosts: []
+    };
+    this.sessions.set(id, s); return s;
+  }
+  get(id) { return this.sessions.get(id) || null; }
+  touch(id) { const s = this.get(id); if (s) s.lastActivityAt = this._now(); }
+  addSegment(id, rec) { const s = this.get(id); if (!s) return; s.history.push(rec); this.touch(id); }
+  addGhost(id, g) { const s = this.get(id); if (!s) return; s.pendingGhosts.push(g); this.touch(id); }
+  replaceLastGhost(id, newG) { const s = this.get(id); if (!s) return; const last = s.pendingGhosts.at(-1); if (last) last.status='replaced'; s.pendingGhosts.push(newG); this.touch(id); }
+  pending(id) { const s = this.get(id); return s ? s.pendingGhosts.filter(g=>g.status==='preview') : []; }
+  applyAll(id) { const s = this.get(id); if (!s) return []; const toApply = this.pending(id); toApply.forEach(g=>g.status='applied'); this.touch(id); return toApply; }
+}
+
+const FocusStore = new FocusSessionStore();
+
 // Document Registry implementation (inline)
 class DocumentRegistry {
   constructor(documentsPath = 'src/backend/Računi') {
@@ -258,26 +285,62 @@ const TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["shift", "set_status", "move_start", "move_end", "set_range", "set_duration", "shift_all", "distribute_chain", "normative_extend"] },
+          type: { 
+            type: "string", 
+            enum: ["shift","set_status","move_start","move_end","set_range","set_duration","shift_all","distribute_chain","normative_extend"] 
+          },
+
+          // A) eksplicitni izbor po aliasima
           targets: {
             type: "array",
-            description: "List of normalized alias/badge codes (e.g., ['KIA7', '334']).",
+            description: "List of normalized alias/badge codes (e.g., ['KIA7','334']).",
             items: { type: "string", pattern: "^[A-ZČĆĐŠŽ0-9]+$" }, 
             minItems: 1
           },
+
+          // B) grupni 'scope' izbor (NOVO)
+          scope: {
+            type: "object",
+            description: "Filtered selection without enumerating targets.",
+            properties: {
+              filter: {
+                type: "object",
+                properties: {
+                  planned_start: { type: "string", format: "date" },
+                  planned_end:   { type: "string", format: "date" },
+                  status_in:     { type: "array", items: { type: "string", enum: ["Planirano","U TIJEKU","Blokirano","Završeno"] } },
+                  owner_in:      { type: "array", items: { type: "string" } },
+                  project_in:    { type: "array", items: { type: "string" } }
+                },
+                additionalProperties: false
+              },
+              limit: { type: "integer", minimum: 1 },
+              sort:  { type: "string", enum: ["start_asc","start_desc"], default: "start_asc" }
+            },
+            required: ["filter"],
+            additionalProperties: false
+          },
+
           params: {
             type: "object",
             description: "Action-specific parameters.",
-            oneOf: [
-                { properties: { days: { type: "integer" } }, required: ["days"], additionalProperties: false },
-                { properties: { status: { type: "string" } }, required: ["status"], additionalProperties: false },
-                { properties: { date: { type: "string", format: "date" } }, required: ["date"], additionalProperties: false },
-                { properties: { start: { type: "string", format: "date" }, end: { type: "string", format: "date" } }, required: ["start", "end"], additionalProperties: false },
-                { properties: { duration_days: { type: "integer" } }, required: ["duration_days"], additionalProperties: false },
-            ]
-          },
+            properties: {
+              days: { type: "integer", description: "Number of days for shift operations" },
+              status: { type: "string", description: "Status value for set_status operations" },
+              date: { type: "string", format: "date", description: "Date for move_start/move_end operations" },
+              start: { type: "string", format: "date", description: "Start date for set_range operations" },
+              end: { type: "string", format: "date", description: "End date for set_range operations" },
+              duration_days: { type: "integer", description: "Duration in days for set_duration operations" },
+              day_of_month: { type: "integer", minimum: 1, maximum: 31, description: "Day of month for 'kraj N' expressions" },
+              gap_days: { type: "integer", default: 0, description: "Gap days for distribute_chain operations" },
+              order_by: { type: "string", enum: ["planned_start","priority","owner"], default: "planned_start", description: "Sort order for distribute_chain" },
+              unfinished: { type: "boolean", description: "Filter for unfinished items" }
+            },
+            additionalProperties: false
+          }
         },
-        required: ["type", "targets", "params"],
+
+        required: ["type","params"],
         additionalProperties: false
       },
     },
@@ -307,18 +370,49 @@ Zadatak: Pretvori hrvatske transkripte u točno jednu atomsku akciju koristeći 
 U svakom odgovoru napravi točno jedno:
 1) Pozovi tool \`emit_action\` ako su svi slotovi jasni.
 2) Inače pozovi tool \`ask_clarify\` s jednim kratkim pitanjem.
-
-Nikad ne odgovaraj narativnim tekstom. Ne koristi paralelne tool-pozive. Poštuj stroge sheme alata.
+Nikad ne odgovaraj narativnim tekstom. Bez paralelnih tool-poziva. Poštuj sheme alata.
 
 Normalizacije (HR):
-- Aliasi/badgevi: STROGO normaliziraj: makni razmake/točke/crtice, velika slova. "Kia 7"→KIA7; "POZICIJA 9"→POZICIJA9.
-- Ako je transkript "KIA 7.3.3.4", interpretiraj kao listu targeta: ["KIA7", "334"].
-- Brojevi: "tri" → 3.
-- Smjer (za shift): naprijed/plus ⇒ +; nazad/unazad/minus ⇒ −. Ako smjer izostane, pretpostavi naprijed (+).
-- Datumi: Koristi YYYY-MM-DD format.
+- Aliasi/badgevi: makni razmake/točke/crtice, velika slova. "Kia 7"→KIA7; "POZICIJA 9"→POZICIJA9.
+- Ako je transkript "KIA 7.3.3.4", interpretiraj kao ["KIA7","334"].
+- Brojevi riječima: "tri"→3.
+- Smjer (za pomak): naprijed/plus ⇒ +; nazad/unazad/minus ⇒ −. Ako izostane, pretpostavi +.
+- Datumi: koristi YYYY-MM-DD. Ako je dan.mjesec. bez godine, uzmi iz konteksta \`DefaultYear\`.
+  * Glasovne varijante: "16 i 8"/"šesnesti osmog"/"šeasnaesti osmog" = "16.08." = "2025-08-16"
+  * "20 i 7"/"dvadeset sedmog" = "20.07." = "2025-07-20"
+  * Koristi datesIndex iz konteksta da pronađeš postojeće datume početka
+- Status whitelist (za set_status): Planirano, U TIJEKU, Blokirano, Završeno. Sinonimi: "blokirane"→Blokirano; "u procesu"→U TIJEKU; "gotovo"→Završeno.
 
-Status whitelist (za set_status): Planirano, U TIJEKU, Blokirano, Završeno.
-Sinonimi: "blokirane"→Blokirano; "u procesu"→U TIJEKU; "gotovo"→Završeno.
+NOVE FRAZE → SCOPE/FILTER:
+- "sve što počinje <datum>" ⇒ \`scope.filter.planned_start = <YYYY-MM-DD>\`.
+- "promijeni početak ... na <datum>" ⇒ \`type=move_start\`, \`params.date=<YYYY-MM-DD>\`.
+- "pomakni ... za <N> dan(a)" ⇒ \`type=shift\`, \`params.days=±N\`.
+- Ako je zadana i lista aliasa, koristi \`targets\`. Ako je zadana grupna fraza (npr. "sve što počinje ..."), koristi \`scope\` umjesto \`targets\`.
+
+PRIMJERI:
+• "pomakni sve što počinje 16.08. za šest dana napred"
+• "pomakni sve što počinje šesnesti osmog za šest dana napred"  
+• "pomakni sve što počinje šeasnaesti osmog za šest dana napred"
+• "pomakni sve što počinje 16 i 8 za šest dana napred"
+→ Sve varijante = "2025-08-16", provjeri datesIndex.plannedStart["2025-08-16"] - postoji!
+→ \`{"type":"shift","scope":{"filter":{"planned_start":"2025-08-16"}},"params":{"days":6}}\`
+
+Slotovi:
+- Za \`shift\`: treba {scope ili targets} + days.
+- Za \`move_start\`: treba {scope ili targets} + date.
+Ako nedostaje točno jedan slot, pitaj \`ask_clarify\`. Ako treba birati između \`shift\` ili \`move_start\`, pitaj: "Pomak u danima ili točan novi datum početka?"
+
+Odabir datuma:
+- Podrazumijevan je \`planned_start\` (ne diraj \`actual\` vrijednosti).
+
+— KOREKCIJE I REFERENCE —
+• Ako segment sadrži „ne", „neću", „odustani", „zapravo", „umjesto toga": zamijeni prethodnu akciju (last_action) novom vrijednošću i vrati SAMO konačnu akciju. Ako negacija ne daje novu vrijednost → ask_clarify s jednim kratkim pitanjem.
+• „ovo/ono/te/za te tri" referira na last_selection (isti targets ili scope).
+• „koje nisu završene" mapiraj na scope.filter.status_in = ["Planirano","U TIJEKU","Blokirano"].
+• „jedna nakon druge" emitiraj type=distribute_chain nad istim targets|scope.
+• Ako u istom segmentu postoje i targets i grupni scope → targets imaju prioritet.
+• „kraj <DAN>" = move_end sa params.day_of_month = <int>; koristi active_month iz konteksta (ako nije postavljen, uzmi iz nowISO); godinu = DefaultYear.
+• Slotovi: ako fali točno jedan obavezni slot → ask_clarify (1 kratko pitanje). Inače ne odgovaraj narativno, nego striktno alatima.
 `;
 
 app.post('/api/gva/voice-intent', async (req, res) => {
@@ -341,7 +435,12 @@ app.post('/api/gva/voice-intent', async (req, res) => {
 
   // Prepare context for prompt
   const availableAliases = Object.keys(context.aliasToLine || {}).join(', ');
-  const userMessage = `Kontekst: DefaultYear=${context.defaultYear}; NowISO=${context.nowISO}; Dostupni aliasi: [${availableAliases}]\n\nTranskript: "${transcript}"`;
+  const plannedStartDates = Object.keys(context.datesIndex?.plannedStart || {});
+  const datesInfo = plannedStartDates.length > 0 ? 
+    `Datumi početka: ${plannedStartDates.map(d => `${d} (${context.datesIndex.plannedStart[d].length} stavki)`).join(', ')}` : 
+    'Nema dostupnih datuma početka';
+  
+  const userMessage = `Kontekst: DefaultYear=${context.defaultYear}; NowISO=${context.nowISO}; ${datesInfo}; Dostupni aliasi: [${availableAliases}]\n\nTranskript: "${transcript}"`;
   
   console.log('🎤 [VOICE-INTENT] Available aliases:', availableAliases);
   console.log('🎤 [VOICE-INTENT] User message for OpenAI:', userMessage);
@@ -405,6 +504,7 @@ app.post('/api/gva/voice-intent', async (req, res) => {
       const action = {
         type: functionArgs.type,
         targets: functionArgs.targets,
+        scope: functionArgs.scope,
         params: functionArgs.params,
         client_action_id: clientActionId,
         requested_at: requestedAt,
@@ -455,6 +555,222 @@ app.post('/api/gva/voice-intent', async (req, res) => {
   
   console.log('🎤 [VOICE-INTENT] === REQUEST END ===');
 });
+
+/* ========== FOCUS SESSION ROUTES (Sequential Interpretation) ========== */
+
+// Create new focus session
+app.post('/api/gva/focus/session', (req, res) => {
+  const initialContext = req.body?.initialContext || {};
+  const ctx = {
+    DefaultYear: new Date().getFullYear(),
+    nowISO: new Date().toISOString(),
+    active_month: null,
+    status_sets: { unfinished: ["Planirano","U TIJEKU","Blokirano"] },
+    ...initialContext
+  };
+  const s = FocusStore.create(ctx);
+  console.log(`🎯 Focus session created: ${s.id}`);
+  res.json({ sessionId: s.id, context: s.context });
+});
+
+// Process single segment sequentially
+app.post('/api/gva/focus/segment', async (req, res) => {
+  try {
+    const { sessionId, text } = req.body;
+    const s = FocusStore.get(sessionId);
+    if (!s) return res.status(404).json({ error: 'Unknown session' });
+
+    console.log(`🎯 [${sessionId.slice(-6)}] Processing: "${text}"`);
+
+    // Call existing voice-intent with session context
+    const { DefaultYear, nowISO, last_selection, last_action, active_month, status_sets } = s.context;
+    const viBody = { 
+      transcript: text, 
+      context: { 
+        DefaultYear, nowISO, last_selection, last_action, active_month, status_sets,
+        // Pass through any existing context
+        aliasToLine: s.context.aliasToLine || {},
+        activeLineId: s.context.activeLineId,
+        pozicije: s.context.pozicije || []
+      }
+    };
+
+    // Internal call to voice-intent endpoint
+    const voiceIntentResponse = await processVoiceIntent(viBody);
+
+    // Map result to SegmentRecord
+    const segmentId = `seg_${Date.now()}`;
+    let seg = { id: segmentId, text, result: { kind:'no_op' }, status:'skipped' };
+
+    if (voiceIntentResponse?.type === 'actions' && voiceIntentResponse?.actions?.length > 0) {
+      const action = voiceIntentResponse.actions[0]; // Take first action for now
+      
+      // Update context
+      s.context.last_action = action;
+      s.context.last_selection = { targets: action.targets, scope: action.scope };
+      
+      // Set active_month heuristic
+      if (action?.params?.day_of_month && !s.context.active_month) {
+        s.context.active_month = (new Date(s.context.nowISO).getMonth() + 1);
+      }
+
+      seg.result = { kind:'emit_action', action };
+      seg.status = 'previewed';
+
+      // Create ghosts - one per target to allow individual confirmation
+      const targets = action.targets || [];
+      const ghostsCreated = [];
+      
+      // Detect corrections (neću, zapravo, etc.)
+      if (/\b(neću|ne,|zapravo|umjesto toga|odustani)\b/i.test(text) && s.pendingGhosts.length > 0) {
+        // For corrections, create single ghost that replaces the last one
+        const ghost = { 
+          id: `ghost_${Date.now()}`, 
+          action, 
+          impact: { lines: [] }, 
+          status: 'preview' 
+        };
+        ghost.replacesGhostId = s.pendingGhosts.at(-1).id;
+        FocusStore.replaceLastGhost(sessionId, ghost);
+        seg.replaces = s.history.at(-1)?.id;
+        ghostsCreated.push(ghost);
+        console.log(`🎯 [${sessionId.slice(-6)}] Correction detected, replacing last ghost`);
+      } else if (targets.length > 1) {
+        // Multi-target action: create individual ghosts for granular confirmation
+        targets.forEach((target, index) => {
+          const individualAction = {
+            ...action,
+            targets: [target] // Single target per ghost
+          };
+          const ghost = { 
+            id: `ghost_${Date.now()}_${index}`, 
+            action: individualAction, 
+            impact: { lines: [target] }, 
+            status: 'preview' 
+          };
+          FocusStore.addGhost(sessionId, ghost);
+          ghostsCreated.push(ghost);
+          console.log(`🎯 [${sessionId.slice(-6)}] New ghost created: ${ghost.id} for target ${target}`);
+        });
+      } else {
+        // Single target: create one ghost as before
+        const ghost = { 
+          id: `ghost_${Date.now()}`, 
+          action, 
+          impact: { lines: targets }, 
+          status: 'preview' 
+        };
+        FocusStore.addGhost(sessionId, ghost);
+        ghostsCreated.push(ghost);
+        console.log(`🎯 [${sessionId.slice(-6)}] New ghost created: ${ghost.id}`);
+      }
+
+    } else if (voiceIntentResponse?.type === 'clarify') {
+      seg.result = { kind:'ask_clarify', question: voiceIntentResponse.question };
+      seg.status = 'skipped';
+      console.log(`🎯 [${sessionId.slice(-6)}] Clarification needed: ${voiceIntentResponse.question}`);
+    }
+
+    FocusStore.addSegment(sessionId, seg);
+
+    res.json({ 
+      segment: seg, 
+      pendingGhosts: FocusStore.pending(sessionId),
+      sessionContext: s.context
+    });
+
+  } catch (error) {
+    console.error('❌ Focus segment error:', error);
+    res.status(500).json({ error: 'Focus segment processing failed' });
+  }
+});
+
+// Confirm all pending ghosts
+app.post('/api/gva/focus/confirm', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    const s = FocusStore.get(sessionId);
+    if (!s) return res.status(404).json({ error:'Unknown session' });
+
+    const toApply = FocusStore.applyAll(sessionId);
+    console.log(`🎯 [${sessionId.slice(-6)}] Confirming ${toApply.length} ghost actions`);
+
+    // TODO: Apply actions to actual gantt data
+    // For now just log what would be applied
+    for (const g of toApply) {
+      console.log(`🎯 [${sessionId.slice(-6)}] Would apply:`, g.action);
+    }
+
+    res.json({ applied: toApply.map(g => ({ id: g.id, action: g.action })) });
+
+  } catch (error) {
+    console.error('❌ Focus confirm error:', error);
+    res.status(500).json({ error: 'Focus confirm failed' });
+  }
+});
+
+// Helper function to process voice intent (extracted from existing route)
+async function processVoiceIntent(body) {
+  const { transcript, context = {} } = body;
+  
+  if (!transcript) {
+    return { type: 'error', message: 'Missing transcript' };
+  }
+
+  try {
+    // Construct user message same as main voice-intent endpoint
+    const userMessage = `Transkript: "${transcript}"\n\nKontekst:\n${JSON.stringify(context, null, 2)}`;
+
+    // Call OpenAI with same settings as main endpoint
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      tools: TOOLS,
+      tool_choice: "auto",
+      temperature: 0,
+      max_tokens: 1500
+    });
+
+    const message = completion.choices[0]?.message;
+    if (!message?.tool_calls?.[0]) {
+      return { type: 'error', message: 'No tool call in response' };
+    }
+
+    const toolCall = message.tool_calls[0];
+    const toolName = toolCall.function?.name;
+    const toolArgs = JSON.parse(toolCall.function?.arguments || '{}');
+
+    if (toolName === 'emit_action') {
+      // Handle batch_operations type
+      if (toolArgs.type === 'batch_operations') {
+        return {
+          type: 'actions',
+          actions: toolArgs.operations || []
+        };
+      } else {
+        return {
+          type: 'actions', 
+          actions: [toolArgs]
+        };
+      }
+    } else if (toolName === 'ask_clarify') {
+      return {
+        type: 'clarify',
+        question: toolArgs.question,
+        missing_slots: toolArgs.missing_slots
+      };
+    }
+
+    return { type: 'error', message: `Unknown tool: ${toolName}` };
+
+  } catch (error) {
+    console.error('❌ processVoiceIntent error:', error);
+    return { type: 'error', message: error.message };
+  }
+}
 
 /* ========== LLM DRAFT (prvi jasni zvuk) ========== */
 app.post("/api/llm/draft", async (req, res) => {

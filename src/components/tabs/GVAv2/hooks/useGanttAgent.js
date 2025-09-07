@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseGantWakePhrase } from '../voice/parseGantWakePhrase';
 
 export default function useGanttAgent() {
   const [state, setState] = useState('idle');
@@ -7,10 +8,22 @@ export default function useGanttAgent() {
   const [lastResponse, setLastResponse] = useState(null);
   const [transcript, setTranscript] = useState('');
 
-  const startListening = () => { setIsListening(true); setState('listening'); setTranscript('Slušam...'); };
-  const stopListening = () => { setIsListening(false); if (state==='listening') setState('idle'); setTranscript(''); };
+  const startListening = () => { 
+    console.log('▶️ useGanttAgent: startListening() called');
+    setIsListening(true); 
+    setState('listening'); 
+    setTranscript('Slušam...'); 
+    console.log('✅ useGanttAgent: Voice listening activated');
+  };
+  const stopListening = () => { 
+    console.log('⏹️ useGanttAgent: stopListening() called');
+    setIsListening(false); 
+    if (state==='listening') setState('idle'); 
+    setTranscript(''); 
+    console.log('❌ useGanttAgent: Voice listening stopped');
+  };
 
-  const processTextCommand = async (command, updateGanttJson) => {
+  const processTextCommand = async (command, updateGanttJson, initializeGanttByScope) => {
     setState('processing'); setTranscript(`Obrada: "${command}"`);
     // trigger background highlight for context
     try { window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 1000 } })); } catch {}
@@ -32,6 +45,32 @@ export default function useGanttAgent() {
 
     let modification=null, responseText='Nisam prepoznao naredbu.';
     const lowerCommand = (command || '').toLowerCase();
+
+    // Check for "Gant X" voice launcher phrases first
+    const gantScope = parseGantWakePhrase(command);
+    console.log(`🎤 Voice command: "${command}" → Parsed scope: "${gantScope}"`);
+    if (gantScope && typeof initializeGanttByScope === 'function') {
+      try {
+        await initializeGanttByScope(gantScope);
+        const scopeTitles = {
+          'prodaja': 'prodaju',
+          'proizvodnja': 'proizvodnju',
+          'opcenito': 'općenite procese',
+          'sve': 'sve procese'
+        };
+        responseText = `Učitavam ${scopeTitles[gantScope] || 'procese'}...`;
+        
+        // Focus Mode will handle voice activation automatically
+        
+        await step('apply');
+        setTimeout(()=> setProcessStages([]), 1200);
+        setLastResponse({ tts: responseText });
+        setState('idle'); setTranscript('');
+        return;
+      } catch (error) {
+        responseText = `Greška pri učitavanju ${gantScope}: ${error.message}`;
+      }
+    }
 
     // Enhanced prodaja-specific commands
     if (lowerCommand.includes('pomakni') && lowerCommand.includes('prodaja')) {

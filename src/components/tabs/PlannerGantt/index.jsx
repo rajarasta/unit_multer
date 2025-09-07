@@ -18,6 +18,10 @@ import TaskHoverCardRedesign from './hoverTab2.jsx';
 import JsonStorageService from '../../../services/JsonStorageService.js';
 import { useProjectStore } from '../../../store/useProjectStore';
 import { AdvancedTaskHoverCard } from './hoverTab.jsx';
+import FloatingMicLauncher from '../../../app/components/FloatingMicLauncher.jsx';
+import { SCOPES, normalise } from '../../../app/voice/scopeRegistry';
+import useGanttAgent from '../GVAv2/hooks/useGanttAgent.js';
+import AgentInteractionBar from '../GVAv2/components/AgentInteractionBar.jsx';
 
 /** ======================== KONSTANTE ======================== */
 const ROW_H = 36;
@@ -1827,15 +1831,28 @@ export default function PlannerGanttTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [voiceLauncherVisible, setVoiceLauncherVisible] = useState(true);
+  const [jsonHistory, setJsonHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [activeLineId, setActiveLineId] = useState(null);
+  const [focusMode, setFocusMode] = useState(false);
+
+  const agent = useGanttAgent();
 
   const activeProjectId = data?.activeProjectId || project.id;
   const isAllProjectsView = activeProjectId === ALL_PROJECTS_ID;
 
-  // Initialize data from ProjectDataService
+  // Initialize data from ProjectDataService (skip if voice launcher data exists)
   useEffect(() => {
     let mounted = true;
 
     const initializeData = async () => {
+      // Skip initialization if voice launcher has already loaded data
+      if (isDataLoaded) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         
@@ -1910,7 +1927,7 @@ export default function PlannerGanttTab() {
       mounted = false;
       unsubscribe();
     };
-  }, [projectService, project]);
+  }, [projectService, project, isDataLoaded]);
 
   // Subscribe to localStorage/BroadcastChannel changes for cross-tab sync
   useEffect(() => {
@@ -2410,6 +2427,192 @@ export default function PlannerGanttTab() {
       setError(err.message);
     }
   }, []);
+
+  const log = (message) => console.log(`[Voice Launcher] ${message}`);
+
+  const loadProcessesByScope = useCallback(async (scope = 'sve') => {
+    console.log('[Voice Launcher] loadProcessesByScope called with scope:', scope);
+    const res = await fetch('/all_projects_2025-09-02T23-56-55.json');
+    const all = await res.json();
+    const key = normalise(scope);
+    const selected = [];
+
+    console.log('[Voice Launcher] Normalized key:', key);
+    const scopeDef = SCOPES.find(s => s.key === key);
+    console.log('[Voice Launcher] Found scope definition:', scopeDef?.key);
+    const matchProc = (proc) => {
+      if (!scopeDef || !scopeDef.matchers) return true;
+      const name = normalise(proc?.name || '');
+      const tags = (proc?.tags || []).map(normalise);
+      const nOk = scopeDef.matchers.name?.some(rx => rx.test(name));
+      const tOk = scopeDef.matchers.tags?.some(rx => tags.some(t => rx.test(t)));
+      return !!(nOk || tOk);
+    };
+
+    all?.projects?.forEach(project => {
+      project?.positions?.forEach(pozicija => {
+        pozicija?.processes?.forEach(process => {
+          if (matchProc(process)) {
+            selected.push({ project, pozicija, process, id: `${project.id}-${pozicija.id}-${process.name||'PROC'}` });
+          }
+        });
+      });
+    });
+
+    const title = scopeDef?.title || `Svi procesi: ${key}`;
+    console.log('[Voice Launcher] Selected process names:', selected.map(s => s.process.name));
+    return {
+      project: { id: `ALL-${key.toUpperCase()}-PROCESSES`, name: title, description: `Prikaz ${selected.length} procesa (${key})` },
+      pozicije: selected.map(item => ({
+        id: item.id,
+        naziv: `${item.project.name} – ${item.pozicija.title}`,
+        montaza: {
+          opis: `${item.process.name} za ${item.pozicija.title} (${item.project.client?.name || 'N/A'})`,
+          osoba: item.process.owner?.name || 'Nepoznato',
+          datum_pocetka: item.process.plannedStart,
+          datum_zavrsetka: item.process.plannedEnd,
+          status: item.process.status,
+          progress: item.process.progress || 0,
+          actualStart: item.process.actualStart,
+          actualEnd: item.process.actualEnd,
+          notes: item.process.notes || '',
+          projectId: item.project.id,
+          pozicijaId: item.pozicija.id,
+          clientName: item.project.client?.name
+        }
+      })),
+      metadata: { version: '2.0', source: 'all_projects_2025-09-02T23-56-55.json', processCount: selected.length, loadedAt: new Date().toISOString() }
+    };
+  }, []);
+
+  // Helper to extract process name from position ID
+  const extractProcessName = (positionId) => {
+    // Format: ${projectId}-${positionId}-${processName}
+    const parts = positionId.split('-');
+    return parts[parts.length - 1] || 'Proces';
+  };
+
+  const initializeGanttByScope = useCallback(async (scope) => {
+    console.log('[Voice Launcher] initializeGanttByScope called with scope:', scope);
+    const scopeData = await loadProcessesByScope(scope);
+    console.log('[Voice Launcher] loadProcessesByScope returned:', scopeData.pozicije.length, 'positions');
+    console.log('[Voice Launcher] First position process names:', scopeData.pozicije.slice(0, 3).map(p => extractProcessName(p.id)));
+    
+    // Convert to format expected by main component
+    const formattedData = {
+      version: '5.0',
+      exportDate: new Date().toISOString(),
+      activeProjectId: ALL_PROJECTS_ID, // Use standard ALL_PROJECTS_ID for aggregated view
+      projects: [{
+        id: scopeData.project.id,
+        name: scopeData.project.name,
+        description: scopeData.project.description,
+        positions: scopeData.pozicije.map(poz => ({
+          id: poz.id,
+          title: poz.naziv,
+          processes: [{
+            name: extractProcessName(poz.id), // Extract from ID
+            status: poz.montaza.status || 'Čeka',
+            plannedStart: poz.montaza.datum_pocetka,
+            plannedEnd: poz.montaza.datum_zavrsetka,
+            actualStart: poz.montaza.actualStart,
+            actualEnd: poz.montaza.actualEnd,
+            progress: poz.montaza.progress || 0,
+            notes: poz.montaza.notes || '',
+            owner: { name: poz.montaza.osoba }
+          }]
+        }))
+      }],
+      meta: scopeData.metadata
+    };
+    
+    setData(formattedData);
+    setIsDataLoaded(true);
+    setLoading(false);
+    if (scopeData.pozicije?.length) setActiveLineId(scopeData.pozicije[0].id);
+    
+    log(`✅ Učitano ${scopeData.pozicije.length} procesa za scope: ${scope}`);
+  }, [loadProcessesByScope, log]);
+
+  // Voice command processing with wake-word detection (GVAv2 pattern)
+  useEffect(() => {
+    if (!agent.isListening) return;
+    
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'hr-HR';
+    
+    const onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const result = e.results[i];
+        if (result.isFinal) {
+          const t = result[0].transcript.toLowerCase().trim();
+          
+          // Wake word detection (same as GVAv2)
+          if (!focusMode && /\bagent\b/.test(t)) {
+            setFocusMode(true);
+            log('🎯 Focus Mode aktiviran - Agent je spreman za glasovne naredbe');
+            
+            // Add stage to agent (same as GVAv2)
+            agent.addStage({
+              id: `focus-${Date.now()}`,
+              name: 'Focus Mode aktiviran',
+              description: 'Agent je detektirao "agent" wake word',
+              icon: '🎯',
+              status: 'completed',
+              timestamp: new Date().toISOString(),
+              completedAt: new Date().toISOString(),
+              params: { wakeWord: 'agent', command: t }
+            });
+            
+            // Background highlight effect
+            setTimeout(() => window.dispatchEvent(new CustomEvent('bg:highlight', { detail: { durationMs: 800 } })), 0);
+            return;
+          }
+          
+          // In focus mode, process commands
+          if (focusMode) {
+            agent.processTextCommand(t, (modification) => {
+              // Handle gantt modifications here
+              console.log('Gantt modification:', modification);
+            });
+          }
+        }
+      }
+    };
+    
+    const onerror = (event) => {
+      console.warn('Speech recognition error:', event.error);
+      if (event.error === 'not-allowed') {
+        log('Mikrofon nije dostupan. Molimo dozvolite pristup mikrofonu.');
+      }
+    };
+    
+    rec.onresult = onresult;
+    rec.onerror = onerror;
+    rec.start();
+    
+    return () => {
+      try { rec.stop(); } catch {}
+    };
+  }, [agent.isListening, focusMode, agent, log]);
+
+  // Exit focus mode via Escape key (GVAv2 pattern)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && focusMode) {
+        try { agent.stopListening(); } catch {}
+        setFocusMode(false);
+        log('❌ Focus Mode završen (Escape)');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [focusMode, agent, log]);
 
   const timeline = useMemo(() => {
     // Use currentViewData with null check
@@ -3690,6 +3893,46 @@ export default function PlannerGanttTab() {
           />
         )}
       </AnimatePresence>
+
+      <FloatingMicLauncher
+        active={voiceLauncherVisible && !focusMode}
+        onOpen={() => {
+          // UX hint po želji (blur, snack)
+        }}
+        onRecognized={async (scope) => {
+          if (!scope) {
+            log('Nije prepoznato "Gant". Reci: Gant prodaja/proizvodnja/općenito.');
+            return;
+          }
+          await initializeGanttByScope(scope);
+          setVoiceLauncherVisible(false);
+
+          // Ključ: odmah slušaj wake-word "agent" (tvoj handler već pali Focus Mode)
+          try { if (!agent.isListening) agent.startListening(); } catch {}
+          log(`🎤 Učitano "${scope}". Reci "agent" za Focus Mode.`);
+          agent.addStage({
+            id: `post-load-${Date.now()}`,
+            name: 'Gant pokrenut',
+            description: `Scope: ${scope}. Reci "agent" za fokus.`,
+            icon: '🎯',
+            status: 'completed',
+            timestamp: new Date().toISOString(),
+            completedAt: new Date().toISOString()
+          });
+        }}
+      />
+
+      {focusMode && (
+        <AgentInteractionBar
+          agent={agent}
+          processCommand={(command) => {
+            agent.processTextCommand(command, (modification) => {
+              // Handle gantt modifications here
+              console.log('Gantt modification:', modification);
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

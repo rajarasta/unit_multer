@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinamična TAB Komponenta s Unitizerom</title>
+    <!-- Učitavanje Tailwind CSS-a za stiliziranje -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Dodatni stilovi */
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        .main-grid { overflow-y: auto; scroll-behavior: smooth; }
+        .layout-btn.active { background-color: #4f46e5; color: white; font-weight: bold; }
+        .mock-content-area { overflow-y: auto; }
+
+        /* Stil za gumb za povezivanje (konektor) */
+        .connector-btn {
+            width: 1rem; height: 1rem; border-radius: 50%; background-color: #6366f1;
+            cursor: grab; transition: all 0.2s ease-in-out;
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 1);
+            animation: glow 2s infinite ease-in-out;
+        }
+        .connector-btn:hover { transform: scale(1.2); animation-play-state: paused; }
+        .connector-btn.dragging-over { background-color: #10b981; transform: scale(1.5); box-shadow: 0 0 10px 5px #10b981; }
+        
+        @keyframes glow {
+            0% { box-shadow: 0 0 3px 0px #6366f1; }
+            50% { box-shadow: 0 0 8px 3px #6366f1; }
+            100% { box-shadow: 0 0 3px 0px #6366f1; }
+        }
+
+        /* Kompleksna CSS umjetnost za sliku */
+        .css-art-container {
+            width: 100%; height: 100%; background: linear-gradient(to bottom, #87ceeb 0%, #f0f8ff 100%);
+            position: relative; overflow: hidden; border-radius: 0.5rem;
+        }
+        .css-art-sun {
+            position: absolute; top: 15%; right: 15%; width: 50px; height: 50px;
+            background: radial-gradient(circle, #fffacd 0%, #ffeb3b 50%, rgba(255,235,59,0) 70%);
+            border-radius: 50%;
+        }
+        .css-art-mountain {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
+            background: #4682b4;
+            clip-path: polygon(0% 100%, 100% 100%, 100% 40%, 75% 20%, 50% 50%, 25% 30%, 0 60%);
+        }
+        .css-art-mountain::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+            background: #5a9bd5; z-index: -1; transform: scale(1.1, 1.2) translate(-5%, 10%);
+            clip-path: polygon(0% 100%, 100% 100%, 100% 50%, 80% 30%, 60% 60%, 40% 40%, 20% 55%, 0 70%);
+        }
+
+        /* Stil za ASCII Art */
+        .ascii-art {
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre;
+            line-height: 1;
+            font-size: 0.75rem;
+            color: #4a5568;
+            text-align: center;
+        }
+        .ascii-overlay {
+            position: absolute; inset: 0;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(2px);
+            color: #1e293b;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.5rem;
+            line-height: 1.1;
+            text-align: left;
+        }
+
+        /* Stil za ikonu fuzije */
+        #fusion-card .fusion-icon {
+            position: relative;
+            width: 50%;
+            height: 50%;
+            transition: transform 0.3s ease;
+        }
+        #fusion-card:hover .fusion-icon {
+            transform: rotate(45deg);
+        }
+        #fusion-card .fusion-icon::before,
+        #fusion-card .fusion-icon::after {
+            content: '';
+            position: absolute;
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            border: 3px solid;
+            transition: all 0.3s ease;
+        }
+        #fusion-card .fusion-icon::before {
+            top: 0;
+            left: 0;
+            border-color: #6366f1;
+        }
+        #fusion-card .fusion-icon::after {
+            bottom: 0;
+            right: 0;
+            border-color: #a5b4fc;
+        }
+        #fusion-card:hover .fusion-icon::before {
+            top: 15%;
+            left: 15%;
+        }
+        #fusion-card:hover .fusion-icon::after {
+            bottom: 15%;
+            right: 15%;
+        }
+    </style>
+    <!-- Učitavanje Google Fonta Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="app" class="flex h-screen w-screen">
+        
+        <main id="main-content-grid" class="w-[90%] h-full p-4 transition-all duration-300 ease-in-out main-grid">
+            <!-- Search Units će se dinamički generirati ovdje -->
+        </main>
+
+        <aside id="layout-selector-sidebar" class="w-[10%] h-full bg-white shadow-lg p-4 flex flex-col">
+            <h2 class="text-lg font-bold text-center mb-6 text-gray-700 border-b pb-2">Raspored</h2>
+            <div id="layout-buttons-container" class="flex flex-col space-y-2"></div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <div id="fusion-card" class="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center cursor-pointer hover:bg-indigo-50 transition-colors group">
+                    <div class="fusion-icon"></div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        const mainGrid = document.getElementById('main-content-grid');
+        const layoutButtonsContainer = document.getElementById('layout-buttons-container');
+
+        const layouts = { '1': { rows: 1, cols: 1 }, '2x2': { rows: 2, cols: 2 }, '3x3': { rows: 3, cols: 3 }, '3x2': { rows: 3, cols: 2 }, '2x3': { rows: 2, cols: 3 }, '4x4': { rows: 4, cols: 4 }, '6x6': { rows: 6, cols: 6 } };
+
+        let currentLayoutKey = '2x2';
+        let isUnitized = false;
+        let unitizedState = { fused: [], remaining: [] };
+        
+        let unitConfigs2x2 = [
+            { id: 'unit-1', unitName: 'unit1', contentType: 'picture', dropdownValue: 'slika', mode: 'input', prompt: 'Fantastičan dvorac na oblacima, digital art' },
+            { id: 'unit-2', unitName: 'unit2', contentType: 'chat', dropdownValue: 'tekst', mode: 'input', prompt: 'Napiši Python skriptu za web scraping' },
+            { id: 'unit-3', unitName: 'unit3', contentType: 'table', dropdownValue: 'tablica', mode: 'input', prompt: 'Prikaži prodaju po regijama za Q3' },
+            { id: 'unit-4', unitName: 'unit4', contentType: 'drawing', dropdownValue: 'crtež', mode: 'input', prompt: 'Nacrtaj shemu mjenjača s 5 brzina' },
+        ];
+        
+        function createInputUnitComponent({ id, prompt }) {
+            const sendIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>`;
+            return `<div class="w-full h-full flex items-center justify-center p-4"><div class="w-full max-w-lg flex items-center bg-white border border-gray-300 rounded-full shadow-sm px-2 py-1"><input type="text" value="${prompt}" class="flex-grow bg-transparent border-0 focus:ring-0 text-gray-900 mx-2 text-sm"><button data-unit-id="${id}" class="send-btn p-2 text-indigo-500 hover:bg-indigo-100 rounded-full focus:outline-none transition-colors">${sendIcon}</button></div></div>`;
+        }
+
+        function createDisplayUnitComponent(config) {
+            switch (config.contentType) {
+                case 'picture': return `<div class="css-art-container"><div class="css-art-sun"></div><div class="css-art-mountain"></div></div>`;
+                case 'chat': return `<div class="flex flex-col space-y-2 text-sm p-2"><div class="bg-gray-200 p-2 rounded-lg self-end max-w-xs">${config.prompt}</div><div class="bg-indigo-100 text-indigo-800 p-2 rounded-lg self-start max-w-xs">Naravno, evo osnove Python skripte...</div><div class="bg-indigo-100 text-indigo-800 p-2 rounded-lg self-start max-w-xs animate-pulse">...generiram kod...</div></div>`;
+                case 'table': return `<table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-50"><tr><th class="px-2 py-1">Artikl</th><th class="px-2 py-1">Opis</th><th class="px-2 py-1">Regija</th></tr></thead><tbody><tr class="bg-white border-b"><td class="px-2 py-1">A01</td><td class="px-2 py-1">Čelični zupčanik</td><td class="px-2 py-1">Sjever</td></tr><tr class="bg-gray-50 border-b"><td class="px-2 py-1">B02</td><td class="px-2 py-1">Keramički ležajevi</td><td class="px-2 py-1">Istok</td></tr><tr class="bg-white"><td class="px-2 py-1">C03</td><td class="px-2 py-1">Aluminijsko kućište</td><td class="px-2 py-1">Zapad</td></tr></tbody></table>`;
+                case 'drawing': return `<div class="ascii-art">  /\\ \n /  \\ gear 1\n/____\\-------+\n| [] |       |\n+----+ [] [] |\n|    |-------+\n|    | gear 2\n+----+-------+\n| [] |       |\n+----+-------+</div>`;
+                default: return `<div>Sadržaj nije definiran.</div>`
+            }
+        }
+        
+        function createSearchUnitComponent(config) {
+            const { id, unitName, dropdownValue, mode } = config;
+            const dropdownOptions = ['Local1', 'Local2', 'Web1', 'Web2', 'Tekst', 'Slika', 'Tablica', 'Crtež'];
+            const optionsHTML = dropdownOptions.map(opt => `<option value="${opt.toLowerCase()}" ${opt.toLowerCase() === dropdownValue ? 'selected' : ''}>${opt}</option>`).join('');
+            const modelOptionsHTML = ['Model A', 'Model B', 'Model C'].map(opt => `<option>${opt}</option>`).join('');
+            const contentHTML = mode === 'input' ? createInputUnitComponent(config) : createDisplayUnitComponent(config);
+            return `<div class="relative w-full h-full bg-white border border-gray-200 rounded-xl flex flex-col p-4 shadow-sm" id="${id}"><div class="absolute top-3 left-3 z-10 flex items-center space-x-2"><select class="text-xs rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 py-1">${optionsHTML}</select><select class="text-xs rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 py-1">${modelOptionsHTML}</select></div><div class="absolute top-3 right-3 flex items-center space-x-2">${mode === 'display' ? `<button class="connector-btn" draggable="true" id="connector-${id}"></button>` : ''}<div class="text-xs text-gray-400 font-mono">${unitName}</div></div><div class="flex-grow w-full h-full flex items-center justify-center pt-8 mock-content-area">${contentHTML}</div></div>`;
+        }
+
+        function createUnitizerComponent(fusedUnits) {
+            const fusedNames = fusedUnits.map(u => u.unitName).join(' + ');
+            const contentTypes = new Set(fusedUnits.map(u => u.contentType));
+            let fusedContentHTML = '';
+
+            // --- LOGIKA ZA KOMBINACIJE ---
+            if (contentTypes.has('picture') && contentTypes.has('chat') && contentTypes.has('table')) {
+                fusedContentHTML = `<div class="p-2"><h4 class="font-bold mb-2">Sveobuhvatni izvještaj o proizvodu</h4><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-50"><tr><th>Slika</th><th>Artikl</th><th>Opis</th><th>Regija</th><th>AI Komentar</th></tr></thead><tbody><tr class="bg-white border-b"><td>🖼️</td><td>A01</td><td>Čelični zupčanik</td><td>Sjever</td><td>Optimalan za visoke performanse.</td></tr><tr class="bg-gray-50 border-b"><td>🖼️</td><td>B02</td><td>Keramički ležajevi</td><td>Istok</td><td>Preporučuje se inspekcija.</td></tr><tr class="bg-white"><td>🖼️</td><td>C03</td><td>Aluminijsko kućište</td><td>Zapad</td><td>Visoka potražnja u ovoj regiji.</td></tr></tbody></table></div>`;
+            } else if (contentTypes.has('picture') && contentTypes.has('drawing')) {
+                fusedContentHTML = `<div class="relative w-full h-full">${createDisplayUnitComponent({contentType: 'picture'})}<div class="ascii-overlay">${createDisplayUnitComponent({contentType: 'drawing'})}</div></div>`;
+            } else if (contentTypes.has('chat') && contentTypes.has('table')) {
+                fusedContentHTML = `<div class="text-sm p-2"><table class="w-full text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-50"><tr><th>Artikl</th><th>Opis</th><th>Regija</th><th>AI Opis</th></tr></thead><tbody><tr class="bg-white border-b"><td>A01</td><td>Čelični zupčanik</td><td>Sjever</td><td>Izdržljiv materijal, pogodan za teške uvjete.</td></tr><tr class="bg-gray-50 border-b"><td>B02</td><td>Keramički ležajevi</td><td>Istok</td><td>Nisko trenje, idealno za veliku brzinu.</td></tr><tr class="bg-white"><td>C03</td><td>Aluminijsko kućište</td><td>Zapad</td><td>Lagan i otporan na koroziju.</td></tr></tbody></table></div>`;
+            } else if (contentTypes.has('picture') && contentTypes.has('chat')) {
+                fusedContentHTML = `<div class="grid grid-cols-2 gap-4 h-full"><div class="css-art-container"><div class="css-art-sun"></div><div class="css-art-mountain"></div></div><div class="text-sm p-2"><p class="font-bold mb-2">Analiza slike:</p><p>Slika prikazuje stilizirani planinski pejzaž...</p><p class="mt-4 font-bold">Prijedlog skripte:</p><code class="text-xs bg-gray-100 p-2 block rounded mt-1"># Python za analizu slike...</code></div></div>`;
+            } else if (contentTypes.has('chat') && contentTypes.has('drawing')) {
+                 fusedContentHTML = `<div class="text-sm p-2"><div class="bg-gray-200 p-2 rounded-lg max-w-xs mb-2">Nacrtaj shemu...</div><div class="bg-indigo-100 text-indigo-800 p-2 rounded-lg max-w-xs mb-4">Evo sheme s komentarima:</div><div class="ascii-art !text-base">${createDisplayUnitComponent({contentType: 'drawing'})}</div></div>`;
+            } else if (contentTypes.has('table') && contentTypes.has('drawing')) {
+                fusedContentHTML = `<div class="grid grid-cols-2 gap-4 h-full"><div class="text-xs">${createDisplayUnitComponent({contentType: 'table'})}</div><div class="flex items-center justify-center">${createDisplayUnitComponent({contentType: 'drawing'})}</div></div>`;
+            } else {
+                fusedContentHTML = `<p class="text-lg text-indigo-800">Nova fuzija je stvorena.</p>`;
+            }
+
+            return `<div class="relative w-full h-full bg-white border border-indigo-500 rounded-xl flex flex-col p-4 shadow-lg" id="unitizer-component"><div class="absolute top-3 right-3 flex items-center space-x-2">${fusedUnits.length < 3 ? `<button class="connector-btn" draggable="true" id="connector-unitizer"></button>` : ''}<div class="text-xs text-gray-400 font-mono">${fusedNames}</div></div><div class="flex-grow w-full h-full flex items-center justify-center pt-8 mock-content-area">${fusedContentHTML}</div></div>`;
+        }
+        
+        function renderGrid() {
+            mainGrid.innerHTML = '';
+            let gridHTML = '';
+
+            if (currentLayoutKey === '2x2' && isUnitized) {
+                if (unitizedState.fused.length === 3) {
+                    // Prikaz 1x1 za 3-unit fuziju
+                    mainGrid.style.display = 'grid';
+                    mainGrid.style.gridTemplateColumns = '1fr';
+                    mainGrid.style.gridTemplateRows = '1fr';
+                    mainGrid.innerHTML = createUnitizerComponent(unitizedState.fused);
+                } else {
+                    // Prikaz 2x1 za 2-unit fuziju
+                    mainGrid.style.display = 'grid';
+                    mainGrid.style.gridTemplateColumns = '1fr 1fr';
+                    mainGrid.style.gridTemplateRows = '1fr';
+                    mainGrid.style.gap = '0.5rem';
+
+                    const remainingContainer = document.createElement('div');
+                    remainingContainer.className = 'flex flex-col gap-2 h-full';
+                    unitizedState.remaining.forEach(config => {
+                        remainingContainer.innerHTML += createSearchUnitComponent(config);
+                    });
+                    
+                    mainGrid.appendChild(remainingContainer);
+                    mainGrid.insertAdjacentHTML('beforeend', createUnitizerComponent(unitizedState.fused));
+                }
+            } else {
+                const layout = layouts[currentLayoutKey];
+                mainGrid.style.display = 'grid';
+                mainGrid.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
+                mainGrid.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+                mainGrid.style.gap = '0.5rem';
+
+                if (currentLayoutKey === '2x2') {
+                    unitConfigs2x2.forEach(config => { gridHTML += createSearchUnitComponent(config); });
+                } else {
+                    const totalItems = layout.rows * layout.cols;
+                    for (let i = 0; i < totalItems; i++) {
+                        gridHTML += createSearchUnitComponent({ id: `input-pill-${i}`, unitName: `unit${i+1}`, contentType: 'default', dropdownValue: 'tekst', mode: 'input', prompt: 'Unesite upit...' });
+                    }
+                }
+                mainGrid.innerHTML = gridHTML;
+            }
+            if (currentLayoutKey === '2x2') attachDragDropListeners();
+        }
+        
+        function attachDragDropListeners() {
+            const connectors = document.querySelectorAll('.connector-btn');
+            let draggedUnitId = null;
+            connectors.forEach(connector => {
+                connector.addEventListener('dragstart', (e) => {
+                    draggedUnitId = e.target.closest('.relative').id;
+                    e.dataTransfer.setData('text/plain', draggedUnitId);
+                });
+                connector.addEventListener('dragover', (e) => { e.preventDefault(); const targetId = e.target.closest('.relative').id; if (targetId !== draggedUnitId && targetId) e.target.classList.add('dragging-over'); });
+                connector.addEventListener('dragleave', (e) => { e.target.classList.remove('dragging-over'); });
+                connector.addEventListener('drop', (e) => {
+                    e.preventDefault(); e.target.classList.remove('dragging-over');
+                    const sourceUnitId = e.dataTransfer.getData('text/plain');
+                    const targetUnitId = e.target.closest('.relative').id;
+                    if (sourceUnitId && targetUnitId && sourceUnitId !== targetUnitId) unitize(sourceUnitId, targetUnitId);
+                });
+            });
+        }
+
+        function unitize(sourceId, targetId) {
+            if (targetId === 'unitizer-component') {
+                // Dodavanje treće jedinice
+                const newUnit = unitizedState.remaining.find(u => u.id === sourceId);
+                if(newUnit) {
+                    unitizedState.fused.push(newUnit);
+                    unitizedState.remaining = unitizedState.remaining.filter(u => u.id !== sourceId);
+                }
+            } else {
+                // Kreiranje prve fuzije od 2 jedinice
+                isUnitized = true;
+                const fusedIds = [sourceId, targetId];
+                unitizedState.fused = unitConfigs2x2.filter(u => fusedIds.includes(u.id));
+                unitizedState.remaining = unitConfigs2x2.filter(u => !fusedIds.includes(u.id));
+            }
+            renderGrid();
+        }
+
+        function renderLayoutButtons() {
+            layoutButtonsContainer.innerHTML = Object.keys(layouts).map(key => `<button data-layout="${key}" class="layout-btn w-full text-left p-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all ${key === currentLayoutKey ? 'active' : ''}">${key}</button>`).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderLayoutButtons();
+            renderGrid();
+
+            layoutButtonsContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('.layout-btn');
+                if (button) {
+                    const newLayoutKey = button.dataset.layout;
+                    if (newLayoutKey !== currentLayoutKey) {
+                        currentLayoutKey = newLayoutKey;
+                        isUnitized = false;
+                        if(newLayoutKey === '2x2') {
+                           unitConfigs2x2.forEach(u => u.mode = 'input');
+                        }
+                        renderGrid();
+                        document.querySelectorAll('.layout-btn').forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                    }
+                }
+            });
+
+            mainGrid.addEventListener('click', e => {
+                const sendButton = e.target.closest('.send-btn');
+                if(sendButton) {
+                    const unitId = sendButton.dataset.unitId;
+                    const unitToUpdate = unitConfigs2x2.find(u => u.id === unitId);
+                    if(unitToUpdate) {
+                        unitToUpdate.mode = 'display';
+                        renderGrid();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

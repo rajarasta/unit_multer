@@ -565,3 +565,29 @@ export function Toolbar() {
 
 Smjernice:
 - Kod novih tabova i refaktora, koristi `.panel`, `.l-card`, `.l-btn` i `.input-bg` kako bi stil ostao ujednačen između tema.
+
+## 🔗 Dynamic TAB Component with Unitizer
+
+### Standalone Web Application
+Includes a **standalone HTML demo** (`dynamic-tab-unitizer.html`) showcasing advanced UI interaction patterns that can be integrated into the main application:
+
+#### 🚀 Features
+- **Dynamic Grid Layouts**: 1x1, 2x2, 3x3, 3x2, 2x3, 4x4, 6x6 configurations
+- **Unitizer Technology**: Drag-and-drop fusion system for combining different content types
+- **Smart Content Combinations**: Intelligent merging logic for pictures, chats, tables, and drawings
+- **Animated Interactions**: Glowing connectors, smooth transitions, visual feedback
+- **Croatian Interface**: Localized UI with Croatian language support
+
+#### 🎨 Content Fusion Logic
+- **Picture + Chat + Table**: Comprehensive product reports with AI commentary
+- **Picture + Drawing**: Overlaid ASCII art on landscape backgrounds
+- **Chat + Table**: Enhanced data tables with AI descriptions
+- **Multi-level Fusion**: Support for 2-unit and 3-unit combinations
+
+#### 🛠️ Technical Implementation
+- Pure HTML/CSS/JavaScript (no build process required)
+- Tailwind CSS via CDN for rapid styling
+- CSS3 animations and custom art generation
+- Responsive design with mobile-first approach
+
+**Usage**: Open `dynamic-tab-unitizer.html` directly in any modern browser to experience the interactive demo.

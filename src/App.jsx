@@ -74,6 +74,7 @@ const VoiceOrchestratorTab = lazy(() => import('./components/tabs/VoiceOrchestra
 const GVAv2 = lazy(() => import('./components/tabs/GVAv2'));
 const CodexControl = lazy(() => import('./components/tabs/CodexControl'));
 const DocumentSorterTab = lazy(() => import('./components/tabs/DocumentSorterTab'));
+const ContextualInput = lazy(() => import('./components/tabs/ContextualInput'));
 
 
 // Loading component
@@ -226,6 +227,8 @@ export default function App() {
           return <VoiceOrchestratorTab onDomainSelect={handleDomainSelect} />;
         case 'codex-control':
           return <CodexControl />;
+        case 'contextual-input':
+          return <ContextualInput />;
         default:
           return <HomeContent />;
       }

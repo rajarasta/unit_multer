@@ -1,5 +1,5 @@
 import { 
-  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings, Server, SortAsc
+  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings, Server, SortAsc, Search
 } from 'lucide-react';
 
 export const navItems = [
@@ -45,4 +45,5 @@ export const navItems = [
   ,{ key: "gva-v2", label: "G VAv2", icon: Calendar }
   ,{ key: "codex-control", label: "Codex Control", icon: Settings }
   ,{ key: "llm-server", label: "LLM Server Manager", icon: Server }
+  ,{ key: "contextual-input", label: "Contextual Input", icon: Search }
 ];
