@@ -272,9 +272,7 @@ Read file.jsx offset:1000 limit:200
 Grep "useState<" --type js glob:"**/*.jsx"
 Grep "as const" --type js glob:"**/PlannerGantt/*.jsx"
 
-# Always run build after changes
-npm run dev-with-api # Must succeed before proceeding
-```
+# Never run build after changes
 
 ## Critical Bug Patterns & Solutions
 

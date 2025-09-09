@@ -324,4 +324,240 @@ export function useAgentOrchestrator() {
   };
 }
 
+/**
+ * IRIS3 Specific API Integration Hook
+ * Extends useAgentStream with Schüco/projektiranje functionality
+ * Used by: IRIS3 tab, future Schüco integrations
+ */
+export function useIRIS3ApiIntegration() {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [apiData, setApiData] = useState({
+    lastPayload: null,
+    lastResponse: null,
+    timestamp: null
+  });
+  const [chatHistory, setChatHistory] = useState([]);
+  
+  /**
+   * Sends request to OpenAI API via /api/llm/draft endpoint
+   */
+  const sendApiRequest = useCallback(async (payload) => {
+    if (!payload || !payload.command) {
+      throw new Error('Invalid payload: command is required');
+    }
+    
+    setIsProcessing(true);
+    setApiData(prev => ({
+      ...prev,
+      lastPayload: payload,
+      lastResponse: null,
+      timestamp: new Date().toLocaleTimeString()
+    }));
+    
+    try {
+      const response = await fetch('/api/llm/draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await response.json();
+      
+      setApiData(prev => ({
+        ...prev,
+        lastResponse: {
+          status: response.ok ? 'success' : 'error',
+          ...result
+        }
+      }));
+      
+      if (!response.ok) {
+        throw new Error(result.message || `HTTP ${response.status}`);
+      }
+      
+      return result;
+    } catch (error) {
+      const errorResponse = {
+        status: 'error',
+        message: error.message,
+        error: error
+      };
+      
+      setApiData(prev => ({
+        ...prev,
+        lastResponse: errorResponse
+      }));
+      
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+  
+  /**
+   * Adds entry to chat history
+   */
+  const addChatEntry = useCallback((entry) => {
+    const chatEntry = {
+      id: Date.now(),
+      timestamp: new Date().toLocaleTimeString(),
+      ...entry
+    };
+    
+    setChatHistory(prev => [...prev, chatEntry]);
+  }, []);
+  
+  /**
+   * Processes Schüco analysis command
+   */
+  const processSchutoAnalysis = useCallback(async (transcript, activeTab) => {
+    const systemPrompt = `Ti si specijalist za SCHÜCO aluminijske sustave. Analiziraj korisnikov glasovni unos.
+
+VAŽNO: Korisnik traži SCHÜCO aluminijske profile za gradnju, NE IT sustave!
+
+DOSTUPNI SCHÜCO SISTEMI:
+- AD UP (aluminijski sistem za vrata)
+- AWS 50 (prozorski sistem) 
+- AWS 65 (prozorski sistem)
+- AWS 70 (prozorski sistem)
+- FW 50+ SG (fasadni sistem)
+- FWS 50 S (fasadni sistem)
+- FWS 50 (fasadni sistem)
+
+Analiziraj transkript: "${transcript}"
+
+OBAVEZNO vrati TOČNO ovaj JSON format (ništa drugo):
+
+{
+  "analysis": {
+    "sistema_considered": ["AWS 50", "AWS 65", "AWS 70"],
+    "sistema_selected": "AWS 65",
+    "reasoning": "Korisnik je spomenuo..."
+  },
+  "tip": {
+    "considered": ["vrata", "prozor", "fasada"],
+    "selected": "prozor",
+    "reasoning": "Na temelju konteksta..."
+  },
+  "brochure": {
+    "system": "AWS 65"
+  },
+  "pricing": {
+    "materijal": 1200,
+    "staklo": 650,
+    "rad": 450,
+    "total": 2300,
+    "currency": "EUR"
+  },
+  "location": "Zagreb, Hrvatska"
+}`;
+    
+    const payload = {
+      command: transcript,
+      tool_call: 'schuco_analysis',
+      context: {
+        active_tab: activeTab,
+        system_prompt: systemPrompt,
+        location: "Zagreb, Hrvatska",
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    return await sendApiRequest(payload);
+  }, [sendApiRequest]);
+  
+  /**
+   * Processes projektiranje command
+   */
+  const processProjektiranjeCommand = useCallback(async (transcript, activeTab, currentSystem) => {
+    const systemPrompt = `Ti si SCHÜCO projektant specijalist za standardne detalje.
+Tvoja uloga je obrada glasovnih naredbi za projektiranje aluminijskih sustava.
+
+DOSTUPNE NAREDBE:
+- "Primjeni standardne detalje" - učitaj standardne detalje za trenutni sistem
+- "Promijeni donji detalj" - prebaci na donji_detalj2
+- "Promijeni gornji detalj" - prebaci na gornji_detalj2
+- "Vrati na originalne detalje" - vrati donji_detalj1 i gornji_detalj1
+
+Trenutni sistem: ${currentSystem || 'N/A'}
+Komanda: "${transcript}"`;
+    
+    const payload = {
+      command: transcript,
+      tool_call: 'projektiranje_details',
+      context: {
+        active_tab: activeTab,
+        system_prompt: systemPrompt,
+        current_system: currentSystem,
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    return await sendApiRequest(payload);
+  }, [sendApiRequest]);
+  
+  /**
+   * Processes general IRI S3 command
+   */
+  const processGeneralCommand = useCallback(async (transcript, activeTab) => {
+    const systemPrompt = `Ti si AI asistent za IRI S3 sistem (Intelligent Resource Integration - Storage 3).
+Tvoja uloga je da pomogneš korisnicima sa pitanjima vezanim za:
+- Upravljanje resursima i skladištem
+- S3 storage sisteme  
+- Prodaju, projektovanje, pripremu i proizvodnju
+- Opšta pitanja vezana za poslovne procese
+
+Odgovaraj kratko i jasno na hrvatskom jeziku. Trenutno aktivni tab je: ${activeTab}`;
+    
+    const payload = {
+      command: transcript,
+      context: {
+        active_tab: activeTab,
+        system_prompt: systemPrompt,
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    return await sendApiRequest(payload);
+  }, [sendApiRequest]);
+  
+  /**
+   * Clears chat history
+   */
+  const clearChatHistory = useCallback(() => {
+    setChatHistory([]);
+  }, []);
+  
+  /**
+   * Clears API data
+   */
+  const clearApiData = useCallback(() => {
+    setApiData({
+      lastPayload: null,
+      lastResponse: null,
+      timestamp: null
+    });
+  }, []);
+  
+  return {
+    // State
+    isProcessing,
+    apiData,
+    chatHistory,
+    
+    // Actions
+    sendApiRequest,
+    addChatEntry,
+    clearChatHistory,
+    clearApiData,
+    
+    // Specialized processors
+    processSchutoAnalysis,
+    processProjektiranjeCommand,
+    processGeneralCommand
+  };
+}
+
 export default useAgentStream;

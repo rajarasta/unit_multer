@@ -16,6 +16,13 @@ const SUPPORTED_DOMAINS = [
     keywords: ['gantt', 'raspored', 'montaža', 'planiranje', 'pozicija', 'ekipa', 'termin'],
     confidence_threshold: 0.7
   },
+  {
+    id: 'iris3',
+    route: '/iris3',
+    keywords: ['schüco', 'schuco', 'aws', 'aluminij', 'prodaja', 'projektiranje', 'vrata', 'prozor', 'fasada', 'troškovnik'],
+    confidence_threshold: 0.6,
+    description: 'IRI S3 - Schüco aluminijski sistemi'
+  },
   // Future domains
   {
     id: 'users',
@@ -69,7 +76,11 @@ export function useVoiceOrchestrator() {
       "Pomakni gantt za sve ekipe, provjeri preklapanja s resursima", 
       "Planiranje montaže fasade, treba mi optimizacija terminâ",
       "Ažurirај gantt dijagram, nova pozicija horizontalne lamele",
-      "Raspored montaže za projekt Voltaža, dvije ekipe dostupne"
+      "Raspored montaže za projekt Voltaža, dvije ekipe dostupne",
+      "Trebam analizu Schüco AWS 65 sistema za prozore",
+      "Provjeri troškovnik za aluminijske vrata AD UP",
+      "Projektiranje standardnih detalja za fasadni sistem",
+      "Schuco prodaja za stambenu zgradu, trebam cijene"
     ];
     
     const selectedInput = sampleInputs[Math.floor(Math.random() * sampleInputs.length)];

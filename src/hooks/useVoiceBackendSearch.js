@@ -386,4 +386,202 @@ export function useVoiceBackendSearch() {
   };
 }
 
+/**
+ * IRIS3 Voice Recognition Hook 
+ * Extends useVoiceBackendSearch with Schüco-specific voice commands
+ * Used by: IRIS3 tab, future voice-controlled tabs
+ */
+export function useIRIS3VoiceRecognition() {
+  const [isListening, setIsListening] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState('');
+  const [error, setError] = useState(null);
+  const recognitionRef = useRef(null);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      setError('Speech recognition not supported in this browser');
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognitionRef.current = new SpeechRecognition();
+    
+    const recognition = recognitionRef.current;
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'hr-HR'; // Croatian language for Schüco commands
+
+    recognition.onstart = () => {
+      console.log('🎤 IRIS3 Voice recognition started');
+      setIsListening(true);
+      setError(null);
+      setCurrentTranscript('Slušam...');
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+
+      if (interimTranscript) {
+        setCurrentTranscript(interimTranscript);
+      }
+
+      if (finalTranscript.trim()) {
+        // Dispatch final transcript to parent
+        window.dispatchEvent(new CustomEvent('iris3-voice-result', {
+          detail: { transcript: finalTranscript.trim() }
+        }));
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('🚫 IRIS3 Speech recognition error:', event.error);
+      setError(`Voice recognition error: ${event.error}`);
+      setIsListening(false);
+      setCurrentTranscript('');
+    };
+
+    recognition.onend = () => {
+      console.log('🔇 IRIS3 Voice recognition ended');
+      setIsListening(false);
+      setCurrentTranscript('');
+      recognitionRef.current = null;
+    };
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  /**
+   * Start voice recognition
+   */
+  const startVoiceRecognition = useCallback(() => {
+    if (recognitionRef.current && !isListening) {
+      try {
+        recognitionRef.current.start();
+        console.log('🎙️ Starting IRIS3 voice recognition');
+      } catch (error) {
+        console.error('Error starting recognition:', error);
+        setError('Failed to start voice recognition');
+      }
+    }
+  }, [isListening]);
+
+  /**
+   * Stop voice recognition
+   */
+  const stopVoiceRecognition = useCallback(() => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      setCurrentTranscript('');
+      console.log('🛑 Stopping IRIS3 voice recognition');
+    }
+  }, [isListening]);
+
+  /**
+   * Toggle voice recognition
+   */
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      stopVoiceRecognition();
+    } else {
+      startVoiceRecognition();
+    }
+  }, [isListening, startVoiceRecognition, stopVoiceRecognition]);
+
+  /**
+   * Detects if transcript contains Schüco system commands
+   * @param {string} transcript - Voice transcript
+   * @returns {Object} - Detection results
+   */
+  const detectSchutoCommands = useCallback((transcript) => {
+    if (!transcript) return { isSchutoCommand: false };
+
+    const lowerTranscript = transcript.toLowerCase();
+    
+    // Schüco system keywords
+    const schutoSystems = ['aws 50', 'aws 65', 'aws 70', 'ad up', 'fw 50', 'fws 50'];
+    const productTypes = ['vrata', 'prozor', 'fasada', 'door', 'window', 'facade'];
+    const troskovnikKeywords = ['troškovnik', 'provjeri', 'usporedba', 'cijena', 'budget'];
+    const projektiranjeKeywords = ['standardne detalje', 'donji detalj', 'gornji detalj', 'projektiranje'];
+
+    const detectedSystem = schutoSystems.find(system => lowerTranscript.includes(system));
+    const detectedType = productTypes.find(type => lowerTranscript.includes(type));
+    const hasTroskovnikRequest = troskovnikKeywords.some(keyword => lowerTranscript.includes(keyword));
+    const hasProjektiranjeRequest = projektiranjeKeywords.some(keyword => lowerTranscript.includes(keyword));
+
+    return {
+      isSchutoCommand: !!(detectedSystem || detectedType || hasTroskovnikRequest || hasProjektiranjeRequest),
+      detectedSystem,
+      detectedType,
+      hasTroskovnikRequest,
+      hasProjektiranjeRequest,
+      confidence: detectedSystem ? 0.9 : detectedType ? 0.7 : 0.5
+    };
+  }, []);
+
+  /**
+   * Detects projektiranje detail commands
+   * @param {string} transcript - Voice transcript
+   * @returns {Object} - Detail command detection
+   */
+  const detectDetailCommands = useCallback((transcript) => {
+    if (!transcript) return { isDetailCommand: false };
+
+    const lowerTranscript = transcript.toLowerCase();
+    
+    const detailCommands = {
+      standardDetails: ['primjeni standardne detalje', 'standardni detalji'],
+      changeDonji: ['promijeni donji', 'donji detalj 2', 'drugi donji'],
+      changeGornji: ['promijeni gornji', 'gornji detalj 2', 'drugi gornji'],
+      reset: ['vrati originalne', 'reset detalje', 'početni detalji']
+    };
+
+    for (const [command, keywords] of Object.entries(detailCommands)) {
+      if (keywords.some(keyword => lowerTranscript.includes(keyword))) {
+        return {
+          isDetailCommand: true,
+          command,
+          confidence: 0.9
+        };
+      }
+    }
+
+    return { isDetailCommand: false };
+  }, []);
+
+  return {
+    // State
+    isListening,
+    currentTranscript,
+    error,
+    
+    // Actions
+    startVoiceRecognition,
+    stopVoiceRecognition,
+    toggleListening,
+    
+    // Detection utilities
+    detectSchutoCommands,
+    detectDetailCommands,
+    
+    // Computed
+    isReady: !error && !!recognitionRef.current
+  };
+}
+
 export default useVoiceBackendSearch;
