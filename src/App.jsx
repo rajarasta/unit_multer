@@ -75,6 +75,7 @@ const GVAv2 = lazy(() => import('./components/tabs/GVAv2'));
 const CodexControl = lazy(() => import('./components/tabs/CodexControl'));
 const DocumentSorterTab = lazy(() => import('./components/tabs/DocumentSorterTab'));
 const ContextualInput = lazy(() => import('./components/tabs/ContextualInput'));
+const IRIS3 = lazy(() => import('./components/tabs/IRIS3'));
 
 
 // Loading component
@@ -229,6 +230,8 @@ export default function App() {
           return <CodexControl />;
         case 'contextual-input':
           return <ContextualInput />;
+        case 'iris3':
+          return <IRIS3 />;
         default:
           return <HomeContent />;
       }

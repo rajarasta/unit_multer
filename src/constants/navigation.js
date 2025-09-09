@@ -1,5 +1,5 @@
 import { 
-  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings, Server, SortAsc, Search
+  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings, Server, SortAsc, Search, Database
 } from 'lucide-react';
 
 export const navItems = [
@@ -46,4 +46,5 @@ export const navItems = [
   ,{ key: "codex-control", label: "Codex Control", icon: Settings }
   ,{ key: "llm-server", label: "LLM Server Manager", icon: Server }
   ,{ key: "contextual-input", label: "Contextual Input", icon: Search }
+  ,{ key: "iris3", label: "IRI S3", icon: Database }
 ];
