@@ -1,6 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, Image, Table, File, RotateCcw, Camera, Type, Grid3x3, FileSpreadsheet, FileX, Code, Archive, Download, Edit3, Share2, Copy, Scissors, FileBarChart, Eye, Printer, Search, Layers, Ruler, Palette, Crop, Filter, Bold, Mic, MicOff, Brain, Cpu, Zap, Merge, X, Check, Sparkles, Wand2, Bot, Link } from 'lucide-react';
+import { Upload, FileText, Image, Table, File, RotateCcw, Camera, Type, Grid3x3, FileSpreadsheet, FileX, Code, Archive, Download, Edit3, Share2, Copy, Scissors, FileBarChart, Eye, Printer, Search, Layers, Ruler, Palette, Crop, Filter, Bold, Mic, MicOff, Brain, Cpu, Zap, Merge, X, Check, Sparkles, Wand2, Bot, Link, Timer, Clock, CheckCircle, XCircle, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
+import ReasoningOverlay from '../ReasoningOverlay';
+import { mockLLMService, STATUS_TYPES } from '../../services/mockLLMService';
+import { getStatusIcon, canProcessContent, generateId, debounce } from '../../utils/helpers';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -30,8 +33,32 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
   const [isConnectedUnit, setIsConnectedUnit] = useState(false);
   const [connectedToUnit, setConnectedToUnit] = useState(null); // ID of connected unit
   const [connectionColor, setConnectionColor] = useState(null); // Shared glow color
+
+  // AI Reasoning state management
+  const [reasoningState, setReasoningState] = useState({
+    isActive: false,
+    reasoningId: null,
+    steps: [],
+    currentStep: 0,
+    status: 'idle', // idle, processing, completed, cancelled, error
+    result: null,
+    error: null
+  });
+
+  // Processing status for multiple status icons
+  const [processingStatus, setProcessingStatus] = useState({
+    upload: STATUS_TYPES.UPLOAD.EMPTY,
+    processing: STATUS_TYPES.PROCESSING.NOT_PROCESSED,
+    queue: STATUS_TYPES.QUEUE.NOT_READY,
+    connection: STATUS_TYPES.CONNECTION.DISCONNECTED,
+    hasProcessedContent: false,
+    readyForBigProcessing: false,
+    inBigProcessingQueue: false
+  });
+
   const recognitionRef = useRef(null);
   const unitRef = useRef(null);
+  const reasoningAbortControllerRef = useRef(null);
 
   const detectInputType = useCallback((input) => {
     if (input && (input.constructor.name === 'FileList' || input.constructor.name === 'File' || input.type !== undefined)) {
@@ -68,10 +95,25 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
       setFileUrl(url);
     }
 
+    // Update processing status - content uploaded
+    setProcessingStatus(prev => ({
+      ...prev,
+      upload: STATUS_TYPES.UPLOAD.UPLOADED,
+      processing: canProcessContent(detectedType, input)
+        ? STATUS_TYPES.PROCESSING.NOT_PROCESSED
+        : prev.processing
+    }));
+
     onContentChange?.(id, detectedType, input);
   }, [detectInputType, id, onContentChange]);
 
   const resetUnit = useCallback(() => {
+    // Cancel any active reasoning
+    if (reasoningState.isActive && reasoningAbortControllerRef.current) {
+      reasoningAbortControllerRef.current.abort();
+      mockLLMService.cancelReasoning(reasoningState.reasoningId);
+    }
+
     setUnitType('empty');
     setContent(null);
     setPdfNumPages(null);
@@ -83,8 +125,135 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
       setFileUrl(null);
     }
 
+    // Reset all statuses
+    setReasoningState({
+      isActive: false,
+      reasoningId: null,
+      steps: [],
+      currentStep: 0,
+      status: 'idle',
+      result: null,
+      error: null
+    });
+
+    setProcessingStatus({
+      upload: STATUS_TYPES.UPLOAD.EMPTY,
+      processing: STATUS_TYPES.PROCESSING.NOT_PROCESSED,
+      queue: STATUS_TYPES.QUEUE.NOT_READY,
+      connection: STATUS_TYPES.CONNECTION.DISCONNECTED,
+      hasProcessedContent: false,
+      readyForBigProcessing: false,
+      inBigProcessingQueue: false
+    });
+
     onContentChange?.(id, 'empty', null);
-  }, [id, onContentChange, fileUrl]);
+  }, [id, onContentChange, fileUrl, reasoningState.isActive, reasoningState.reasoningId]);
+
+  // AI Reasoning Management Functions
+  const startReasoningProcess = useCallback(async () => {
+    if (!canProcessContent(unitType, content) || reasoningState.isActive) {
+      return;
+    }
+
+    const reasoningId = generateId('reasoning');
+    reasoningAbortControllerRef.current = new AbortController();
+
+    // Update status to processing
+    setProcessingStatus(prev => ({
+      ...prev,
+      processing: STATUS_TYPES.PROCESSING.REASONING
+    }));
+
+    setReasoningState({
+      isActive: true,
+      reasoningId,
+      steps: [],
+      currentStep: 0,
+      status: 'processing',
+      result: null,
+      error: null
+    });
+
+    try {
+      const result = await mockLLMService.startReasoning(
+        id,
+        unitType,
+        content,
+        (progressData) => {
+          setReasoningState(prev => ({
+            ...prev,
+            steps: progressData.steps || prev.steps,
+            currentStep: progressData.step || prev.currentStep,
+            status: progressData.status || prev.status,
+            result: progressData.result || prev.result,
+            error: progressData.error || prev.error
+          }));
+        }
+      );
+
+      // Reasoning completed successfully
+      setProcessingStatus(prev => ({
+        ...prev,
+        processing: STATUS_TYPES.PROCESSING.PROCESSED,
+        hasProcessedContent: true,
+        readyForBigProcessing: true,
+        queue: STATUS_TYPES.QUEUE.READY
+      }));
+
+    } catch (error) {
+      console.error('Reasoning failed:', error);
+      setReasoningState(prev => ({
+        ...prev,
+        status: 'error',
+        error: error.message
+      }));
+
+      setProcessingStatus(prev => ({
+        ...prev,
+        processing: STATUS_TYPES.PROCESSING.ERROR
+      }));
+    }
+  }, [unitType, content, reasoningState.isActive, id]);
+
+  const cancelReasoningProcess = useCallback(() => {
+    if (reasoningState.isActive && reasoningState.reasoningId) {
+      if (reasoningAbortControllerRef.current) {
+        reasoningAbortControllerRef.current.abort();
+      }
+
+      mockLLMService.cancelReasoning(reasoningState.reasoningId);
+
+      setReasoningState(prev => ({
+        ...prev,
+        isActive: false,
+        status: 'cancelled'
+      }));
+
+      setProcessingStatus(prev => ({
+        ...prev,
+        processing: STATUS_TYPES.PROCESSING.CANCELLED
+      }));
+    }
+  }, [reasoningState.isActive, reasoningState.reasoningId]);
+
+  const addToBigProcessingQueue = useCallback(() => {
+    if (!processingStatus.hasProcessedContent) {
+      return;
+    }
+
+    const queueId = mockLLMService.addToBigProcessingQueue([id], 'normal');
+
+    setProcessingStatus(prev => ({
+      ...prev,
+      inBigProcessingQueue: true,
+      queue: STATUS_TYPES.QUEUE.QUEUED
+    }));
+
+    // Trigger global queue update event
+    window.dispatchEvent(new CustomEvent('unit-added-to-big-queue', {
+      detail: { unitId: id, queueId }
+    }));
+  }, [processingStatus.hasProcessedContent, id]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -297,6 +466,12 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     setConnectedToUnit(null);
     setConnectionColor(null);
 
+    // Reset connection status
+    setProcessingStatus(prev => ({
+      ...prev,
+      connection: STATUS_TYPES.CONNECTION.DISCONNECTED
+    }));
+
     // Notify connected unit to also reset
     if (connectedToUnit) {
       window.dispatchEvent(new CustomEvent('unit-disconnected', {
@@ -361,8 +536,67 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     { icon: Archive, label: 'DWG', color: 'text-cyan-500' }
   ];
 
+  // Get processing status icons for status bar
+  const getProcessingStatusIcons = useCallback(() => {
+    const statusIcons = [];
+
+    // Upload status
+    if (processingStatus.upload !== STATUS_TYPES.UPLOAD.EMPTY) {
+      const uploadIcon = getStatusIcon('upload', processingStatus.upload);
+      statusIcons.push({
+        key: 'upload',
+        ...uploadIcon,
+        title: `Upload: ${processingStatus.upload.replace('upload_', '').replace('_', ' ')}`
+      });
+    }
+
+    // Processing status
+    if (processingStatus.processing !== STATUS_TYPES.PROCESSING.NOT_PROCESSED) {
+      const processIcon = getStatusIcon('processing', processingStatus.processing);
+      statusIcons.push({
+        key: 'processing',
+        ...processIcon,
+        title: `Processing: ${processingStatus.processing.replace('proc_', '').replace('_', ' ')}`,
+        action: () => {
+          if (processingStatus.processing === STATUS_TYPES.PROCESSING.NOT_PROCESSED) {
+            startReasoningProcess();
+          } else if (processingStatus.processing === STATUS_TYPES.PROCESSING.REASONING) {
+            cancelReasoningProcess();
+          }
+        }
+      });
+    }
+
+    // Queue status
+    if (processingStatus.queue !== STATUS_TYPES.QUEUE.NOT_READY) {
+      const queueIcon = getStatusIcon('queue', processingStatus.queue);
+      statusIcons.push({
+        key: 'queue',
+        ...queueIcon,
+        title: `Queue: ${processingStatus.queue.replace('queue_', '').replace('_', ' ')}`,
+        action: () => {
+          if (processingStatus.queue === STATUS_TYPES.QUEUE.READY) {
+            addToBigProcessingQueue();
+          }
+        }
+      });
+    }
+
+    // Connection status
+    if (processingStatus.connection !== STATUS_TYPES.CONNECTION.DISCONNECTED) {
+      const connIcon = getStatusIcon('connection', processingStatus.connection);
+      statusIcons.push({
+        key: 'connection',
+        ...connIcon,
+        title: `Connection: ${processingStatus.connection.replace('conn_', '').replace('_', ' ')}`
+      });
+    }
+
+    return statusIcons;
+  }, [processingStatus, startReasoningProcess, cancelReasoningProcess, addToBigProcessingQueue]);
+
   const getActionsByType = (type) => {
-    const actions = {
+    const baseActions = {
       pdf: [
         { icon: Eye, label: 'View', action: () => console.log('View PDF') },
         { icon: Download, label: 'Download', action: () => console.log('Download PDF') },
@@ -399,7 +633,37 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
         { icon: Download, label: 'Export', action: () => console.log('Export DWG') }
       ]
     };
-    return actions[type] || [];
+
+    // Add AI processing actions for processable content types
+    const processingActions = [];
+
+    if (canProcessContent(type, content)) {
+      // Process action
+      if (processingStatus.processing === STATUS_TYPES.PROCESSING.NOT_PROCESSED) {
+        processingActions.push({
+          icon: Brain,
+          label: 'Process AI',
+          action: startReasoningProcess,
+          className: 'text-purple-600 hover:text-purple-700'
+        });
+      } else if (processingStatus.processing === STATUS_TYPES.PROCESSING.REASONING) {
+        processingActions.push({
+          icon: X,
+          label: 'Cancel',
+          action: cancelReasoningProcess,
+          className: 'text-orange-600 hover:text-orange-700'
+        });
+      } else if (processingStatus.hasProcessedContent && processingStatus.queue === STATUS_TYPES.QUEUE.READY) {
+        processingActions.push({
+          icon: Zap,
+          label: 'Big Process',
+          action: addToBigProcessingQueue,
+          className: 'text-green-600 hover:text-green-700'
+        });
+      }
+    }
+
+    return [...(baseActions[type] || []), ...processingActions];
   };
 
   const onDocumentLoadSuccess = ({ numPages }) => {
@@ -521,6 +785,42 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">Image</span>
               </div>
               <div className="flex items-center gap-1">
+                {/* Processing Status Icons */}
+                {getProcessingStatusIcons().map((statusIcon, index) => (
+                  <motion.button
+                    key={statusIcon.key}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={statusIcon.action}
+                    title={statusIcon.title}
+                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
+                  >
+                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
+                                        statusIcon.icon === 'Check' ? Check :
+                                        statusIcon.icon === 'X' ? X :
+                                        statusIcon.icon === 'Upload' ? Upload :
+                                        statusIcon.icon === 'Sparkles' ? Sparkles :
+                                        statusIcon.icon === 'Clock' ? Clock :
+                                        statusIcon.icon === 'Timer' ? Timer :
+                                        statusIcon.icon === 'Cpu' ? Cpu :
+                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
+                                        statusIcon.icon === 'XCircle' ? XCircle :
+                                        statusIcon.icon === 'Link' ? Link :
+                                        statusIcon.icon === 'Link2' ? Link :
+                                        statusIcon.icon === 'Merge' ? Merge :
+                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
+                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
+                                        HelpCircle, { size: 14 })}
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {statusIcon.title}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </motion.button>
+                ))}
+
                 {/* Connection Button */}
                 <button
                   onMouseDown={handleConnectionDragStart}
@@ -615,6 +915,42 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">Text</span>
               </div>
               <div className="flex items-center gap-1">
+                {/* Processing Status Icons */}
+                {getProcessingStatusIcons().map((statusIcon, index) => (
+                  <motion.button
+                    key={statusIcon.key}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={statusIcon.action}
+                    title={statusIcon.title}
+                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
+                  >
+                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
+                                        statusIcon.icon === 'Check' ? Check :
+                                        statusIcon.icon === 'X' ? X :
+                                        statusIcon.icon === 'Upload' ? Upload :
+                                        statusIcon.icon === 'Sparkles' ? Sparkles :
+                                        statusIcon.icon === 'Clock' ? Clock :
+                                        statusIcon.icon === 'Timer' ? Timer :
+                                        statusIcon.icon === 'Cpu' ? Cpu :
+                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
+                                        statusIcon.icon === 'XCircle' ? XCircle :
+                                        statusIcon.icon === 'Link' ? Link :
+                                        statusIcon.icon === 'Link2' ? Link :
+                                        statusIcon.icon === 'Merge' ? Merge :
+                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
+                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
+                                        HelpCircle, { size: 14 })}
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {statusIcon.title}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </motion.button>
+                ))}
+
                 {/* Connection Button */}
                 <button
                   onMouseDown={handleConnectionDragStart}
@@ -700,6 +1036,42 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 )}
               </div>
               <div className="flex items-center gap-1">
+                {/* Processing Status Icons */}
+                {getProcessingStatusIcons().map((statusIcon, index) => (
+                  <motion.button
+                    key={statusIcon.key}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={statusIcon.action}
+                    title={statusIcon.title}
+                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
+                  >
+                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
+                                        statusIcon.icon === 'Check' ? Check :
+                                        statusIcon.icon === 'X' ? X :
+                                        statusIcon.icon === 'Upload' ? Upload :
+                                        statusIcon.icon === 'Sparkles' ? Sparkles :
+                                        statusIcon.icon === 'Clock' ? Clock :
+                                        statusIcon.icon === 'Timer' ? Timer :
+                                        statusIcon.icon === 'Cpu' ? Cpu :
+                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
+                                        statusIcon.icon === 'XCircle' ? XCircle :
+                                        statusIcon.icon === 'Link' ? Link :
+                                        statusIcon.icon === 'Link2' ? Link :
+                                        statusIcon.icon === 'Merge' ? Merge :
+                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
+                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
+                                        HelpCircle, { size: 14 })}
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {statusIcon.title}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </motion.button>
+                ))}
+
                 {/* Connection Button */}
                 <button
                   onMouseDown={handleConnectionDragStart}
@@ -799,6 +1171,42 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">Table</span>
               </div>
               <div className="flex items-center gap-1">
+                {/* Processing Status Icons */}
+                {getProcessingStatusIcons().map((statusIcon, index) => (
+                  <motion.button
+                    key={statusIcon.key}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={statusIcon.action}
+                    title={statusIcon.title}
+                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
+                  >
+                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
+                                        statusIcon.icon === 'Check' ? Check :
+                                        statusIcon.icon === 'X' ? X :
+                                        statusIcon.icon === 'Upload' ? Upload :
+                                        statusIcon.icon === 'Sparkles' ? Sparkles :
+                                        statusIcon.icon === 'Clock' ? Clock :
+                                        statusIcon.icon === 'Timer' ? Timer :
+                                        statusIcon.icon === 'Cpu' ? Cpu :
+                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
+                                        statusIcon.icon === 'XCircle' ? XCircle :
+                                        statusIcon.icon === 'Link' ? Link :
+                                        statusIcon.icon === 'Link2' ? Link :
+                                        statusIcon.icon === 'Merge' ? Merge :
+                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
+                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
+                                        HelpCircle, { size: 14 })}
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {statusIcon.title}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </motion.button>
+                ))}
+
                 {/* Connection Button */}
                 <button
                   onMouseDown={handleConnectionDragStart}
@@ -878,6 +1286,42 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">CAD Drawing</span>
               </div>
               <div className="flex items-center gap-1">
+                {/* Processing Status Icons */}
+                {getProcessingStatusIcons().map((statusIcon, index) => (
+                  <motion.button
+                    key={statusIcon.key}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={statusIcon.action}
+                    title={statusIcon.title}
+                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
+                  >
+                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
+                                        statusIcon.icon === 'Check' ? Check :
+                                        statusIcon.icon === 'X' ? X :
+                                        statusIcon.icon === 'Upload' ? Upload :
+                                        statusIcon.icon === 'Sparkles' ? Sparkles :
+                                        statusIcon.icon === 'Clock' ? Clock :
+                                        statusIcon.icon === 'Timer' ? Timer :
+                                        statusIcon.icon === 'Cpu' ? Cpu :
+                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
+                                        statusIcon.icon === 'XCircle' ? XCircle :
+                                        statusIcon.icon === 'Link' ? Link :
+                                        statusIcon.icon === 'Link2' ? Link :
+                                        statusIcon.icon === 'Merge' ? Merge :
+                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
+                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
+                                        HelpCircle, { size: 14 })}
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {statusIcon.title}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </motion.button>
+                ))}
+
                 {/* Connection Button */}
                 <button
                   onMouseDown={handleConnectionDragStart}
@@ -960,6 +1404,42 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">File</span>
               </div>
               <div className="flex items-center gap-1">
+                {/* Processing Status Icons */}
+                {getProcessingStatusIcons().map((statusIcon, index) => (
+                  <motion.button
+                    key={statusIcon.key}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={statusIcon.action}
+                    title={statusIcon.title}
+                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
+                  >
+                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
+                                        statusIcon.icon === 'Check' ? Check :
+                                        statusIcon.icon === 'X' ? X :
+                                        statusIcon.icon === 'Upload' ? Upload :
+                                        statusIcon.icon === 'Sparkles' ? Sparkles :
+                                        statusIcon.icon === 'Clock' ? Clock :
+                                        statusIcon.icon === 'Timer' ? Timer :
+                                        statusIcon.icon === 'Cpu' ? Cpu :
+                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
+                                        statusIcon.icon === 'XCircle' ? XCircle :
+                                        statusIcon.icon === 'Link' ? Link :
+                                        statusIcon.icon === 'Link2' ? Link :
+                                        statusIcon.icon === 'Merge' ? Merge :
+                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
+                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
+                                        HelpCircle, { size: 14 })}
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {statusIcon.title}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </motion.button>
+                ))}
+
                 {/* Connection Button */}
                 <button
                   onMouseDown={handleConnectionDragStart}
@@ -1138,6 +1618,18 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
           </motion.div>
         )}
       </motion.div>
+
+      {/* AI Reasoning Overlay */}
+      <AnimatePresence>
+        {reasoningState.isActive && (
+          <ReasoningOverlay
+            isActive={reasoningState.isActive}
+            reasoningData={reasoningState}
+            onCancel={cancelReasoningProcess}
+            position="absolute"
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 };
