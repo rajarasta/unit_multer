@@ -473,9 +473,5 @@ class MockLLMService {
 // Export singleton instance
 export const mockLLMService = new MockLLMService();
 
-// Utility funkcija za delay
-async function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 export default mockLLMService;

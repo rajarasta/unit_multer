@@ -2,6 +2,11 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileText, Image, Table, File, RotateCcw, Camera, Type, Grid3x3, FileSpreadsheet, FileX, Code, Archive, Download, Edit3, Share2, Copy, Scissors, FileBarChart, Eye, Printer, Search, Layers, Ruler, Palette, Crop, Filter, Bold, Mic, MicOff, Brain, Cpu, Zap, Merge, X, Check, Sparkles, Wand2, Bot, Link, Timer, Clock, CheckCircle, XCircle, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
 import ReasoningOverlay from '../ReasoningOverlay';
+import ContentRenderer from '../unit/content/ContentRenderer';
+import useUnitContent from '../unit/hooks/useUnitContent';
+import usePdf from '../unit/hooks/usePdf';
+import useReasoning from '../unit/hooks/useReasoning';
+import useDnd from '../unit/hooks/useDnd';
 import { mockLLMService, STATUS_TYPES } from '../../services/mockLLMService';
 import { getStatusIcon, canProcessContent, generateId, debounce } from '../../utils/helpers';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -17,11 +22,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPosition = null }) => {
   const [unitType, setUnitType] = useState('empty');
   const [content, setContent] = useState(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [pdfNumPages, setPdfNumPages] = useState(null);
-  const [pdfPageNumber, setPdfPageNumber] = useState(1);
+  // DnD state via hook
+  const { isDragOver, setIsDragOver, handleDrop, handleDragOver, handleDragLeave, handleUnitDropTarget } = useDnd((input) => morphUnit(input));
+  // PDF state via hook
+  const { pdfNumPages, setPdfNumPages, pdfPageNumber, setPdfPageNumber, onDocumentLoadSuccess } = usePdf();
   const [fileUrl, setFileUrl] = useState(null);
-  const [textInputValue, setTextInputValue] = useState('');
+  // Text input + detection via hook
+  const { textInputValue, setTextInputValue, detectInputType } = useUnitContent();
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [isDraggingConnection, setIsDraggingConnection] = useState(false);
@@ -34,16 +41,14 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
   const [connectedToUnit, setConnectedToUnit] = useState(null); // ID of connected unit
   const [connectionColor, setConnectionColor] = useState(null); // Shared glow color
 
-  // AI Reasoning state management
-  const [reasoningState, setReasoningState] = useState({
-    isActive: false,
-    reasoningId: null,
-    steps: [],
-    currentStep: 0,
-    status: 'idle', // idle, processing, completed, cancelled, error
-    result: null,
-    error: null
-  });
+  // AI Reasoning state via hook - initialized after setProcessingStatus is declared
+  let reasoningState, setReasoningState, _startReasoningWithArgs, cancelReasoningProcess;
+
+  // Store user input for reasoning overlay
+  const [userInputForReasoning, setUserInputForReasoning] = useState('');
+
+  // Unit dimensions and position for overlay positioning
+  const [unitBounds, setUnitBounds] = useState(null);
 
   // Processing status for multiple status icons
   const [processingStatus, setProcessingStatus] = useState({
@@ -58,36 +63,29 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
 
   const recognitionRef = useRef(null);
   const unitRef = useRef(null);
-  const reasoningAbortControllerRef = useRef(null);
+  // Removed explicit abort controller; managed in useReasoning hook
 
-  const detectInputType = useCallback((input) => {
-    if (input && (input.constructor.name === 'FileList' || input.constructor.name === 'File' || input.type !== undefined)) {
-      const file = input.constructor.name === 'FileList' ? input[0] : input;
+  // Now that setProcessingStatus exists, initialize reasoning hook
+  ({ reasoningState, setReasoningState, startReasoningProcess: _startReasoningWithArgs, cancelReasoningProcess } = useReasoning({ id, setProcessingStatus }));
 
-      // Enhanced detection
-      if (file.type.startsWith('image/')) {
-        return file.type.includes('svg') ? 'svg' : 'image';
-      }
-      if (file.type === 'application/pdf') return 'pdf';
-      if (file.name.endsWith('.xml') || file.type.includes('xml')) return 'xml';
-      if (file.name.endsWith('.dwg') || file.name.endsWith('.dxf')) return 'dwg';
-      if (file.type.includes('sheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.csv') || file.name.endsWith('.xls')) return 'table';
-      if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.md')) return 'textfile';
-      if (file.type.includes('word') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) return 'document';
-      return 'file';
-    }
-    if (typeof input === 'string') {
-      if (input.trim().includes('\t') || input.includes(',')) return 'table';
-      if (input.includes('<') && input.includes('>')) return 'xml';
-      return 'text';
-    }
-    return 'empty';
-  }, []);
+  // detectInputType provided by useUnitContent
+
+  
+
+  // Auto-start flag to trigger reasoning after state updates
+  const [autoStartReasoning, setAutoStartReasoning] = useState(false);
 
   const morphUnit = useCallback((input) => {
     const detectedType = detectInputType(input);
     setUnitType(detectedType);
     setContent(input);
+
+    // Store input for reasoning overlay
+    if (typeof input === 'string') {
+      setUserInputForReasoning(input);
+    } else if (input && input.name) {
+      setUserInputForReasoning(`File upload: ${input.name}`);
+    }
 
     // Create file URL for file-based content
     if (input && (input.constructor.name === 'File' || input.type !== undefined)) {
@@ -104,14 +102,40 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
         : prev.processing
     }));
 
+    // Trigger reasoning overlay after 1 second delay
+    setTimeout(() => {
+      // Get Unit bounds before showing overlay
+      if (unitRef.current) {
+        const rect = unitRef.current.getBoundingClientRect();
+        setUnitBounds({
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height
+        });
+      }
+
+      setReasoningState(prev => ({
+        ...prev,
+        isActive: true,
+        status: 'processing'
+      }));
+    }, 1000);
+
+    // Request auto-start of reasoning on next render once content/state are updated
+    if (canProcessContent(detectedType, input)) {
+      setAutoStartReasoning(true);
+    }
+
     onContentChange?.(id, detectedType, input);
   }, [detectInputType, id, onContentChange]);
 
+  // Fire reasoning once unitType/content are updated and flag is set
+
   const resetUnit = useCallback(() => {
     // Cancel any active reasoning
-    if (reasoningState.isActive && reasoningAbortControllerRef.current) {
-      reasoningAbortControllerRef.current.abort();
-      mockLLMService.cancelReasoning(reasoningState.reasoningId);
+    if (reasoningState.isActive) {
+      cancelReasoningProcess();
     }
 
     setUnitType('empty');
@@ -136,6 +160,9 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
       error: null
     });
 
+    setUserInputForReasoning('');
+    setUnitBounds(null);
+
     setProcessingStatus({
       upload: STATUS_TYPES.UPLOAD.EMPTY,
       processing: STATUS_TYPES.PROCESSING.NOT_PROCESSED,
@@ -149,92 +176,20 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     onContentChange?.(id, 'empty', null);
   }, [id, onContentChange, fileUrl, reasoningState.isActive, reasoningState.reasoningId]);
 
-  // AI Reasoning Management Functions
-  const startReasoningProcess = useCallback(async () => {
-    if (!canProcessContent(unitType, content) || reasoningState.isActive) {
-      return;
+  // AI Reasoning Management: wrapper that binds current unitType/content
+  const startReasoningProcess = useCallback(() => {
+    _startReasoningWithArgs(unitType, content);
+  }, [_startReasoningWithArgs, unitType, content]);
+
+  // Fire reasoning once unitType/content are updated and flag is set
+  useEffect(() => {
+    if (autoStartReasoning && canProcessContent(unitType, content) && !reasoningState.isActive) {
+      startReasoningProcess();
+      setAutoStartReasoning(false);
     }
+  }, [autoStartReasoning, unitType, content, reasoningState.isActive, startReasoningProcess]);
 
-    const reasoningId = generateId('reasoning');
-    reasoningAbortControllerRef.current = new AbortController();
-
-    // Update status to processing
-    setProcessingStatus(prev => ({
-      ...prev,
-      processing: STATUS_TYPES.PROCESSING.REASONING
-    }));
-
-    setReasoningState({
-      isActive: true,
-      reasoningId,
-      steps: [],
-      currentStep: 0,
-      status: 'processing',
-      result: null,
-      error: null
-    });
-
-    try {
-      const result = await mockLLMService.startReasoning(
-        id,
-        unitType,
-        content,
-        (progressData) => {
-          setReasoningState(prev => ({
-            ...prev,
-            steps: progressData.steps || prev.steps,
-            currentStep: progressData.step || prev.currentStep,
-            status: progressData.status || prev.status,
-            result: progressData.result || prev.result,
-            error: progressData.error || prev.error
-          }));
-        }
-      );
-
-      // Reasoning completed successfully
-      setProcessingStatus(prev => ({
-        ...prev,
-        processing: STATUS_TYPES.PROCESSING.PROCESSED,
-        hasProcessedContent: true,
-        readyForBigProcessing: true,
-        queue: STATUS_TYPES.QUEUE.READY
-      }));
-
-    } catch (error) {
-      console.error('Reasoning failed:', error);
-      setReasoningState(prev => ({
-        ...prev,
-        status: 'error',
-        error: error.message
-      }));
-
-      setProcessingStatus(prev => ({
-        ...prev,
-        processing: STATUS_TYPES.PROCESSING.ERROR
-      }));
-    }
-  }, [unitType, content, reasoningState.isActive, id]);
-
-  const cancelReasoningProcess = useCallback(() => {
-    if (reasoningState.isActive && reasoningState.reasoningId) {
-      if (reasoningAbortControllerRef.current) {
-        reasoningAbortControllerRef.current.abort();
-      }
-
-      mockLLMService.cancelReasoning(reasoningState.reasoningId);
-
-      setReasoningState(prev => ({
-        ...prev,
-        isActive: false,
-        status: 'cancelled'
-      }));
-
-      setProcessingStatus(prev => ({
-        ...prev,
-        processing: STATUS_TYPES.PROCESSING.CANCELLED
-      }));
-    }
-  }, [reasoningState.isActive, reasoningState.reasoningId]);
+  // cancelReasoningProcess provided by hook
 
   const addToBigProcessingQueue = useCallback(() => {
     if (!processingStatus.hasProcessedContent) {
@@ -255,14 +210,7 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     }));
   }, [processingStatus.hasProcessedContent, id]);
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      morphUnit(files[0]);
-    }
-  }, [morphUnit]);
+  // DnD handlers provided by useDnd hook
 
   const handleFileChange = useCallback((e) => {
     const files = e.target.files;
@@ -286,15 +234,9 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     }
   }, [textInputValue, morphUnit]);
 
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  }, []);
+  
 
-  const handleDragLeave = useCallback((e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  }, []);
+  
 
   // Initialize speech recognition
   useEffect(() => {
@@ -495,15 +437,7 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     return () => window.removeEventListener('unit-disconnected', handleDisconnection);
   }, [id]);
 
-  const handleUnitDropTarget = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Add visual feedback for valid drop target
-    if (isDragOver) return; // Don't interfere with file drag-drop
-
-    setIsDragOver(true);
-  }, [isDragOver]);
+  // handleUnitDropTarget provided by useDnd hook
 
   const handleUnitDropLeave = useCallback((e) => {
     e.preventDefault();
@@ -666,615 +600,89 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     return [...(baseActions[type] || []), ...processingActions];
   };
 
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setPdfNumPages(numPages);
-  };
-
   const renderContent = () => {
     switch (unitType) {
       case 'empty':
         return (
-          <div
-            className={`h-full flex flex-col relative bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg transition-all duration-300 ${
-              isDragOver ? 'border-blue-400 bg-blue-50/30 shadow-lg shadow-blue-500/20' : 'hover:bg-white/30'
-            }`}
-          >
-            {/* Transparent overlay for empty state */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-lg pointer-events-none" />
-
-            {/* Supported file type icons in top right */}
-            <div className="absolute top-2 right-2 flex flex-wrap gap-1.5 z-10">
-              {getSupportedTypeIcons().map((type, index) => (
-                <motion.div
-                  key={type.label}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`${type.color} opacity-40 hover:opacity-80 transition-all duration-200 hover:scale-110 cursor-help`}
-                  title={type.label}
-                >
-                  <type.icon size={14} className="drop-shadow-sm" />
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-600 space-y-6 relative z-10">
-              <motion.div
-                className="text-5xl text-slate-400"
-                animate={{
-                  scale: isDragOver ? 1.1 : 1,
-                  color: isDragOver ? '#3b82f6' : '#94a3b8'
-                }}
-                transition={{ duration: 0.2 }}
-              >
-                <Upload size={40} className="drop-shadow-md" />
-              </motion.div>
-
-              <div className="text-sm text-center space-y-2">
-                <p className="text-slate-500 font-medium">Drop files here or</p>
-                <label className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/80 hover:bg-blue-600/90 text-white rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg backdrop-blur-sm">
-                  <FileText size={16} />
-                  <span className="font-medium">Browse Files</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileChange}
-                    multiple={false}
-                  />
-                </label>
-              </div>
-
-              <div className="w-full px-4">
-                <div className="relative">
-                  <textarea
-                    placeholder="...or start typing/speaking something amazing (Press Enter to confirm)"
-                    value={textInputValue}
-                    className="w-full h-20 p-4 text-sm bg-white/50 border border-white/50 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 backdrop-blur-sm transition-all duration-200 placeholder-slate-400"
-                    onChange={handleTextChange}
-                    onKeyPress={handleTextKeyPress}
-                  />
-                  <div className="absolute bottom-2 right-2 flex items-center gap-2">
-                    {speechSupported && (
-                      <motion.button
-                        onClick={isListening ? stopListening : startListening}
-                        title={isListening ? "Stop listening" : "Start voice input"}
-                        className={`relative group transition-all duration-200 p-1.5 rounded-lg ${
-                          isListening
-                            ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
-                            : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50/50'
-                        }`}
-                        animate={{
-                          scale: isListening ? [1, 1.1, 1] : 1,
-                          boxShadow: isListening ? [
-                            '0 0 0 0 rgba(239, 68, 68, 0.7)',
-                            '0 0 0 10px rgba(239, 68, 68, 0)',
-                            '0 0 0 0 rgba(239, 68, 68, 0)'
-                          ] : '0 0 0 0 rgba(239, 68, 68, 0)'
-                        }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: isListening ? Infinity : 0,
-                          ease: "easeInOut"
-                        }}
-                      >
-                        {isListening ? <MicOff size={14} /> : <Mic size={14} />}
-
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                          {isListening ? "Stop listening" : "Start voice input"}
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                        </div>
-                      </motion.button>
-                    )}
-                    <div className="text-xs text-slate-400">
-                      <Type size={12} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ContentRenderer
+            unitType={unitType}
+            views={{
+              empty: {
+                isDragOver,
+                handleFileChange,
+                textInputValue,
+                handleTextChange,
+                handleTextKeyPress,
+                speechSupported,
+                isListening,
+                startListening,
+                stopListening,
+                getSupportedTypeIcons
+              }
+            }}
+          />
         );
 
       case 'image':
         return (
-          <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <Image size={16} className="text-green-600" />
-                <span className="text-xs font-medium">Image</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {/* Processing Status Icons */}
-                {getProcessingStatusIcons().map((statusIcon, index) => (
-                  <motion.button
-                    key={statusIcon.key}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={statusIcon.action}
-                    title={statusIcon.title}
-                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
-                  >
-                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
-                                        statusIcon.icon === 'Check' ? Check :
-                                        statusIcon.icon === 'X' ? X :
-                                        statusIcon.icon === 'Upload' ? Upload :
-                                        statusIcon.icon === 'Sparkles' ? Sparkles :
-                                        statusIcon.icon === 'Clock' ? Clock :
-                                        statusIcon.icon === 'Timer' ? Timer :
-                                        statusIcon.icon === 'Cpu' ? Cpu :
-                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
-                                        statusIcon.icon === 'XCircle' ? XCircle :
-                                        statusIcon.icon === 'Link' ? Link :
-                                        statusIcon.icon === 'Link2' ? Link :
-                                        statusIcon.icon === 'Merge' ? Merge :
-                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
-                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
-                                        HelpCircle, { size: 14 })}
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                      {statusIcon.title}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                    </div>
-                  </motion.button>
-                ))}
-
-                {/* Connection Button */}
-                <button
-                  onMouseDown={handleConnectionDragStart}
-                  title="Drag to connect units"
-                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 cursor-grab active:cursor-grabbing"
-                >
-                  <Link size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Drag to connect
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-
-                {/* Reset Button */}
-                <button
-                  onClick={resetUnit}
-                  title="Reset Unit"
-                  className="relative group text-slate-400 hover:text-red-600 hover:bg-red-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110"
-                >
-                  <RotateCcw size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Reset Unit
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 flex gap-2">
-              {/* Left side - Image Preview */}
-              <div className="w-2/3 bg-slate-50 rounded border-2 border-dashed border-slate-200 flex items-center justify-center">
-                {fileUrl && (
-                  <img
-                    src={fileUrl}
-                    alt="Uploaded"
-                    className="max-w-full max-h-full object-contain rounded"
-                  />
-                )}
-              </div>
-
-              {/* Right side - Actions */}
-              <div className="w-1/3 p-2">
-                <div className="text-xs font-semibold text-slate-700 mb-3 flex items-center gap-1">
-                  <Grid3x3 size={12} className="text-blue-500" />
-                  Actions
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {getActionsByType('image').map((action, index) => (
-                    <motion.button
-                      key={action.label}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1 }}
-                      onClick={action.action}
-                      title={action.label}
-                      className="relative group flex flex-col items-center justify-center p-2 rounded-lg bg-white/60 hover:bg-blue-50/80 border border-white/50 hover:border-blue-200/50 transition-all duration-200 hover:scale-105 hover:shadow-md backdrop-blur-sm"
-                    >
-                      <action.icon size={16} className="text-slate-600 group-hover:text-blue-600 transition-colors mb-1" />
-                      <span className="text-xs text-slate-500 group-hover:text-blue-700 font-medium">
-                        {action.label}
-                      </span>
-
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                        {action.label}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-
-                <div className="mt-2 text-xs text-slate-500 space-y-0.5">
-                  <p>Name: {content?.name}</p>
-                  <p>Size: {content ? (content.size / 1024).toFixed(1) : 0} KB</p>
-                  <p>Type: {content?.type}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ContentRenderer
+            unitType={unitType}
+            views={{
+              image: {
+                fileUrl,
+                content,
+                getActionsByType,
+                resetUnit
+              }
+            }}
+          />
         );
 
       case 'text':
         return (
-          <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <FileText size={16} className="text-blue-600" />
-                <span className="text-xs font-medium">Text</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {/* Processing Status Icons */}
-                {getProcessingStatusIcons().map((statusIcon, index) => (
-                  <motion.button
-                    key={statusIcon.key}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={statusIcon.action}
-                    title={statusIcon.title}
-                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
-                  >
-                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
-                                        statusIcon.icon === 'Check' ? Check :
-                                        statusIcon.icon === 'X' ? X :
-                                        statusIcon.icon === 'Upload' ? Upload :
-                                        statusIcon.icon === 'Sparkles' ? Sparkles :
-                                        statusIcon.icon === 'Clock' ? Clock :
-                                        statusIcon.icon === 'Timer' ? Timer :
-                                        statusIcon.icon === 'Cpu' ? Cpu :
-                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
-                                        statusIcon.icon === 'XCircle' ? XCircle :
-                                        statusIcon.icon === 'Link' ? Link :
-                                        statusIcon.icon === 'Link2' ? Link :
-                                        statusIcon.icon === 'Merge' ? Merge :
-                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
-                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
-                                        HelpCircle, { size: 14 })}
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                      {statusIcon.title}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                    </div>
-                  </motion.button>
-                ))}
-
-                {/* Connection Button */}
-                <button
-                  onMouseDown={handleConnectionDragStart}
-                  title="Drag to connect units"
-                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 cursor-grab active:cursor-grabbing"
-                >
-                  <Link size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Drag to connect
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-
-                {/* Reset Button */}
-                <button
-                  onClick={resetUnit}
-                  title="Reset Unit"
-                  className="relative group text-slate-400 hover:text-red-600 hover:bg-red-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110"
-                >
-                  <RotateCcw size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Reset Unit
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 flex gap-2">
-              {/* Left side - Text Editor */}
-              <div className="w-2/3 bg-slate-50 rounded p-2 overflow-auto">
-                <textarea
-                  value={content || ''}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full resize-none border-none outline-none bg-transparent text-xs"
-                  placeholder="Enter your text..."
-                />
-              </div>
-
-              {/* Right side - Actions */}
-              <div className="w-1/3 p-1">
-                <div className="text-xs font-medium text-slate-600 mb-2">Actions</div>
-                <div className="space-y-1">
-                  {getActionsByType('text').map((action, index) => (
-                    <motion.button
-                      key={action.label}
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      onClick={action.action}
-                      className="w-full flex items-center space-x-2 p-1 rounded hover:bg-slate-100 transition-colors group"
-                    >
-                      <action.icon size={12} className="text-slate-600 group-hover:text-blue-600 transition-colors" />
-                      <span className="text-xs text-slate-500 group-hover:text-slate-700">
-                        {action.label}
-                      </span>
-                    </motion.button>
-                  ))}
-                </div>
-
-                <div className="mt-2 text-xs text-slate-500 space-y-0.5">
-                  <p>Words: {content ? content.split(/\s+/).filter(w => w.length > 0).length : 0}</p>
-                  <p>Characters: {content ? content.length : 0}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ContentRenderer
+            unitType={unitType}
+            views={{
+              text: {
+                content,
+                onChange: (val) => setContent(val),
+                getActionsByType,
+                resetUnit
+              }
+            }}
+          />
         );
 
       case 'pdf':
         return (
-          <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <FileX size={16} className="text-red-600" />
-                <span className="text-xs font-medium">PDF Document</span>
-                {pdfNumPages && (
-                  <span className="text-xs text-slate-500">({pdfNumPages} pages)</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                {/* Processing Status Icons */}
-                {getProcessingStatusIcons().map((statusIcon, index) => (
-                  <motion.button
-                    key={statusIcon.key}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={statusIcon.action}
-                    title={statusIcon.title}
-                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
-                  >
-                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
-                                        statusIcon.icon === 'Check' ? Check :
-                                        statusIcon.icon === 'X' ? X :
-                                        statusIcon.icon === 'Upload' ? Upload :
-                                        statusIcon.icon === 'Sparkles' ? Sparkles :
-                                        statusIcon.icon === 'Clock' ? Clock :
-                                        statusIcon.icon === 'Timer' ? Timer :
-                                        statusIcon.icon === 'Cpu' ? Cpu :
-                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
-                                        statusIcon.icon === 'XCircle' ? XCircle :
-                                        statusIcon.icon === 'Link' ? Link :
-                                        statusIcon.icon === 'Link2' ? Link :
-                                        statusIcon.icon === 'Merge' ? Merge :
-                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
-                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
-                                        HelpCircle, { size: 14 })}
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                      {statusIcon.title}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                    </div>
-                  </motion.button>
-                ))}
-
-                {/* Connection Button */}
-                <button
-                  onMouseDown={handleConnectionDragStart}
-                  title="Drag to connect units"
-                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 cursor-grab active:cursor-grabbing"
-                >
-                  <Link size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Drag to connect
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-
-                {/* Reset Button */}
-                <button
-                  onClick={resetUnit}
-                  title="Reset Unit"
-                  className="relative group text-slate-400 hover:text-red-600 hover:bg-red-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110"
-                >
-                  <RotateCcw size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Reset Unit
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 flex gap-2">
-              {/* Left side - PDF Thumbnail */}
-              <div className="w-1/2 bg-slate-50 rounded border-2 border-dashed border-slate-200 flex items-center justify-center">
-                {fileUrl && (
-                  <Document
-                    file={fileUrl}
-                    onLoadSuccess={onDocumentLoadSuccess}
-                    className="max-w-full max-h-full"
-                  >
-                    <Page
-                      pageNumber={pdfPageNumber}
-                      width={120}
-                      className="shadow-sm"
-                    />
-                  </Document>
-                )}
-              </div>
-
-              {/* Right side - Actions */}
-              <div className="w-1/2 p-2">
-                <div className="text-xs font-semibold text-slate-700 mb-3 flex items-center gap-1">
-                  <FileText size={12} className="text-red-500" />
-                  Actions
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {getActionsByType('pdf').map((action, index) => (
-                    <motion.button
-                      key={action.label}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.05 }}
-                      onClick={action.action}
-                      title={action.label}
-                      className="relative group flex flex-col items-center justify-center p-2 rounded-lg bg-white/60 hover:bg-red-50/80 border border-white/50 hover:border-red-200/50 transition-all duration-200 hover:scale-105 hover:shadow-md backdrop-blur-sm"
-                    >
-                      <action.icon size={14} className="text-slate-600 group-hover:text-red-600 transition-colors mb-1" />
-                      <span className="text-xs text-slate-500 group-hover:text-red-700 font-medium">
-                        {action.label}
-                      </span>
-
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                        {action.label}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-
-                <div className="mt-2 text-xs text-slate-500 space-y-0.5">
-                  <p>Name: {content?.name}</p>
-                  <p>Size: {content ? (content.size / 1024).toFixed(1) : 0} KB</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ContentRenderer
+            unitType={unitType}
+            views={{
+              pdf: {
+                fileUrl,
+                pdfNumPages,
+                pdfPageNumber,
+                onDocumentLoadSuccess,
+                getActionsByType,
+                resetUnit,
+                content
+              }
+            }}
+          />
         );
 
       case 'table':
         return (
-          <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <Table size={16} className="text-purple-600" />
-                <span className="text-xs font-medium">Table</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {/* Processing Status Icons */}
-                {getProcessingStatusIcons().map((statusIcon, index) => (
-                  <motion.button
-                    key={statusIcon.key}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={statusIcon.action}
-                    title={statusIcon.title}
-                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
-                  >
-                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
-                                        statusIcon.icon === 'Check' ? Check :
-                                        statusIcon.icon === 'X' ? X :
-                                        statusIcon.icon === 'Upload' ? Upload :
-                                        statusIcon.icon === 'Sparkles' ? Sparkles :
-                                        statusIcon.icon === 'Clock' ? Clock :
-                                        statusIcon.icon === 'Timer' ? Timer :
-                                        statusIcon.icon === 'Cpu' ? Cpu :
-                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
-                                        statusIcon.icon === 'XCircle' ? XCircle :
-                                        statusIcon.icon === 'Link' ? Link :
-                                        statusIcon.icon === 'Link2' ? Link :
-                                        statusIcon.icon === 'Merge' ? Merge :
-                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
-                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
-                                        HelpCircle, { size: 14 })}
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                      {statusIcon.title}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                    </div>
-                  </motion.button>
-                ))}
-
-                {/* Connection Button */}
-                <button
-                  onMouseDown={handleConnectionDragStart}
-                  title="Drag to connect units"
-                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 cursor-grab active:cursor-grabbing"
-                >
-                  <Link size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Drag to connect
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-
-                {/* Reset Button */}
-                <button
-                  onClick={resetUnit}
-                  title="Reset Unit"
-                  className="relative group text-slate-400 hover:text-red-600 hover:bg-red-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110"
-                >
-                  <RotateCcw size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Reset Unit
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
-              </div>
-            </div>
-            <div className="flex gap-2 h-full">
-              {/* Left side - Content */}
-              <div className="w-2/3 bg-slate-50 rounded p-2 overflow-auto">
-                {content instanceof File ? (
-                  <div className="text-xs text-slate-600">
-                    <p>File: {content.name}</p>
-                    <p>Type: Spreadsheet</p>
-                    <p>Size: {(content.size / 1024).toFixed(1)} KB</p>
-                  </div>
-                ) : (
-                  <div className="text-xs font-mono whitespace-pre-wrap">{content}</div>
-                )}
-              </div>
-
-              {/* Right side - Actions */}
-              <div className="w-1/3 p-1">
-                <div className="text-xs font-medium text-slate-600 mb-2">Actions</div>
-                <div className="space-y-1">
-                  {getActionsByType('table').map((action, index) => (
-                    <motion.button
-                      key={action.label}
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      onClick={action.action}
-                      className="w-full flex items-center space-x-2 p-1 rounded hover:bg-slate-100 transition-colors group"
-                    >
-                      <action.icon size={12} className="text-slate-600 group-hover:text-purple-600 transition-colors" />
-                      <span className="text-xs text-slate-500 group-hover:text-slate-700">
-                        {action.label}
-                      </span>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <ContentRenderer
+            unitType={unitType}
+            views={{
+              table: {
+                content,
+                getActionsByType,
+                resetUnit
+              }
+            }}
+          />
         );
 
       case 'dwg':
@@ -1286,56 +694,6 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">CAD Drawing</span>
               </div>
               <div className="flex items-center gap-1">
-                {/* Processing Status Icons */}
-                {getProcessingStatusIcons().map((statusIcon, index) => (
-                  <motion.button
-                    key={statusIcon.key}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={statusIcon.action}
-                    title={statusIcon.title}
-                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
-                  >
-                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
-                                        statusIcon.icon === 'Check' ? Check :
-                                        statusIcon.icon === 'X' ? X :
-                                        statusIcon.icon === 'Upload' ? Upload :
-                                        statusIcon.icon === 'Sparkles' ? Sparkles :
-                                        statusIcon.icon === 'Clock' ? Clock :
-                                        statusIcon.icon === 'Timer' ? Timer :
-                                        statusIcon.icon === 'Cpu' ? Cpu :
-                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
-                                        statusIcon.icon === 'XCircle' ? XCircle :
-                                        statusIcon.icon === 'Link' ? Link :
-                                        statusIcon.icon === 'Link2' ? Link :
-                                        statusIcon.icon === 'Merge' ? Merge :
-                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
-                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
-                                        HelpCircle, { size: 14 })}
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                      {statusIcon.title}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                    </div>
-                  </motion.button>
-                ))}
-
-                {/* Connection Button */}
-                <button
-                  onMouseDown={handleConnectionDragStart}
-                  title="Drag to connect units"
-                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 cursor-grab active:cursor-grabbing"
-                >
-                  <Link size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Drag to connect
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
 
                 {/* Reset Button */}
                 <button
@@ -1404,56 +762,6 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">File</span>
               </div>
               <div className="flex items-center gap-1">
-                {/* Processing Status Icons */}
-                {getProcessingStatusIcons().map((statusIcon, index) => (
-                  <motion.button
-                    key={statusIcon.key}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={statusIcon.action}
-                    title={statusIcon.title}
-                    className={`relative group ${statusIcon.color} hover:bg-slate-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 ${statusIcon.pulse ? 'animate-pulse' : ''}`}
-                  >
-                    {React.createElement(statusIcon.icon === 'Brain' ? Brain :
-                                        statusIcon.icon === 'Check' ? Check :
-                                        statusIcon.icon === 'X' ? X :
-                                        statusIcon.icon === 'Upload' ? Upload :
-                                        statusIcon.icon === 'Sparkles' ? Sparkles :
-                                        statusIcon.icon === 'Clock' ? Clock :
-                                        statusIcon.icon === 'Timer' ? Timer :
-                                        statusIcon.icon === 'Cpu' ? Cpu :
-                                        statusIcon.icon === 'CheckCircle' ? CheckCircle :
-                                        statusIcon.icon === 'XCircle' ? XCircle :
-                                        statusIcon.icon === 'Link' ? Link :
-                                        statusIcon.icon === 'Link2' ? Link :
-                                        statusIcon.icon === 'Merge' ? Merge :
-                                        statusIcon.icon === 'CheckCircle2' ? CheckCircle2 :
-                                        statusIcon.icon === 'AlertTriangle' ? AlertTriangle :
-                                        HelpCircle, { size: 14 })}
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                      {statusIcon.title}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                    </div>
-                  </motion.button>
-                ))}
-
-                {/* Connection Button */}
-                <button
-                  onMouseDown={handleConnectionDragStart}
-                  title="Drag to connect units"
-                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110 cursor-grab active:cursor-grabbing"
-                >
-                  <Link size={14} />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                    Drag to connect
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
-                  </div>
-                </button>
 
                 {/* Reset Button */}
                 <button
@@ -1579,7 +887,6 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDragEnter={handleUnitDropTarget}
-        onDragLeave={handleUnitDropLeave}
         layout
         animate={!isInConnectedContainer && isConnectedUnit && connectionColor ? {
           boxShadow: [
@@ -1614,19 +921,21 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            ↔ Unit {connectedToUnit}
+            â†” Unit {connectedToUnit}
           </motion.div>
         )}
       </motion.div>
 
       {/* AI Reasoning Overlay */}
       <AnimatePresence>
-        {reasoningState.isActive && (
+        {reasoningState.isActive && unitBounds && (
           <ReasoningOverlay
             isActive={reasoningState.isActive}
             reasoningData={reasoningState}
             onCancel={cancelReasoningProcess}
-            position="absolute"
+            position="fixed"
+            userInput={userInputForReasoning}
+            unitBounds={unitBounds}
           />
         )}
       </AnimatePresence>
@@ -1634,77 +943,4 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
   );
 };
 
-// Connected Container Component for linked Units
-const ConnectedContainer = ({
-  sourceUnit,
-  targetUnit,
-  connectionColor,
-  onDisconnect,
-  children
-}) => {
-  return (
-    <motion.div
-      className="relative bg-white/50 backdrop-blur-sm rounded-xl border-2 p-4"
-      style={{
-        borderColor: connectionColor,
-        boxShadow: `0 0 30px ${connectionColor}40, 0 0 60px ${connectionColor}20`
-      }}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-        boxShadow: [
-          `0 0 30px ${connectionColor}40, 0 0 60px ${connectionColor}20`,
-          `0 0 40px ${connectionColor}60, 0 0 80px ${connectionColor}30`,
-          `0 0 30px ${connectionColor}40, 0 0 60px ${connectionColor}20`
-        ]
-      }}
-      transition={{
-        scale: { duration: 0.3 },
-        boxShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-      }}
-      layout
-    >
-      {/* Connection Bridge */}
-      <div
-        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 h-1 z-0"
-        style={{
-          background: `linear-gradient(90deg, ${connectionColor}60, ${connectionColor}80, ${connectionColor}60)`,
-          width: 'calc(100% - 2rem)',
-          boxShadow: `0 0 10px ${connectionColor}60`
-        }}
-      />
-
-      {/* Container Header */}
-      <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex items-center gap-2 bg-white/80 rounded-full px-3 py-1 text-xs font-medium z-10">
-        <div
-          className="w-3 h-3 rounded-full"
-          style={{ backgroundColor: connectionColor }}
-        />
-        <span className="text-slate-600">
-          Units {sourceUnit.id} ↔ {targetUnit.id}
-        </span>
-        <button
-          onClick={onDisconnect}
-          className="ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full p-1"
-          title="Disconnect units"
-        >
-          <X size={12} />
-        </button>
-      </div>
-
-      {/* Unit Grid */}
-      <div className="grid grid-cols-2 gap-4 relative z-10 mt-6">
-        {children}
-      </div>
-
-      {/* Connection Status */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-xs text-slate-500 bg-white/60 rounded px-2 py-1">
-        Connected • Ready for processing
-      </div>
-    </motion.div>
-  );
-};
-
 export default Unit;
-export { ConnectedContainer };

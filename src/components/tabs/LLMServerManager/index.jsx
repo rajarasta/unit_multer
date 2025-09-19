@@ -44,7 +44,7 @@ const LLMServerManager = () => {
     model: '',
     maxTokens: 4096,
     temperature: 0.7,
-    systemPrompt: '',
+    systemPrompt: 'Make a short stroy based on these inputs',
     createSession: true // New: option to create session for server
   });
   
