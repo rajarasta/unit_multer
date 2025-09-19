@@ -12,6 +12,95 @@
 const DEFAULT_AGENT_URL = 'http://127.0.0.1:7001';
 
 /**
+ * Analyze combined multimodal content (image + text + circles)
+ * @param {Object} combinedData - Combined data from connected units
+ * @param {File} combinedData.imageFile - Image file object
+ * @param {string} combinedData.textContent - Text content from connected unit
+ * @param {Array} combinedData.circles - Circle annotations on image
+ * @param {Object} options - Configuration options
+ * @param {string} options.agentUrl - Agent server URL
+ * @param {Function} options.onProgress - Progress callback function
+ * @returns {Promise<Object>} Analysis result
+ */
+export async function agentAnalyzeCombinedContent(combinedData, options = {}) {
+  const {
+    agentUrl = DEFAULT_AGENT_URL,
+    onProgress
+  } = options;
+
+  const { imageFile, textContent, circles } = combinedData;
+
+  if (onProgress) onProgress('Priprema multimodal sadržaj za analizu...', 10);
+
+  try {
+    // Create FormData for multimodal upload
+    const formData = new FormData();
+    formData.append('file', imageFile);
+
+    // Add text content as additional context
+    if (textContent) {
+      formData.append('text_context', textContent);
+    }
+
+    // Add circle annotations as JSON
+    if (circles && circles.length > 0) {
+      formData.append('annotations', JSON.stringify({
+        circles: circles.map(circle => ({
+          id: circle.id,
+          x: circle.cx,
+          y: circle.cy,
+          radius: circle.r,
+          description: circle.description || `Circle at (${Math.round(circle.cx)}, ${Math.round(circle.cy)})`
+        }))
+      }));
+    }
+
+    // Add processing instruction for multimodal analysis
+    formData.append('analysis_type', 'multimodal_combined');
+
+    if (onProgress) onProgress('Šalje multimodal sadržaj na HF Agent...', 30);
+
+    // Send to HF agent server
+    const response = await fetch(`${agentUrl}/agent/analyze-file`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (onProgress) onProgress('HF Agent obrađuje multimodal sadržaj...', 60);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HF Agent server error (${response.status}): ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    if (onProgress) onProgress('Multimodal analiza završena!', 100);
+
+    // Check if we got a valid result
+    if (!result || typeof result !== 'object') {
+      throw new Error('HF Agent returned invalid result format');
+    }
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('🤖 HF Agent multimodal analysis failed:', error);
+
+    // Re-throw with more context
+    if (error.message.includes('Failed to fetch') || error.message.includes('ECONNREFUSED')) {
+      throw new Error(`HF Agent server nedostupan na ${agentUrl}. Pokrenuti iz LLM Server Manager taba.`);
+    }
+
+    throw error;
+  }
+}
+
+/**
  * Analyze file using PDF Agent with autonomous tool selection
  * @param {File} file - File object to analyze
  * @param {Object} options - Configuration options
@@ -111,15 +200,28 @@ export async function getAgentStatus(agentUrl = DEFAULT_AGENT_URL) {
   };
 
   try {
-    // Check agent server
-    status.agentServer = await checkAgentHealth(agentUrl);
-    if (!status.agentServer) {
-      status.errors.push(`Agent server nedostupan na ${agentUrl}`);
+    // Prefer agent /agent/health if available
+    const r = await fetch(`${agentUrl}/agent/health`).catch(() => null);
+    if (r && r.ok) {
+      const j = await r.json();
+      status.agentServer = true;
+      if (j.backend === 'openai_compat') {
+        status.textLLM = !!j.textLLMReachable;
+        status.visionLLM = !!j.visionLLMReachable;
+      } else if (j.backend === 'hf') {
+        status.textLLM = !!j.hfEnabled;
+        status.visionLLM = !!j.hfEnabled;
+      }
+      if (Array.isArray(j.errors)) {
+        status.errors.push(...j.errors);
+      }
+    } else {
+      // Fallback: simple /docs probe
+      status.agentServer = await checkAgentHealth(agentUrl);
+      if (!status.agentServer) {
+        status.errors.push(`Agent server nedostupan na ${agentUrl}`);
+      }
     }
-
-    // TODO: Add checks for TEXT LLM (port 8000) and VISION LLM (port 8001)
-    // This would require the agent server to provide a health endpoint
-    // that checks its downstream dependencies
 
   } catch (error) {
     status.errors.push(`Status check failed: ${error.message}`);
@@ -187,8 +289,9 @@ export function formatAgentError(error) {
 }
 
 export default {
+  agentAnalyzeCombinedContent,
   agentAnalyzeFile,
-  checkAgentHealth, 
+  checkAgentHealth,
   getAgentStatus,
   formatAgentError
 };

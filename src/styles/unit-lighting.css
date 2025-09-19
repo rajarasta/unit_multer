@@ -1,0 +1,298 @@
+/* Unit Lighting System - Multiphase Dynamic Actions */
+
+/* Base Unit States */
+.unit-container {
+  transition: all 300ms ease-in-out;
+}
+
+/* Phase 1: Activated State - Blue Glow */
+.unit-activated {
+  box-shadow:
+    inset 0 0 20px rgba(59, 130, 246, 0.3),
+    0 0 40px rgba(59, 130, 246, 0.2),
+    0 0 80px rgba(59, 130, 246, 0.1);
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    transparent 50%);
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Phase 2: Processing State - Cyan Pulse */
+.unit-processing {
+  animation: pulse-glow-cyan 2s ease-in-out infinite;
+  border-color: rgba(6, 182, 212, 0.5) !important;
+}
+
+@keyframes pulse-glow-cyan {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 25px rgba(6, 182, 212, 0.3),
+      0 0 50px rgba(6, 182, 212, 0.2);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 35px rgba(6, 182, 212, 0.5),
+      0 0 70px rgba(6, 182, 212, 0.4);
+  }
+}
+
+/* Phase 3: Thinking State - Purple Glow */
+.unit-thinking {
+  box-shadow:
+    inset 0 0 30px rgba(147, 51, 234, 0.4),
+    0 0 60px rgba(147, 51, 234, 0.3),
+    0 0 100px rgba(147, 51, 234, 0.2);
+  background: linear-gradient(135deg,
+    rgba(147, 51, 234, 0.08) 0%,
+    transparent 60%);
+  border-color: rgba(147, 51, 234, 0.5) !important;
+  animation: thinking-pulse 3s ease-in-out infinite;
+}
+
+@keyframes thinking-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+/* Phase 4: Completed State - Green Flash */
+.unit-completed {
+  animation: completed-flash 1s ease-out;
+  border-color: rgba(34, 197, 94, 0.6) !important;
+}
+
+@keyframes completed-flash {
+  0% {
+    box-shadow:
+      inset 0 0 40px rgba(34, 197, 94, 0.6),
+      0 0 80px rgba(34, 197, 94, 0.4);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Error State - Red Warning */
+.unit-error {
+  animation: error-shake 0.5s ease-in-out;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+  box-shadow:
+    inset 0 0 20px rgba(239, 68, 68, 0.3),
+    0 0 40px rgba(239, 68, 68, 0.2);
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Action Button Light Effects */
+.action-btn {
+  transition: all 200ms ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  transition: all 300ms ease-out;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.action-btn:hover::before {
+  width: 120%;
+  height: 120%;
+}
+
+/* Button Phase States */
+.action-btn-activated {
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.2) 0%,
+    rgba(59, 130, 246, 0.1) 100%);
+  box-shadow:
+    inset 0 0 15px rgba(59, 130, 246, 0.2),
+    0 0 20px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.action-btn-processing {
+  animation: btn-processing-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes btn-processing-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 10px rgba(6, 182, 212, 0.3),
+      0 0 15px rgba(6, 182, 212, 0.2);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 20px rgba(6, 182, 212, 0.5),
+      0 0 25px rgba(6, 182, 212, 0.3);
+  }
+}
+
+.action-btn-thinking {
+  background: linear-gradient(135deg,
+    rgba(147, 51, 234, 0.2) 0%,
+    rgba(147, 51, 234, 0.1) 100%);
+  box-shadow:
+    inset 0 0 15px rgba(147, 51, 234, 0.3),
+    0 0 20px rgba(147, 51, 234, 0.2);
+}
+
+.action-btn-completed {
+  animation: btn-completed-flash 0.8s ease-out;
+}
+
+@keyframes btn-completed-flash {
+  0% {
+    background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.3) 0%,
+      rgba(34, 197, 94, 0.1) 100%);
+    box-shadow:
+      inset 0 0 20px rgba(34, 197, 94, 0.4),
+      0 0 30px rgba(34, 197, 94, 0.3);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+.action-btn-error {
+  background: linear-gradient(135deg,
+    rgba(239, 68, 68, 0.2) 0%,
+    rgba(239, 68, 68, 0.1) 100%);
+  box-shadow:
+    inset 0 0 15px rgba(239, 68, 68, 0.3),
+    0 0 20px rgba(239, 68, 68, 0.2);
+  animation: btn-error-pulse 0.5s ease-in-out 2;
+}
+
+@keyframes btn-error-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Disable bounce effects globally */
+.no-bounce {
+  transform: none !important;
+}
+
+.no-bounce:hover {
+  transform: none !important;
+}
+
+/* Light sweep effect for hover */
+.light-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.light-sweep::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease-in-out;
+}
+
+.light-sweep:hover::after {
+  left: 100%;
+}
+
+/* Dynamic Icon Light Effects */
+.dynamic-icon-idle {
+  box-shadow: 0 0 0 0 rgba(147, 51, 234, 0);
+  transition: all 300ms ease-in-out;
+}
+
+.dynamic-icon-idle:hover {
+  box-shadow:
+    inset 0 0 10px rgba(147, 51, 234, 0.1),
+    0 0 15px rgba(147, 51, 234, 0.1);
+}
+
+.dynamic-icon-focused {
+  box-shadow:
+    inset 0 0 15px rgba(59, 130, 246, 0.3),
+    0 0 20px rgba(59, 130, 246, 0.2),
+    0 0 40px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+.dynamic-icon-processing {
+  animation: dynamic-icon-processing-glow 2s ease-in-out infinite;
+  border-color: rgba(6, 182, 212, 0.5) !important;
+}
+
+@keyframes dynamic-icon-processing-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 20px rgba(6, 182, 212, 0.3),
+      0 0 30px rgba(6, 182, 212, 0.2),
+      0 0 50px rgba(6, 182, 212, 0.1);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 30px rgba(6, 182, 212, 0.5),
+      0 0 50px rgba(6, 182, 212, 0.3),
+      0 0 80px rgba(6, 182, 212, 0.2);
+  }
+}
+
+.dynamic-icon-completed {
+  animation: dynamic-icon-completed-flash 1.5s ease-out;
+  border-color: rgba(34, 197, 94, 0.6) !important;
+}
+
+@keyframes dynamic-icon-completed-flash {
+  0% {
+    box-shadow:
+      inset 0 0 25px rgba(34, 197, 94, 0.4),
+      0 0 40px rgba(34, 197, 94, 0.3),
+      0 0 60px rgba(34, 197, 94, 0.2);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 10px rgba(34, 197, 94, 0.2),
+      0 0 20px rgba(34, 197, 94, 0.1);
+  }
+}
+
+.dynamic-icon-error {
+  box-shadow:
+    inset 0 0 15px rgba(239, 68, 68, 0.3),
+    0 0 25px rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  animation: dynamic-icon-error-pulse 0.8s ease-in-out 3;
+}
+
+@keyframes dynamic-icon-error-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 15px rgba(239, 68, 68, 0.3),
+      0 0 25px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 25px rgba(239, 68, 68, 0.5),
+      0 0 40px rgba(239, 68, 68, 0.3);
+  }
+}

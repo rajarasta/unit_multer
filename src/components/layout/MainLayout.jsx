@@ -32,13 +32,13 @@ export default function MainLayout({ children, activeTab, setActiveTab, navItems
       <div className="h-full w-full flex relative z-10">
         {/* Sidebar */}
         <div className="w-[250px] flex-shrink-0">
-          <Sidebar 
+          <Sidebar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             navItems={navItems}
           />
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
           <main className="p-6">

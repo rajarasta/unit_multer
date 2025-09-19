@@ -43,6 +43,13 @@ export default function useUnitContent(onInput) {
       if (text && onInput) {
         onInput(text);
         setTextInputValue('');
+
+        // Small delay to allow Unit type transition, then dispatch focus event
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('unit-text-focus-request', {
+            detail: { unitType: 'text' }
+          }));
+        }, 100);
       }
     }
   }, [textInputValue, onInput]);

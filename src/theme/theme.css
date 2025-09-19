@@ -115,6 +115,75 @@
 .theme-dark-fluent .sidebar-panel { color: #cbd5e1; }
 .theme-openai .sidebar-panel { color: #D1D5DB; }
 
+/* Enhanced cursor and input styling */
+.cursor-text {
+  cursor: text !important;
+}
+
+/* Better cursor visibility on different backgrounds */
+body {
+  cursor: default;
+}
+
+button, .cursor-pointer {
+  cursor: pointer !important;
+}
+
+a, .cursor-link {
+  cursor: pointer !important;
+}
+
+textarea, input[type="text"], input[type="password"], input[type="email"] {
+  cursor: text !important;
+  caret-color: #374151 !important;
+  caret-width: 2px;
+}
+
+/* Better focus states for text inputs */
+textarea:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus {
+  caret-color: #2563eb !important;
+  caret-width: 2px;
+}
+
+/* Enhanced text selection styling */
+::selection {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+/* Unit-specific enhanced styling */
+.unit-text-input {
+  caret-color: #374151 !important;
+  caret-width: 2px;
+  transition: all 0.2s ease-in-out;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.unit-text-input:focus {
+  caret-color: #2563eb !important;
+  caret-width: 2px;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+.unit-text-input:hover {
+  border-color: #6b7280 !important;
+}
+
+/* Ensure cursor visibility on different states */
+.unit-container:hover {
+  cursor: default;
+}
+
+.unit-container:hover .unit-text-input {
+  cursor: text !important;
+}
+
 /* Utility animations used in design exploration (optional) */
 .fade-in-up { animation: fade-in-up .6s ease-out forwards; }
 @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }

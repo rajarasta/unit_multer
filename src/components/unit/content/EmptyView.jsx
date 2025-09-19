@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Type, Mic, MicOff } from 'lucide-react';
+import { Upload, FileText, Type, Mic, MicOff, User } from 'lucide-react';
 
 const EmptyView = ({
   isDragOver,
@@ -51,8 +51,8 @@ const EmptyView = ({
 
         <div className="text-sm text-center space-y-2">
           <p className="text-slate-500 font-medium">Drop files here or</p>
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/80 hover:bg-blue-600/90 text-white rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg backdrop-blur-sm">
-            <FileText size={16} />
+          <label className="inline-flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-slate-800 border border-slate-200/60 hover:border-slate-300 hover:bg-white/60 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm group">
+            <FileText size={16} className="text-slate-500 group-hover:text-slate-700 transition-colors" />
             <span className="font-medium">Browse Files</span>
             <input
               type="file"
@@ -68,7 +68,7 @@ const EmptyView = ({
             <textarea
               placeholder="...or start typing/speaking something amazing (Press Enter to confirm)"
               value={textInputValue}
-              className="w-full h-20 p-4 text-sm bg-white/50 border border-white/50 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 backdrop-blur-sm transition-all duration-200 placeholder-slate-400"
+              className="unit-text-input w-full h-20 p-4 text-sm text-slate-800 bg-slate-50/90 border border-slate-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 backdrop-blur-sm transition-all duration-200 placeholder-slate-600 shadow-sm hover:border-slate-400 hover:bg-slate-100/90 cursor-text"
               onChange={handleTextChange}
               onKeyPress={handleTextKeyPress}
             />

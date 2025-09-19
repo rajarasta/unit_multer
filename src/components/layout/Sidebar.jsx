@@ -1,11 +1,15 @@
 import React from 'react';
-import { Sparkles, Palette } from 'lucide-react';
+import { Sparkles, Palette, RotateCcw } from 'lucide-react';
 import { useUserStore } from '../../store/useUserStore';
 import UserDropdown from './UserDropdown';
 import { cycleTheme } from '../../theme/manager';
 
 export default function Sidebar({ activeTab, setActiveTab, navItems }) {
   const { currentUser, hasPermission } = useUserStore();
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
 
   // Filter navigation items based on user permissions
   const filteredNavItems = navItems.filter(item => {
@@ -20,13 +24,22 @@ export default function Sidebar({ activeTab, setActiveTab, navItems }) {
       <div className="p-4">
         <div className="px-2 py-1 text-sm font-semibold text-primary flex items-center justify-between">
           <span>Aluminum Store</span>
-          <button
-            title="Promijeni stil"
-            onClick={() => cycleTheme()}
-            className="nav-link p-1.5 rounded-md border border-theme text-slate-500 hover:text-slate-700"
-          >
-            <Palette className="h-4 w-4" />
-          </button>
+          <div className="flex gap-1">
+            <button
+              title="Osvježi sve"
+              onClick={handleRefresh}
+              className="nav-link p-1.5 rounded-md border border-theme text-slate-500 hover:text-slate-700"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+            <button
+              title="Promijeni stil"
+              onClick={() => cycleTheme()}
+              className="nav-link p-1.5 rounded-md border border-theme text-slate-500 hover:text-slate-700"
+            >
+              <Palette className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         {currentUser && (
           <div className="text-xs text-subtle px-2 mt-1">

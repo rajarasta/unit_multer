@@ -65,10 +65,28 @@ export default function useReasoning({ id, setProcessingStatus }) {
         readyForBigProcessing: true,
         queue: STATUS_TYPES.QUEUE.READY
       }));
+
+      // Emit reasoning completion event for dynamic icon system
+      window.dispatchEvent(new CustomEvent('reasoning-completed', {
+        detail: {
+          unitId: id,
+          result: reasoningState.result,
+          success: true
+        }
+      }));
     } catch (error) {
       console.error('Reasoning failed:', error);
       setReasoningState(prev => ({ ...prev, status: 'error', error: error.message }));
       setProcessingStatus(prev => ({ ...prev, processing: STATUS_TYPES.PROCESSING.ERROR }));
+
+      // Emit reasoning error event for dynamic icon system
+      window.dispatchEvent(new CustomEvent('reasoning-error', {
+        detail: {
+          unitId: id,
+          error: error.message,
+          success: false
+        }
+      }));
     }
   }, [id, reasoningState.isActive, setProcessingStatus]);
 

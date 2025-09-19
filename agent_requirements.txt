@@ -14,3 +14,16 @@ pypdf>=3.17.0
 # Development dependencies (optional)
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
+
+# Hugging Face Transformers backend (Gemma 3)
+torch>=2.2.0
+transformers>=4.43.0
+accelerate>=0.30.0
+sentencepiece>=0.1.99
+safetensors>=0.4.2
+# Vision backbones used by some HF VLMs
+timm>=0.9.12
+# Optional: for Qwen2-VL image utilities
+# qwen-vl-utils>=0.0.8
+# Optional for quantization (set HF_LOAD_IN_4BIT=1)
+# bitsandbytes>=0.43.0

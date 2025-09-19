@@ -25,7 +25,7 @@
     "dev-all": "node start-dev.js"
   },
   "dependencies": {
-    "@google/genai": "^1.16.0",
+    "@google/genai": "^1.20.0",
     "@google/generative-ai": "^0.24.1",
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",

@@ -7,6 +7,7 @@ import { useUserStore } from './store/useUserStore';
 import AuthPage from './components/auth/AuthPage';
 import ProfileSettings from './components/auth/ProfileSettings';
 import { LLMSessionProvider } from './components/tabs/LLMServerManager/llmSessionStore';
+import './styles/unit-lighting.css';
 // Lazy load all components (kao Å¡to veÄ‡ imaÅ¡)
 const MaterialsGrid = lazy(() => import('./components/tabs/MaterialsGrid'));
 const GanttChart = lazy(() => import('./components/tabs/GanttChart'));

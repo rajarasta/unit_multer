@@ -8,8 +8,9 @@ import usePdf from '../unit/hooks/usePdf';
 import useReasoning from '../unit/hooks/useReasoning';
 import useDnd from '../unit/hooks/useDnd';
 import { mockLLMService, STATUS_TYPES } from '../../services/mockLLMService';
-import { getStatusIcon, canProcessContent, generateId, debounce } from '../../utils/helpers';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { getStatusIcon, canProcessContent } from '../../utils/helpers';
+import aiCallService from '../../services/aiCallService';
+import { pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -22,13 +23,14 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPosition = null }) => {
   const [unitType, setUnitType] = useState('empty');
   const [content, setContent] = useState(null);
+  const [imageAnnotations, setImageAnnotations] = useState({ circles: [] });
   // DnD state via hook
   const { isDragOver, setIsDragOver, handleDrop, handleDragOver, handleDragLeave, handleUnitDropTarget } = useDnd((input) => morphUnit(input));
   // PDF state via hook
   const { pdfNumPages, setPdfNumPages, pdfPageNumber, setPdfPageNumber, onDocumentLoadSuccess } = usePdf();
   const [fileUrl, setFileUrl] = useState(null);
-  // Text input + detection via hook
-  const { textInputValue, setTextInputValue, detectInputType } = useUnitContent();
+  // Text input + detection via hook (bind onInput->morphUnit)
+  const { textInputValue, setTextInputValue, detectInputType, handleFileChange, handleTextChange, handleTextKeyPress } = useUnitContent((input) => morphUnit(input));
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [isDraggingConnection, setIsDraggingConnection] = useState(false);
@@ -41,11 +43,19 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
   const [connectedToUnit, setConnectedToUnit] = useState(null); // ID of connected unit
   const [connectionColor, setConnectionColor] = useState(null); // Shared glow color
 
-  // AI Reasoning state via hook - initialized after setProcessingStatus is declared
-  let reasoningState, setReasoningState, _startReasoningWithArgs, cancelReasoningProcess;
+  // Multiphase dynamic action states
+  const [unitGlowState, setUnitGlowState] = useState('idle'); // idle, activated, processing, thinking, completed, error
+  const [dynamicButtonStates, setDynamicButtonStates] = useState({});
+  const [activeOperation, setActiveOperation] = useState(null);
+  const [thinkingTokens, setThinkingTokens] = useState([]);
+
+  // AI Reasoning state via hook (declared after setProcessingStatus below)
 
   // Store user input for reasoning overlay
   const [userInputForReasoning, setUserInputForReasoning] = useState('');
+
+  // Get persistent user prompt from settings
+  const [persistentUserPrompt, setPersistentUserPrompt] = useState('');
 
   // Unit dimensions and position for overlay positioning
   const [unitBounds, setUnitBounds] = useState(null);
@@ -54,19 +64,108 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
   const [processingStatus, setProcessingStatus] = useState({
     upload: STATUS_TYPES.UPLOAD.EMPTY,
     processing: STATUS_TYPES.PROCESSING.NOT_PROCESSED,
-    queue: STATUS_TYPES.QUEUE.NOT_READY,
     connection: STATUS_TYPES.CONNECTION.DISCONNECTED,
-    hasProcessedContent: false,
-    readyForBigProcessing: false,
-    inBigProcessingQueue: false
+    hasProcessedContent: false
   });
 
   const recognitionRef = useRef(null);
   const unitRef = useRef(null);
-  // Removed explicit abort controller; managed in useReasoning hook
+  // Reasoning hook
+  const { reasoningState, setReasoningState, startReasoningProcess: _startReasoningWithArgs, cancelReasoningProcess } = useReasoning({ id, setProcessingStatus });
 
-  // Now that setProcessingStatus exists, initialize reasoning hook
-  ({ reasoningState, setReasoningState, startReasoningProcess: _startReasoningWithArgs, cancelReasoningProcess } = useReasoning({ id, setProcessingStatus }));
+  // Multiphase button state management
+  const setButtonState = useCallback((buttonLabel, phase) => {
+    setDynamicButtonStates(prev => ({
+      ...prev,
+      [buttonLabel]: phase
+    }));
+  }, []);
+
+  const resetAllButtonStates = useCallback(() => {
+    setDynamicButtonStates({});
+    setUnitGlowState('idle');
+    setActiveOperation(null);
+    setThinkingTokens([]);
+  }, []);
+
+  // Handle dynamic action with multiphase workflow
+  const handleDynamicAction = useCallback(async (action) => {
+    try {
+      // PHASE 1: Activation and Unit glow
+      setButtonState(action.label, 'activated');
+      setUnitGlowState('activated');
+      setActiveOperation(action.label);
+
+      // Brief delay to show activation
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // PHASE 2: Processing
+      setButtonState(action.label, 'processing');
+      setUnitGlowState('processing');
+
+      // Execute original action
+      if (action.action) {
+        await action.action();
+      }
+
+      // PHASE 3: Thinking (will be handled by overlay component)
+      setButtonState(action.label, 'thinking');
+      setUnitGlowState('thinking');
+
+      // Check if this is an AI processing action
+      if (action.label === 'Process AI' || action.label.includes('AI')) {
+        try {
+          // Use the selected model for AI calls
+          const unitData = {
+            type: unitType,
+            content: content,
+            fileUrl: fileUrl
+          };
+
+          const response = await aiCallService.makeUnitCall(unitData, userInputForReasoning);
+
+          // Update processing status
+          setProcessingStatus(prev => ({
+            ...prev,
+            processing: STATUS_TYPES.PROCESSING.PROCESSED,
+            hasProcessedContent: true
+          }));
+
+          console.log('AI Response:', response);
+
+          setButtonState(action.label, 'completed');
+          setUnitGlowState('completed');
+        } catch (error) {
+          console.error('AI processing error:', error);
+          setButtonState(action.label, 'error');
+          setUnitGlowState('error');
+        }
+      } else {
+        // Simulate completion for non-AI actions
+        setTimeout(() => {
+          setButtonState(action.label, 'completed');
+          setUnitGlowState('completed');
+        }, 1500);
+      }
+
+      // Return to idle after showing completion
+      setTimeout(() => {
+        resetAllButtonStates();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Dynamic action error:', error);
+      setButtonState(action.label, 'error');
+      setUnitGlowState('error');
+
+      // Reset after error display
+      setTimeout(() => {
+        resetAllButtonStates();
+      }, 2000);
+    }
+  }, [setButtonState, resetAllButtonStates]);
+
+  
 
   // detectInputType provided by useUnitContent
 
@@ -80,11 +179,18 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     setUnitType(detectedType);
     setContent(input);
 
-    // Store input for reasoning overlay
+    // Store input for reasoning overlay, combining with persistent prompt
+    const combineWithPersistentPrompt = (inputText) => {
+      if (persistentUserPrompt.trim()) {
+        return `${persistentUserPrompt.trim()}\n\n${inputText}`;
+      }
+      return inputText;
+    };
+
     if (typeof input === 'string') {
-      setUserInputForReasoning(input);
+      setUserInputForReasoning(combineWithPersistentPrompt(input));
     } else if (input && input.name) {
-      setUserInputForReasoning(`File upload: ${input.name}`);
+      setUserInputForReasoning(combineWithPersistentPrompt(`File upload: ${input.name}`));
     }
 
     // Create file URL for file-based content
@@ -102,33 +208,22 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
         : prev.processing
     }));
 
-    // Trigger reasoning overlay after 1 second delay
-    setTimeout(() => {
-      // Get Unit bounds before showing overlay
-      if (unitRef.current) {
-        const rect = unitRef.current.getBoundingClientRect();
-        setUnitBounds({
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height
-        });
-      }
-
-      setReasoningState(prev => ({
-        ...prev,
-        isActive: true,
-        status: 'processing'
-      }));
-    }, 1000);
-
-    // Request auto-start of reasoning on next render once content/state are updated
+    // Emit event for dynamic icon system when unit has processable content
     if (canProcessContent(detectedType, input)) {
-      setAutoStartReasoning(true);
+      window.dispatchEvent(new CustomEvent('unit-processed', {
+        detail: {
+          unitId: id,
+          unitType: detectedType,
+          content: input,
+          hasProcessedContent: true
+        }
+      }));
     }
 
+    // No longer auto-trigger reasoning - will be triggered manually via icon buttons
+
     onContentChange?.(id, detectedType, input);
-  }, [detectInputType, id, onContentChange]);
+  }, [detectInputType, id, onContentChange, persistentUserPrompt]);
 
   // Fire reasoning once unitType/content are updated and flag is set
 
@@ -166,75 +261,157 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     setProcessingStatus({
       upload: STATUS_TYPES.UPLOAD.EMPTY,
       processing: STATUS_TYPES.PROCESSING.NOT_PROCESSED,
-      queue: STATUS_TYPES.QUEUE.NOT_READY,
       connection: STATUS_TYPES.CONNECTION.DISCONNECTED,
-      hasProcessedContent: false,
-      readyForBigProcessing: false,
-      inBigProcessingQueue: false
+      hasProcessedContent: false
     });
 
+    // Emit unit reset event for dynamic icon system
+    window.dispatchEvent(new CustomEvent('unit-reset', {
+      detail: { unitId: id }
+    }));
+
     onContentChange?.(id, 'empty', null);
-  }, [id, onContentChange, fileUrl, reasoningState.isActive, reasoningState.reasoningId]);
+  }, [id, onContentChange, fileUrl, reasoningState.isActive, cancelReasoningProcess]);
 
   // AI Reasoning Management: wrapper that binds current unitType/content
   const startReasoningProcess = useCallback(() => {
     _startReasoningWithArgs(unitType, content);
   }, [_startReasoningWithArgs, unitType, content]);
 
-  // Fire reasoning once unitType/content are updated and flag is set
-  useEffect(() => {
-    if (autoStartReasoning && canProcessContent(unitType, content) && !reasoningState.isActive) {
+  // Manual reasoning trigger - expose function for external use
+  const triggerReasoning = useCallback(() => {
+    if (canProcessContent(unitType, content) && !reasoningState.isActive) {
+      // Get Unit bounds before showing overlay
+      if (unitRef.current) {
+        const rect = unitRef.current.getBoundingClientRect();
+        setUnitBounds({
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height
+        });
+      }
+
+      setReasoningState(prev => ({
+        ...prev,
+        isActive: true,
+        status: 'processing'
+      }));
+
       startReasoningProcess();
-      setAutoStartReasoning(false);
     }
-  }, [autoStartReasoning, unitType, content, reasoningState.isActive, startReasoningProcess]);
+  }, [unitType, content, reasoningState.isActive, startReasoningProcess]);
+
+  // Listen for image editor updates to capture circle annotations
+  useEffect(() => {
+    const handleImageAnnotationUpdate = (event) => {
+      const { unitId, circles } = event.detail;
+      if (unitId === id) {
+        setImageAnnotations({ circles });
+      }
+    };
+
+    window.addEventListener('unit-image-annotations-updated', handleImageAnnotationUpdate);
+    return () => window.removeEventListener('unit-image-annotations-updated', handleImageAnnotationUpdate);
+  }, [id]);
+
+  // Listen for requests for unit data (for combined processing)
+  useEffect(() => {
+    const handleGetUnitData = (event) => {
+      const { requestId, unitIds } = event.detail;
+      console.log(`📨 Unit ${id} received data request for units: ${unitIds.join(', ')}`);
+      console.log(`📨 Unit ${id} comparing: id=${id} (${typeof id}), unitIds=${JSON.stringify(unitIds)} (${unitIds.map(u => typeof u).join(', ')})`);
+
+      // Convert both to numbers for comparison
+      const numericId = Number(id);
+      const numericUnitIds = unitIds.map(u => Number(u));
+
+      if (numericUnitIds.includes(numericId)) {
+        const responseData = {
+          type: unitType,
+          content: content,
+          fileUrl: fileUrl,
+          annotations: imageAnnotations
+        };
+        console.log(`📤 Unit ${id} sending response:`, responseData);
+        window.dispatchEvent(new CustomEvent('unit-data-response', {
+          detail: {
+            requestId,
+            unitId: numericId, // Use numeric ID for consistency
+            data: responseData
+          }
+        }));
+      } else {
+        console.log(`🚫 Unit ${id} not in request list (numeric: ${numericId} not in ${numericUnitIds.join(', ')}), ignoring`);
+      }
+    };
+
+    window.addEventListener('unit-data-request', handleGetUnitData);
+    return () => window.removeEventListener('unit-data-request', handleGetUnitData);
+  }, [id, unitType, content, fileUrl, imageAnnotations]);
+
+  // Listen for manual reasoning trigger events and unit focus
+  useEffect(() => {
+    const handleTriggerReasoning = (event) => {
+      const { unitId, useSelectedModel, modelConfig } = event.detail;
+      if (unitId === id) {
+        if (useSelectedModel && modelConfig) {
+          console.log(`Unit ${id} using selected model:`, modelConfig.modelId);
+        }
+        // Emit reasoning started event
+        window.dispatchEvent(new CustomEvent('reasoning-started', {
+          detail: { unitId: id }
+        }));
+        triggerReasoning();
+      }
+    };
+
+    const handleTriggerCombinedReasoning = (event) => {
+      const { unitIds, useSelectedModel, modelConfig } = event.detail;
+      if (unitIds.includes(id)) {
+        if (useSelectedModel && modelConfig) {
+          console.log(`Unit ${id} part of combined reasoning using model:`, modelConfig.modelId);
+        }
+        // For combined reasoning, show a different overlay or trigger different logic
+        console.log(`Unit ${id} is part of combined reasoning with units:`, unitIds);
+        window.dispatchEvent(new CustomEvent('reasoning-started', {
+          detail: { unitId: id }
+        }));
+        triggerReasoning(); // For now, trigger individual reasoning
+      }
+    };
+
+    const handleFocusUnit = (event) => {
+      const { unitId } = event.detail;
+      if (unitId === id && unitRef.current) {
+        // Add focused styling
+        setUnitGlowState('activated');
+        setTimeout(() => setUnitGlowState('idle'), 2000);
+
+        // Scroll into view
+        unitRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    };
+
+    window.addEventListener('trigger-unit-reasoning', handleTriggerReasoning);
+    window.addEventListener('trigger-combined-reasoning', handleTriggerCombinedReasoning);
+    window.addEventListener('focus-unit', handleFocusUnit);
+
+    return () => {
+      window.removeEventListener('trigger-unit-reasoning', handleTriggerReasoning);
+      window.removeEventListener('trigger-combined-reasoning', handleTriggerCombinedReasoning);
+      window.removeEventListener('focus-unit', handleFocusUnit);
+    };
+  }, [id, triggerReasoning]);
 
   // cancelReasoningProcess provided by hook
 
-  const addToBigProcessingQueue = useCallback(() => {
-    if (!processingStatus.hasProcessedContent) {
-      return;
-    }
 
-    const queueId = mockLLMService.addToBigProcessingQueue([id], 'normal');
+  // DnD and text handlers are provided via hooks (useDnd/useUnitContent)
 
-    setProcessingStatus(prev => ({
-      ...prev,
-      inBigProcessingQueue: true,
-      queue: STATUS_TYPES.QUEUE.QUEUED
-    }));
-
-    // Trigger global queue update event
-    window.dispatchEvent(new CustomEvent('unit-added-to-big-queue', {
-      detail: { unitId: id, queueId }
-    }));
-  }, [processingStatus.hasProcessedContent, id]);
-
-  // DnD handlers provided by useDnd hook
-
-  const handleFileChange = useCallback((e) => {
-    const files = e.target.files;
-    if (files.length > 0) {
-      morphUnit(files[0]);
-    }
-  }, [morphUnit]);
-
-  const handleTextChange = useCallback((e) => {
-    setTextInputValue(e.target.value);
-  }, []);
-
-  const handleTextKeyPress = useCallback((e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const text = textInputValue.trim();
-      if (text) {
-        morphUnit(text);
-        setTextInputValue('');
-      }
-    }
-  }, [textInputValue, morphUnit]);
-
-  
 
   
 
@@ -437,12 +614,31 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     return () => window.removeEventListener('unit-disconnected', handleDisconnection);
   }, [id]);
 
-  // handleUnitDropTarget provided by useDnd hook
+  // Load unit user prompt from settings
+  useEffect(() => {
+    const loadSettings = () => {
+      try {
+        const settings = localStorage.getItem('llm-settings');
+        if (settings) {
+          const parsed = JSON.parse(settings);
+          setPersistentUserPrompt(parsed.unitUserPrompt || '');
+        }
+      } catch (e) {
+        console.warn('Failed to load settings:', e);
+      }
+    };
 
-  const handleUnitDropLeave = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
+    // Load settings on component mount
+    loadSettings();
+
+    // Listen for settings updates
+    const handleSettingsUpdate = (event) => {
+      const { unitUserPrompt } = event.detail;
+      setPersistentUserPrompt(unitUserPrompt || '');
+    };
+
+    window.addEventListener('llm-settings-updated', handleSettingsUpdate);
+    return () => window.removeEventListener('llm-settings-updated', handleSettingsUpdate);
   }, []);
 
   // Global event listeners for connection drag tracking
@@ -470,72 +666,19 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     { icon: Archive, label: 'DWG', color: 'text-cyan-500' }
   ];
 
-  // Get processing status icons for status bar
-  const getProcessingStatusIcons = useCallback(() => {
-    const statusIcons = [];
-
-    // Upload status
-    if (processingStatus.upload !== STATUS_TYPES.UPLOAD.EMPTY) {
-      const uploadIcon = getStatusIcon('upload', processingStatus.upload);
-      statusIcons.push({
-        key: 'upload',
-        ...uploadIcon,
-        title: `Upload: ${processingStatus.upload.replace('upload_', '').replace('_', ' ')}`
-      });
-    }
-
-    // Processing status
-    if (processingStatus.processing !== STATUS_TYPES.PROCESSING.NOT_PROCESSED) {
-      const processIcon = getStatusIcon('processing', processingStatus.processing);
-      statusIcons.push({
-        key: 'processing',
-        ...processIcon,
-        title: `Processing: ${processingStatus.processing.replace('proc_', '').replace('_', ' ')}`,
-        action: () => {
-          if (processingStatus.processing === STATUS_TYPES.PROCESSING.NOT_PROCESSED) {
-            startReasoningProcess();
-          } else if (processingStatus.processing === STATUS_TYPES.PROCESSING.REASONING) {
-            cancelReasoningProcess();
-          }
-        }
-      });
-    }
-
-    // Queue status
-    if (processingStatus.queue !== STATUS_TYPES.QUEUE.NOT_READY) {
-      const queueIcon = getStatusIcon('queue', processingStatus.queue);
-      statusIcons.push({
-        key: 'queue',
-        ...queueIcon,
-        title: `Queue: ${processingStatus.queue.replace('queue_', '').replace('_', ' ')}`,
-        action: () => {
-          if (processingStatus.queue === STATUS_TYPES.QUEUE.READY) {
-            addToBigProcessingQueue();
-          }
-        }
-      });
-    }
-
-    // Connection status
-    if (processingStatus.connection !== STATUS_TYPES.CONNECTION.DISCONNECTED) {
-      const connIcon = getStatusIcon('connection', processingStatus.connection);
-      statusIcons.push({
-        key: 'connection',
-        ...connIcon,
-        title: `Connection: ${processingStatus.connection.replace('conn_', '').replace('_', ' ')}`
-      });
-    }
-
-    return statusIcons;
-  }, [processingStatus, startReasoningProcess, cancelReasoningProcess, addToBigProcessingQueue]);
-
   const getActionsByType = (type) => {
+    // Create dynamic action wrapper
+    const createDynamicAction = (label, originalAction) => ({
+      ...originalAction,
+      action: () => handleDynamicAction({ label, action: originalAction.action })
+    });
+
     const baseActions = {
       pdf: [
         { icon: Eye, label: 'View', action: () => console.log('View PDF') },
-        { icon: Download, label: 'Download', action: () => console.log('Download PDF') },
-        { icon: Scissors, label: 'Split', action: () => console.log('Split PDF') },
-        { icon: Copy, label: 'Extract', action: () => console.log('Extract Text') },
+        createDynamicAction('Download', { icon: Download, action: () => console.log('Download PDF') }),
+        createDynamicAction('Split', { icon: Scissors, action: () => console.log('Split PDF') }),
+        createDynamicAction('Extract', { icon: Copy, action: () => console.log('Extract Text') }),
         { icon: Search, label: 'Search', action: () => console.log('Search PDF') },
         { icon: Printer, label: 'Print', action: () => console.log('Print PDF') }
       ],
@@ -544,27 +687,77 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
         { icon: Crop, label: 'Crop', action: () => console.log('Crop Image') },
         { icon: Filter, label: 'Filter', action: () => console.log('Filter Image') },
         { icon: Palette, label: 'Edit', action: () => console.log('Edit Image') },
-        { icon: Download, label: 'Download', action: () => console.log('Download Image') },
-        { icon: Share2, label: 'Share', action: () => console.log('Share Image') }
+        createDynamicAction('Download', { icon: Download, action: () => console.log('Download Image') }),
+        createDynamicAction('Share', { icon: Share2, action: () => console.log('Share Image') })
       ],
       text: [
-        { icon: Edit3, label: 'Edit', action: () => console.log('Edit Text') },
-        { icon: Bold, label: 'Format', action: () => console.log('Format Text') },
-        { icon: Copy, label: 'Copy', action: () => console.log('Copy Text') },
-        { icon: Download, label: 'Export', action: () => console.log('Export Text') },
-        { icon: Search, label: 'Find', action: () => console.log('Find in Text') }
+        { icon: Edit3, label: 'Clear', action: () => setContent('') },
+        { icon: Bold, label: 'Upper', action: () => setContent(content?.toUpperCase() || '') },
+        {
+          icon: Copy,
+          label: 'Copy',
+          action: () => {
+            if (content && navigator.clipboard) {
+              navigator.clipboard.writeText(content);
+              // Visual feedback for copy action
+              setUnitGlowState('completed');
+              setTimeout(() => setUnitGlowState('idle'), 1000);
+            }
+          }
+        },
+        createDynamicAction('Export', { icon: Download, action: () => {
+          if (content) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'text-export.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        }}),
+        {
+          icon: Search,
+          label: 'Count',
+          action: () => {
+            const words = content ? content.split(/\s+/).filter(w => w.length > 0).length : 0;
+            const chars = content ? content.length : 0;
+            // Show count with visual feedback
+            setUnitGlowState('activated');
+            alert(`📊 Text Stats\n\nWords: ${words}\nCharacters: ${chars}`);
+            setTimeout(() => setUnitGlowState('idle'), 1500);
+          }
+        },
+        {
+          icon: Type,
+          label: 'Lower',
+          action: () => setContent(content?.toLowerCase() || '')
+        },
+        {
+          icon: Sparkles,
+          label: 'Clean',
+          action: () => {
+            // Clean text: trim whitespace, remove extra spaces
+            const cleaned = content?.replace(/\s+/g, ' ').trim() || '';
+            setContent(cleaned);
+            setUnitGlowState('completed');
+            setTimeout(() => setUnitGlowState('idle'), 1000);
+          }
+        }
       ],
       table: [
         { icon: Eye, label: 'View', action: () => console.log('View Table') },
-        { icon: FileBarChart, label: 'Analyze', action: () => console.log('Analyze Data') },
-        { icon: Download, label: 'Export', action: () => console.log('Export Table') },
+        createDynamicAction('Analyze', { icon: FileBarChart, action: () => console.log('Analyze Data') }),
+        createDynamicAction('Export', { icon: Download, action: () => console.log('Export Table') }),
         { icon: Edit3, label: 'Edit', action: () => console.log('Edit Table') }
       ],
       dwg: [
         { icon: Eye, label: 'View', action: () => console.log('View DWG') },
         { icon: Layers, label: 'Layers', action: () => console.log('Toggle Layers') },
         { icon: Ruler, label: 'Measure', action: () => console.log('Measure') },
-        { icon: Download, label: 'Export', action: () => console.log('Export DWG') }
+        createDynamicAction('Export', { icon: Download, action: () => console.log('Export DWG') })
       ]
     };
 
@@ -574,12 +767,11 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     if (canProcessContent(type, content)) {
       // Process action
       if (processingStatus.processing === STATUS_TYPES.PROCESSING.NOT_PROCESSED) {
-        processingActions.push({
+        processingActions.push(createDynamicAction('Process AI', {
           icon: Brain,
-          label: 'Process AI',
           action: startReasoningProcess,
           className: 'text-purple-600 hover:text-purple-700'
-        });
+        }));
       } else if (processingStatus.processing === STATUS_TYPES.PROCESSING.REASONING) {
         processingActions.push({
           icon: X,
@@ -587,15 +779,8 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
           action: cancelReasoningProcess,
           className: 'text-orange-600 hover:text-orange-700'
         });
-      } else if (processingStatus.hasProcessedContent && processingStatus.queue === STATUS_TYPES.QUEUE.READY) {
-        processingActions.push({
-          icon: Zap,
-          label: 'Big Process',
-          action: addToBigProcessingQueue,
-          className: 'text-green-600 hover:text-green-700'
-        });
-      }
     }
+  }
 
     return [...(baseActions[type] || []), ...processingActions];
   };
@@ -632,7 +817,12 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 fileUrl,
                 content,
                 getActionsByType,
-                resetUnit
+                resetUnit,
+                onConnectionDragStart: handleConnectionDragStart,
+                setContent,
+                setFileUrl,
+                dynamicButtonStates,
+                unitId: id
               }
             }}
           />
@@ -647,7 +837,8 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 content,
                 onChange: (val) => setContent(val),
                 getActionsByType,
-                resetUnit
+                resetUnit,
+                onConnectionDragStart: handleConnectionDragStart
               }
             }}
           />
@@ -665,7 +856,8 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 onDocumentLoadSuccess,
                 getActionsByType,
                 resetUnit,
-                content
+                content,
+                onConnectionDragStart: handleConnectionDragStart
               }
             }}
           />
@@ -679,7 +871,8 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
               table: {
                 content,
                 getActionsByType,
-                resetUnit
+                resetUnit,
+                onConnectionDragStart: handleConnectionDragStart
               }
             }}
           />
@@ -694,6 +887,20 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">CAD Drawing</span>
               </div>
               <div className="flex items-center gap-1">
+                {/* Connection Button */}
+                <button
+                  onMouseDown={handleConnectionDragStart}
+                  title="Connect Unit"
+                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110"
+                >
+                  <Link size={14} />
+
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                    Connect Unit
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                  </div>
+                </button>
 
                 {/* Reset Button */}
                 <button
@@ -762,6 +969,20 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 <span className="text-xs font-medium">File</span>
               </div>
               <div className="flex items-center gap-1">
+                {/* Connection Button */}
+                <button
+                  onMouseDown={handleConnectionDragStart}
+                  title="Connect Unit"
+                  className="relative group text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg p-1.5 transition-all duration-200 hover:scale-110"
+                >
+                  <Link size={14} />
+
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                    Connect Unit
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-slate-800"></div>
+                  </div>
+                </button>
 
                 {/* Reset Button */}
                 <button
@@ -866,21 +1087,37 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
       <motion.div
         ref={unitRef}
         data-unit-id={id}
-        className={`h-full rounded border-2 p-2 transition-all duration-300 cursor-grab active:cursor-grabbing ${
+        className={`unit-container relative overflow-hidden ${
+          // Expansion logic for editing modes
+          'w-full h-full'
+        } rounded border-2 p-4 mx-2 mb-2 transition-all duration-300 cursor-grab active:cursor-grabbing flex-shrink-0 ${
+          // Unit glow states override other states
+          unitGlowState === 'activated' ? 'unit-activated' :
+          unitGlowState === 'processing' ? 'unit-processing' :
+          unitGlowState === 'thinking' ? 'unit-thinking' :
+          unitGlowState === 'completed' ? 'unit-completed' :
+          unitGlowState === 'error' ? 'unit-error' :
+          // Default states
           isInConnectedContainer
-            ? 'border-slate-200 bg-white shadow-sm'
+            ? 'border-slate-200 bg-yellow-50 shadow-sm'
             : isConnectedUnit && connectionColor
-              ? `border-2 bg-white shadow-lg`
+              ? `border-2 bg-yellow-50 shadow-lg`
               : isDragOver
                 ? 'border-blue-400 bg-blue-50'
                 : unitType === 'empty'
-                  ? 'border-dashed border-slate-300 bg-white'
-                  : 'border-slate-200 bg-white shadow-sm'
+                  ? 'border-dashed border-slate-300 bg-gray-50'
+                  : 'border-slate-200 bg-gray-50 shadow-sm'
         }`}
         style={{
+          // Accent color per unit (A/B/C/D)
+          borderLeftWidth: '6px',
+          borderLeftColor: (!isInConnectedContainer && isConnectedUnit && connectionColor)
+            ? connectionColor
+            : ({1:'#3b82f6',2:'#22c55e',3:'#a855f7',4:'#f59e0b'}[id] || '#94a3b8'),
           borderColor: !isInConnectedContainer && isConnectedUnit && connectionColor ? connectionColor : undefined,
+          borderWidth: !isInConnectedContainer && isConnectedUnit && connectionColor ? '3px' : undefined,
           boxShadow: !isInConnectedContainer && isConnectedUnit && connectionColor
-            ? `0 0 30px ${connectionColor}80, 0 0 60px ${connectionColor}40, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`
+            ? `0 0 40px ${connectionColor}90, 0 0 80px ${connectionColor}60, 0 0 120px ${connectionColor}30, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`
             : undefined
         }}
         onDrop={handleDrop}
@@ -890,9 +1127,9 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
         layout
         animate={!isInConnectedContainer && isConnectedUnit && connectionColor ? {
           boxShadow: [
-            `0 0 30px ${connectionColor}80, 0 0 60px ${connectionColor}40, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`,
-            `0 0 40px ${connectionColor}90, 0 0 80px ${connectionColor}60, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`,
-            `0 0 30px ${connectionColor}80, 0 0 60px ${connectionColor}40, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`
+            `0 0 40px ${connectionColor}90, 0 0 80px ${connectionColor}60, 0 0 120px ${connectionColor}30, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`,
+            `0 0 60px ${connectionColor}95, 0 0 120px ${connectionColor}70, 0 0 160px ${connectionColor}40, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`,
+            `0 0 40px ${connectionColor}90, 0 0 80px ${connectionColor}60, 0 0 120px ${connectionColor}30, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`
           ]
         } : {}}
         transition={!isInConnectedContainer && isConnectedUnit ? {
@@ -905,12 +1142,22 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="h-full"
+          transition={{ duration: 0.2 }}
+            className="h-full flex flex-col min-h-0"
           >
             {renderContent()}
           </motion.div>
         </AnimatePresence>
+
+        {/* Corner Label (A/B/C/D) */}
+        <div
+          className="absolute top-2 left-2 px-2 py-0.5 text-xs font-semibold rounded-full text-white select-none"
+          style={{
+            backgroundColor: ({1:'#3b82f6',2:'#22c55e',3:'#a855f7',4:'#f59e0b'}[id] || '#64748b')
+          }}
+        >
+          {{1:'A',2:'B',3:'C',4:'D'}[id] || id}
+        </div>
 
 
         {/* Connection Indicator */}
@@ -936,6 +1183,13 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
             position="fixed"
             userInput={userInputForReasoning}
             unitBounds={unitBounds}
+            readOnlyMode={reasoningState.status === 'completed' && reasoningState.result}
+            result={reasoningState.result}
+            onDoubleClick={() => {
+              // Double-click to dismiss and show only unit quick data
+              cancelReasoningProcess();
+              setUnitBounds(null);
+            }}
           />
         )}
       </AnimatePresence>

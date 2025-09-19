@@ -68,6 +68,7 @@ const LLMServerManager = () => {
     threads: 0,           // 0 = auto
     apiServer: true,
     visionMode: false,
+    alias: "local-gguf",  // povezi s agent_server.MODEL_LABEL
     extraArgs: "",        // npr: --parallel 4 --batch-size 256
     workingDir: "",       // opciono
   });
@@ -93,6 +94,92 @@ const LLMServerManager = () => {
   const [modelsScan, setModelsScan] = useState(null);
 
   const API_BASE = 'http://localhost:3002';
+
+  // HF Transformers Agent (Python FastAPI) controls
+  const [hfRunnerBase, setHfRunnerBase] = useState('http://127.0.0.1:3004');
+  const [hfAgent, setHfAgent] = useState({
+    port: 7001,
+    modelId: 'Qwen/Qwen2-VL-7B-Instruct',
+    dtype: 'float16',
+    load4bit: false,
+    maxPages: 3,
+    status: null,
+    starting: false,
+    id: null,
+  });
+
+  function buildHFEnv() {
+    return {
+      LLM_BACKEND: 'hf',
+      AGENT_POLICY: 'rule_based',
+      HF_MODEL_ID: hfAgent.modelId,
+      HF_DTYPE: hfAgent.dtype,
+      HF_LOAD_IN_4BIT: hfAgent.load4bit ? '1' : '0',
+      MAX_PAGES_DEF: String(hfAgent.maxPages || 3),
+    };
+  }
+
+  function buildHFArgs() {
+    return ['-m','uvicorn','agent_server:app','--host','0.0.0.0','--port', String(hfAgent.port || 7001)];
+  }
+
+  async function startHFAgent() {
+    const id = `hf_agent_${hfAgent.port || 7001}`;
+    setHfAgent(prev => ({ ...prev, starting: true, id }));
+    try {
+      const payload = { id, cmd: 'python', args: buildHFArgs(), env: buildHFEnv(), shell: false };
+      const r = await fetch(`${hfRunnerBase}/api/runner/launch`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Runner launch failed');
+      const endpoint = `http://127.0.0.1:${hfAgent.port || 7001}`;
+      const newServer = {
+        id,
+        name: 'HF Agent (Transformers)',
+        type: 'HF Agent',
+        host: '127.0.0.1',
+        port: hfAgent.port || 7001,
+        endpoint,
+        status: 'starting',
+        model: hfAgent.modelId,
+        maxTokens: 4096,
+        temperature: 0.2,
+        lastStarted: new Date(),
+        uptime: 0,
+        requestCount: 0,
+        errorCount: 0,
+      };
+      setServers(prev => [newServer, ...prev.filter(s => s.id !== id)]);
+      setSelectedServer(newServer);
+    } catch (e) {
+      addLog('error', `HF Agent launch error: ${e.message}`);
+    } finally {
+      setHfAgent(prev => ({ ...prev, starting: false }));
+    }
+  }
+
+  async function stopHFAgent() {
+    const id = hfAgent.id || `hf_agent_${hfAgent.port || 7001}`;
+    try {
+      await fetch(`${hfRunnerBase}/api/runner/stop/${id}`, { method: 'POST' });
+      setServers(prev => prev.map(s => s.id === id ? { ...s, status: 'stopped' } : s));
+    } catch (e) {
+      addLog('error', `HF Agent stop error: ${e.message}`);
+    }
+  }
+
+  async function pollHFHealth() {
+    try {
+      const r = await fetch(`http://127.0.0.1:${hfAgent.port || 7001}/agent/health`);
+      const j = await r.json();
+      setHfAgent(prev => ({ ...prev, status: j }));
+      if (j && j.ok) {
+        const id = hfAgent.id || `hf_agent_${hfAgent.port || 7001}`;
+        setServers(prev => prev.map(s => s.id === id ? { ...s, status: 'running' } : s));
+      }
+    } catch (e) {
+      setHfAgent(prev => ({ ...prev, status: { ok: false, error: e.message } }));
+    }
+  }
 
   async function pingLocal() {
     try {
@@ -266,6 +353,7 @@ const LLMServerManager = () => {
     ];
     
     if (launcher.apiServer) args.push("--api-server");
+    if (launcher.alias?.trim()) { args.push("--model_alias", launcher.alias.trim()); }
     if (launcher.threads > 0) { 
       args.push("--threads", String(launcher.threads)); 
     }
@@ -1039,6 +1127,66 @@ const LLMServerManager = () => {
         <GlobalAgentControls />
       </div>
 
+      {/* HF Transformers Agent Controls */}
+      <div className="p-4 border-b border-gray-200 bg-white">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-purple-600" />
+            <span className="font-medium text-gray-800">HF Agent (Transformers)</span>
+            {hfAgent.status?.ok ? (
+              <span className="text-green-600 text-xs flex items-center gap-1"><CheckCircle className="w-3 h-3"/> spreman</span>
+            ) : (
+              <span className="text-gray-500 text-xs flex items-center gap-1"><Clock className="w-3 h-3"/> nije pokrenut</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={pollHFHealth} className="px-3 py-1.5 text-sm rounded border bg-gray-50 hover:bg-gray-100 flex items-center gap-1"><Activity className="w-3 h-3"/> Health</button>
+            <button onClick={startHFAgent} disabled={hfAgent.starting} className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"><Play className="w-3 h-3"/> Start</button>
+            <button onClick={stopHFAgent} className="px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700 flex items-center gap-1"><Square className="w-3 h-3"/> Stop</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Runner API</label>
+            <input value={hfRunnerBase} onChange={(e)=>setHfRunnerBase(e.target.value)} className="w-full px-2 py-1.5 border rounded" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Agent Port</label>
+            <input type="number" value={hfAgent.port} onChange={(e)=>setHfAgent(v=>({...v,port:Number(e.target.value)}))} className="w-full px-2 py-1.5 border rounded" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-600 mb-1">HF Model ID</label>
+            <input value={hfAgent.modelId} onChange={(e)=>setHfAgent(v=>({...v,modelId:e.target.value}))} className="w-full px-2 py-1.5 border rounded font-mono" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">DType</label>
+            <select value={hfAgent.dtype} onChange={(e)=>setHfAgent(v=>({...v,dtype:e.target.value}))} className="w-full px-2 py-1.5 border rounded">
+              <option value="float16">float16</option>
+              <option value="bfloat16">bfloat16</option>
+              <option value="float32">float32</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">4-bit</label>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={hfAgent.load4bit} onChange={(e)=>setHfAgent(v=>({...v,load4bit:e.target.checked}))} />
+              <span className="text-xs text-gray-600">Enable 4-bit (bitsandbytes)</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Max Pages</label>
+            <input type="number" min={1} max={10} value={hfAgent.maxPages} onChange={(e)=>setHfAgent(v=>({...v,maxPages:Number(e.target.value)}))} className="w-full px-2 py-1.5 border rounded" />
+          </div>
+        </div>
+        {hfAgent.status && (
+          <div className="mt-3 p-2 bg-gray-50 rounded text-xs font-mono">
+            <div>backend: {String(hfAgent.status.backend)} policy: {String(hfAgent.status.policy)}</div>
+            <div>ok: {String(hfAgent.status.ok)} errors: {Array.isArray(hfAgent.status.errors)?hfAgent.status.errors.join(', '):''}</div>
+            <div>model: {String(hfAgent.status.hfModelId || hfAgent.modelId)}</div>
+          </div>
+        )}
+      </div>
+
       {/* Launcher & Prompts Panel */}
       <div className="p-4 border-b border-gray-200 bg-white">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -1049,23 +1197,33 @@ const LLMServerManager = () => {
               <h3 className="font-semibold text-gray-800">Launcher (llama_cpp.server)</h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="text-sm text-gray-600">Model path *</label>
-                <input 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" 
-                  value={launcher.modelPath} 
-                  onChange={e=>setLauncher({...launcher, modelPath:e.target.value})}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm text-gray-600">mmproj (vision)</label>
-                <input 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" 
-                  value={launcher.mmprojPath} 
-                  onChange={e=>setLauncher({...launcher, mmprojPath:e.target.value})}
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="text-sm text-gray-600">Model path *</label>
+              <input 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" 
+                value={launcher.modelPath} 
+                onChange={e=>setLauncher({...launcher, modelPath:e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Model alias</label>
+              <input 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" 
+                value={launcher.alias} 
+                onChange={e=>setLauncher({...launcher, alias:e.target.value})}
+                placeholder="local-gguf"
+              />
+              <p className="text-xs text-gray-500 mt-1">Mora se poklapati s agent_server.MODEL_LABEL</p>
+            </div>
+            <div className="col-span-2">
+              <label className="text-sm text-gray-600">mmproj (vision)</label>
+              <input 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" 
+                value={launcher.mmprojPath} 
+                onChange={e=>setLauncher({...launcher, mmprojPath:e.target.value})}
+              />
+            </div>
               <div>
                 <label className="text-sm text-gray-600">Host</label>
                 <input 

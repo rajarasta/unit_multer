@@ -12,12 +12,29 @@ from pdfminer.high_level import extract_text        # pdfminer.six
 from jsonschema import validate as js_validate, Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from datetime import datetime
+from contextlib import suppress
 
 # ---------- KONFIG ----------
 TEXT_LLM_URL   = os.getenv("TEXT_LLM_URL",   "http://127.0.0.1:8000")  # llama_cpp.server --model text.gguf
 VISION_LLM_URL = os.getenv("VISION_LLM_URL", "http://127.0.0.1:8001")  # llama_cpp.server --model vlm.gguf --mmproj ...
 MODEL_LABEL    = os.getenv("MODEL_LABEL", "local-gguf")
 MAX_PAGES_DEF  = int(os.getenv("MAX_PAGES_DEF", "3"))
+
+# Backend/policy selection for LLM execution
+LLM_BACKEND  = os.getenv("LLM_BACKEND", "openai_compat").lower()  # 'openai_compat' | 'hf'
+AGENT_POLICY = os.getenv("AGENT_POLICY", "llm_tools").lower()     # 'llm_tools' | 'rule_based'
+
+# If user selects HF backend and didn't override policy, default to rule_based
+if LLM_BACKEND == "hf" and os.getenv("AGENT_POLICY") is None:
+    AGENT_POLICY = "rule_based"
+
+HF_ENABLED = False
+try:
+    if LLM_BACKEND == "hf":
+        import hf_backend  # local module for Transformers-based inference
+        HF_ENABLED = True
+except Exception as _hf_err:
+    HF_ENABLED = False
 
 # ---------- POMOĆNE ----------
 def data_url(img_bytes: bytes, mime="image/jpeg") -> str:
@@ -70,6 +87,13 @@ def openai_compat_chat(base_url: str, messages: List[Dict[str, Any]], tools: Opt
     if not r.ok:
         raise RuntimeError(f"LLM HTTP {r.status_code}: {r.text[:200]}")
     return r.json()
+
+def _check_openai_server(base_url: str) -> bool:
+    try:
+        r = requests.get(base_url.rstrip("/") + "/v1/models", timeout=3)
+        return bool(r.ok)
+    except Exception:
+        return False
 
 def hr_number_to_float(s: str) -> Optional[float]:
     if s is None: return None
@@ -251,6 +275,9 @@ class AgentState(BaseModel):
     text: Optional[str] = None
     images_dataurls: Optional[List[str]] = None
     result_json: Optional[Dict[str, Any]] = None
+    # Optional multimodal user context
+    text_context: Optional[str] = None
+    annotations: Optional[Any] = None
 
 # ---------- TOOL IMPLEMENTACIJE ----------
 def tool_probe_pdf(state: AgentState) -> Dict[str, Any]:
@@ -301,21 +328,41 @@ ANALYZE_VISION_PROMPT = """Extract the JSON described in the spec from these ima
 """
 
 def tool_text_analyze(state: AgentState, text: str) -> Dict[str, Any]:
-    messages = [
-        {"role":"system","content":SYSTEM_PROMPT},
-        {"role":"user","content": ANALYZE_TEXT_PROMPT + text[:100000]} # safety cut
-    ]
-    j = openai_compat_chat(TEXT_LLM_URL, messages, response_format={"type":"json_object"}, params={"temperature":0.2})
-    content = j.get("choices",[{}])[0].get("message",{}).get("content","")
-    return {"raw_json": content}
+    if HF_ENABLED:
+        prompt = ANALYZE_TEXT_PROMPT + (text or "")[:100000]
+        content = hf_backend.generate_text_only(prompt, max_new_tokens=512, temperature=0.2)
+        return {"raw_json": content}
+    else:
+        messages = [
+            {"role":"system","content":SYSTEM_PROMPT},
+            {"role":"user","content": ANALYZE_TEXT_PROMPT + text[:100000]} # safety cut
+        ]
+        j = openai_compat_chat(TEXT_LLM_URL, messages, response_format={"type":"json_object"}, params={"temperature":0.2})
+        content = j.get("choices",[{}])[0].get("message",{}).get("content","")
+        return {"raw_json": content}
 
 def tool_vision_analyze_images(state: AgentState, images: List[str]) -> Dict[str, Any]:
-    content = [{"type":"text","text": ANALYZE_VISION_PROMPT}]
-    content += [{"type":"image_url","image_url":{"url":u}} for u in images]
-    messages = [{"role":"system","content":SYSTEM_PROMPT}, {"role":"user","content": content}]
-    j = openai_compat_chat(VISION_LLM_URL, messages, response_format={"type":"json_object"}, params={"temperature":0.2})
-    content = j.get("choices",[{}])[0].get("message",{}).get("content","")
-    return {"raw_json": content}
+    # Build augmented prompt with optional context/annotations
+    prompt = ANALYZE_VISION_PROMPT
+    if state.text_context:
+        prompt += "\n\nUser context:\n" + state.text_context[:4000]
+    if state.annotations is not None:
+        try:
+            ann = state.annotations if isinstance(state.annotations, str) else json.dumps(state.annotations, ensure_ascii=False)
+        except Exception:
+            ann = str(state.annotations)
+        prompt += "\n\nAnnotations (JSON):\n" + ann[:4000]
+
+    if HF_ENABLED:
+        content = hf_backend.generate_multimodal(prompt, images or [], max_new_tokens=512, temperature=0.2)
+        return {"raw_json": content}
+    else:
+        user_content = [{"type":"text","text": prompt}]
+        user_content += [{"type":"image_url","image_url":{"url":u}} for u in images]
+        messages = [{"role":"system","content":SYSTEM_PROMPT}, {"role":"user","content": user_content}]
+        j = openai_compat_chat(VISION_LLM_URL, messages, response_format={"type":"json_object"}, params={"temperature":0.2})
+        content = j.get("choices",[{}])[0].get("message",{}).get("content","")
+        return {"raw_json": content}
 
 def normalize_result(d: Dict[str, Any]) -> Dict[str, Any]:
     # brojevi i datumi
@@ -412,6 +459,34 @@ def run_agent_with_tools(state: AgentState) -> Dict[str, Any]:
 
     return state.result_json or {"error":"no result"}
 
+def run_agent(state: AgentState) -> Dict[str, Any]:
+    """Entry that selects pipeline based on AGENT_POLICY and backend.
+    - rule_based: deterministic path using local tools + HF backend if enabled
+    - llm_tools: original tool-calling via OpenAI-compatible server
+    """
+    if AGENT_POLICY == "rule_based":
+        try:
+            if state.is_pdf:
+                _ = tool_probe_pdf(state)
+                if state.text and state.text.strip():
+                    _ = tool_extract_pdf_text(state)
+                    raw = tool_text_analyze(state, state.text)
+                    _ = tool_normalize_and_validate(state, raw.get("raw_json", "{}"))
+                else:
+                    _ = tool_rasterize_pdf_pages(state, max_pages=MAX_PAGES_DEF, width=1024)
+                    raw = tool_vision_analyze_images(state, state.images_dataurls or [])
+                    _ = tool_normalize_and_validate(state, raw.get("raw_json", "{}"))
+            else:
+                if not state.images_dataurls:
+                    state.images_dataurls = [data_url(state.file_bytes)]
+                raw = tool_vision_analyze_images(state, state.images_dataurls)
+                _ = tool_normalize_and_validate(state, raw.get("raw_json", "{}"))
+            return state.result_json or {"error":"no result"}
+        except Exception as e:
+            return {"error": f"rule_based_pipeline_failed: {str(e)[:200]}"}
+    # fallback to original behavior
+    return run_agent_with_tools(state)
+
 # ---------- API ----------
 app = FastAPI()
 
@@ -428,6 +503,9 @@ app.add_middleware(
 async def analyze_file(
     file: UploadFile,
     max_pages: int = Form(MAX_PAGES_DEF),
+    text_context: Optional[str] = Form(None),
+    annotations: Optional[str] = Form(None),
+    analysis_type: Optional[str] = Form(None),
 ):
     fb = await file.read()
     is_pdf = file.content_type=="application/pdf" or file.filename.lower().endswith(".pdf")
@@ -437,11 +515,54 @@ async def analyze_file(
     if not is_pdf:
         state.images_dataurls = [data_url(fb)]
 
+    # Attach optional multimodal context
+    if text_context:
+        state.text_context = text_context
+    if annotations:
+        try:
+            state.annotations = json.loads(annotations)
+        except Exception:
+            state.annotations = annotations
+
     try:
-        result = run_agent_with_tools(state)
+        result = run_agent(state)
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)[:300]})
+
+@app.get("/agent/health")
+async def agent_health():
+    backend = LLM_BACKEND
+    policy = AGENT_POLICY
+    status = {
+        "backend": backend,
+        "policy": policy,
+        "hfEnabled": HF_ENABLED,
+        "hfModelId": os.getenv("HF_MODEL_ID", "google/gemma-3-4b-it") if backend == "hf" else None,
+        "textLLMUrl": TEXT_LLM_URL,
+        "visionLLMUrl": VISION_LLM_URL,
+        "textLLMReachable": None,
+        "visionLLMReachable": None,
+        "ok": True,
+        "errors": []
+    }
+    if backend == "openai_compat":
+        status["textLLMReachable"] = _check_openai_server(TEXT_LLM_URL)
+        status["visionLLMReachable"] = _check_openai_server(VISION_LLM_URL)
+        if not status["textLLMReachable"]:
+            status["ok"] = False
+            status["errors"].append("text_llm_unreachable")
+        if not status["visionLLMReachable"]:
+            status["ok"] = False
+            status["errors"].append("vision_llm_unreachable")
+    else:
+        # HF backend: server runs in-process; no external LLMs to ping
+        status["textLLMReachable"] = True if HF_ENABLED else None
+        status["visionLLMReachable"] = True if HF_ENABLED else None
+        if not HF_ENABLED:
+            status["ok"] = False
+            status["errors"].append("hf_backend_not_available")
+    return status
 
 if __name__ == "__main__":
     import uvicorn
