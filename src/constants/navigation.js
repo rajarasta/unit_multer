@@ -47,4 +47,5 @@ export const navItems = [
   ,{ key: "llm-server", label: "LLM Server Manager", icon: Server }
   ,{ key: "contextual-input", label: "Contextual Input", icon: Search }
   ,{ key: "iris3", label: "IRI S3", icon: Database }
+  ,{ key: "placeholder", label: "Placeholder", icon: Package }
 ];

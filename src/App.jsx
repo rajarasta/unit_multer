@@ -76,6 +76,7 @@ const CodexControl = lazy(() => import('./components/tabs/CodexControl'));
 const DocumentSorterTab = lazy(() => import('./components/tabs/DocumentSorterTab'));
 const ContextualInput = lazy(() => import('./components/tabs/ContextualInput'));
 const IRIS3 = lazy(() => import('./components/tabs/IRIS3'));
+const PlaceholderTab = lazy(() => import('./components/tabs/PlaceholderTab'));
 
 
 // Loading component
@@ -232,6 +233,8 @@ export default function App() {
           return <ContextualInput />;
         case 'iris3':
           return <IRIS3 />;
+        case 'placeholder':
+          return <PlaceholderTab />;
         default:
           return <HomeContent />;
       }
