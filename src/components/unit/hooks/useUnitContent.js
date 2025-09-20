@@ -4,24 +4,65 @@ export default function useUnitContent(onInput) {
   const [textInputValue, setTextInputValue] = useState('');
 
   const detectInputType = useCallback((input) => {
+    console.log('🔍 detectInputType called with:', input);
+    
     if (input && (input.constructor?.name === 'FileList' || input.constructor?.name === 'File' || input.type !== undefined)) {
       const file = input.constructor?.name === 'FileList' ? input[0] : input;
+      console.log('📁 Processing file:', file.name, 'type:', file.type);
+      
       if (file.type?.startsWith?.('image/')) {
-        return file.type.includes('svg') ? 'svg' : 'image';
+        const result = file.type.includes('svg') ? 'svg' : 'image';
+        console.log('🖼️ Detected as image:', result);
+        return result;
       }
-      if (file.type === 'application/pdf') return 'pdf';
-      if (file.name?.endsWith?.('.xml') || file.type?.includes?.('xml')) return 'xml';
-      if (file.name?.endsWith?.('.dwg') || file.name?.endsWith?.('.dxf')) return 'dwg';
-      if (file.type?.includes?.('sheet') || file.name?.endsWith?.('.xlsx') || file.name?.endsWith?.('.csv') || file.name?.endsWith?.('.xls')) return 'table';
-      if (file.type?.includes?.('text') || file.name?.endsWith?.('.txt') || file.name?.endsWith?.('.md')) return 'textfile';
-      if (file.type?.includes?.('word') || file.name?.endsWith?.('.doc') || file.name?.endsWith?.('.docx')) return 'document';
+      if (file.type === 'application/pdf') {
+        console.log('📄 Detected as pdf');
+        return 'pdf';
+      }
+      // Check for Excel/spreadsheet files BEFORE xml check (xlsx files contain xml)
+      if (file.type?.includes?.('sheet') || 
+          file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          file.type === 'application/vnd.ms-excel' ||
+          file.name?.endsWith?.('.xlsx') || 
+          file.name?.endsWith?.('.csv') || 
+          file.name?.endsWith?.('.xls')) {
+        console.log('📊 Detected as table');
+        return 'table';
+      }
+      if (file.name?.endsWith?.('.xml') || file.type?.includes?.('xml')) {
+        console.log('🔖 Detected as xml');
+        return 'xml';
+      }
+      if (file.name?.endsWith?.('.dwg') || file.name?.endsWith?.('.dxf')) {
+        console.log('📐 Detected as dwg');
+        return 'dwg';
+      }
+      if (file.type?.includes?.('text') || file.name?.endsWith?.('.txt') || file.name?.endsWith?.('.md')) {
+        console.log('📝 Detected as textfile');
+        return 'textfile';
+      }
+      if (file.type?.includes?.('word') || file.name?.endsWith?.('.doc') || file.name?.endsWith?.('.docx')) {
+        console.log('📄 Detected as document');
+        return 'document';
+      }
+      console.log('📁 Detected as generic file');
       return 'file';
     }
+    
     if (typeof input === 'string') {
-      if (input.trim().includes('\t') || input.includes(',')) return 'table';
-      if (input.includes('<') && input.includes('>')) return 'xml';
+      if (input.trim().includes('\t') || input.includes(',')) {
+        console.log('📊 Detected string as table');
+        return 'table';
+      }
+      if (input.includes('<') && input.includes('>')) {
+        console.log('🔖 Detected string as xml');
+        return 'xml';
+      }
+      console.log('📝 Detected string as text');
       return 'text';
     }
+    
+    console.log('🔄 Detected as empty');
     return 'empty';
   }, []);
 

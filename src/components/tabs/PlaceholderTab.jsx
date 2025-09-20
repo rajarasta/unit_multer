@@ -8,6 +8,8 @@ import useConnectionStore from '../../store/useConnectionStore';
 import SettingsModal from '../SettingsModal';
 import { agentAnalyzeCombinedContent } from '../../utils/agentHelpers';
 import { GoogleGenAI } from '@google/genai';
+import { excelParserService } from '../../services/ExcelParserService';
+import ExcelViewer from '../ExcelViewer';
 
 const PlaceholderTab = () => {
   const [unitStates, setUnitStates] = useState({
@@ -52,6 +54,12 @@ const PlaceholderTab = () => {
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
+
+  // Specialized mode state
+  const [activeSpecializedMode, setActiveSpecializedMode] = useState(null); // null = classic mode
+  const [specializedData, setSpecializedData] = useState({});
+  const [parsedExcelData, setParsedExcelData] = useState(null);
+  const [isParsingExcel, setIsParsingExcel] = useState(false);
 
   // Multi-phase icon management
   useEffect(() => {
@@ -768,6 +776,19 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [multiOpen]);
 
+  // Specialized mode configurations
+  const specializedModes = [
+    {
+      id: 'excel',
+      icon: Table,
+      label: 'Excel Uređivanje Ponuda BoQ',
+      description: 'Bill of Quantities Excel Editor'
+    },
+    // Future specialized modes will be added here:
+    // { id: 'image', icon: Image, label: 'Uređivanje Slika', description: 'Image Editor' },
+    // { id: 'search', icon: Search, label: 'Tražilica', description: 'Advanced Search' },
+  ];
+
   const staticIcons = [
     { icon: Settings, label: 'Settings', onClick: () => setShowSettings(true) },
     { icon: Brain, label: 'Multi-Input Chat', onClick: () => setMultiOpen(v => !v) },
@@ -784,6 +805,50 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
       ...prev,
       [unitId]: { type, content }
     }));
+  }, []);
+
+  // Handle Excel file parsing
+  const handleExcelFileParsing = useCallback(async (file) => {
+    if (!file || !excelParserService.isValidExcelFile(file)) {
+      console.warn('⚠️ Invalid Excel file:', file);
+      return;
+    }
+
+    setIsParsingExcel(true);
+    try {
+      console.log('📊 Parsing Excel file:', file.name);
+      const parsedData = await excelParserService.parseExcelFile(file);
+      
+      // Add statistics
+      parsedData.stats = excelParserService.getFileStatistics(parsedData);
+      
+      setParsedExcelData(parsedData);
+      console.log('✅ Excel parsed successfully:', parsedData);
+      
+    } catch (error) {
+      console.error('❌ Excel parsing failed:', error);
+      setParsedExcelData(null);
+      // Optionally show error message to user
+    } finally {
+      setIsParsingExcel(false);
+    }
+  }, []);
+
+  // Handle Excel export
+  const handleExcelExport = useCallback((parsedData) => {
+    try {
+      const fileName = `exported_${parsedData.fileName}`;
+      excelParserService.exportToExcel(parsedData, fileName);
+    } catch (error) {
+      console.error('❌ Excel export failed:', error);
+    }
+  }, []);
+
+  // Handle Excel analysis with AI
+  const handleExcelAnalyze = useCallback(async (parsedData) => {
+    console.log('🤖 Analyzing Excel with AI:', parsedData);
+    // TODO: Integrate with AI analysis
+    // This could trigger Gemini or other AI service for data analysis
   }, []);
 
   // Listen for unit connections and integrate with connection store
@@ -827,29 +892,142 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
         }
       `}</style>
 
-      <div className="h-screen flex -ml-6 -mt-6 mb-0 overflow-hidden">
-        {/* Main Container - 2x2 Grid */}
-        <div className="flex-1 pl-0 pr-20 pt-0 pb-3 overflow-auto">
-          <div className="grid grid-cols-2 grid-rows-2 gap-6 h-fit min-h-full">
-            {[1, 2, 3, 4].map((unitId, index) => (
-              <motion.div
-                key={unitId}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-                className="h-full"
-              >
-                <Unit
-                  id={unitId}
-                  onContentChange={handleContentChange}
-                />
-              </motion.div>
-            ))}
-          </div>
+      <div className="flex -ml-6 -mt-6 mb-0 overflow-hidden" style={{ height: 'calc(100vh - 40px)' }}>
+        {/* Main Container - Dynamic Layout based on specialized mode */}
+        <div className="flex-1 pl-5 pr-5 pt-5 pb-5 overflow-hidden">
+          {activeSpecializedMode === 'excel' ? (
+            // Excel Mode Layout: Single Unity + Right Panel
+            <div className="flex gap-3 h-full">
+              {/* Left side: Single Unity for file upload */}
+              <div className="w-1/2">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="h-full"
+                >
+                  <Unit
+                    id={1}
+                    onContentChange={async (unitId, type, content) => {
+                      console.log(`📊 Excel Mode: Unit ${unitId} changed to type "${type}":`, content);
+                      handleContentChange(unitId, type, content);
+                      
+                      // Store Excel specific data and parse if it's a table/Excel file
+                      if (type === 'table' || type === 'file') {
+                        console.log(`✅ Excel Mode: Storing ${type} data`);
+                        setSpecializedData(prev => ({
+                          ...prev,
+                          uploadedFile: content,
+                          uploadedType: type
+                        }));
+                        
+                        // Parse Excel file if it's a valid Excel file
+                        if (content && typeof content === 'object' && content.name) {
+                          await handleExcelFileParsing(content);
+                        }
+                      }
+                    }}
+                    specializedMode="excel"
+                  />
+                </motion.div>
+              </div>
+              
+              {/* Right side: Reserved for future functionality */}
+              <div className="w-1/2">
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                  className="h-full bg-white border border-slate-200 rounded-lg p-4 overflow-hidden"
+                >
+                  <div className="h-full flex items-center justify-center text-slate-400">
+                    <div className="text-center">
+                      <div className="text-lg font-medium text-slate-600 mb-2">
+                        Excel Uređivanje Ponuda - Bill of Quantities
+                      </div>
+                      <Table size={48} className="mx-auto mb-3 opacity-30" />
+                      <p className="text-sm text-slate-500">
+                        Desni panel rezerviran za
+                        <br />
+                        buduće funkcionalnosti
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          ) : (
+            // Classic Mode Layout: 2x2 Grid
+            <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full w-full">
+              {[1, 2, 3, 4].map((unitId, index) => (
+                <motion.div
+                  key={unitId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  className="h-full"
+                >
+                  <Unit
+                    id={unitId}
+                    onContentChange={handleContentChange}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Side Panel */}
-        <div className="w-16 bg-slate-50 border-l border-slate-200 flex flex-col items-center py-4 space-y-3 relative">
+        <div className="w-12 bg-slate-50 border-l border-slate-200 flex flex-col items-center pt-8 pb-5 space-y-1 relative overflow-hidden h-full">
+          {/* Specialized Mode Icons */}
+          {specializedModes.map((mode, index) => (
+            <motion.button
+              key={mode.id}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-2 rounded-md shadow-sm hover:shadow-md transition-all border group ${
+                activeSpecializedMode === mode.id 
+                  ? 'bg-blue-500 border-blue-600 text-white' 
+                  : 'bg-white border-slate-200 text-slate-600 hover:text-slate-800'
+              }`}
+              title={mode.label}
+              onClick={() => {
+                if (activeSpecializedMode === mode.id) {
+                  // Exit specialized mode
+                  setActiveSpecializedMode(null);
+                  setSpecializedData({});
+                  setParsedExcelData(null);
+                  setIsParsingExcel(false);
+                } else {
+                  // Enter specialized mode
+                  setActiveSpecializedMode(mode.id);
+                  setSpecializedData({});
+                  setParsedExcelData(null);
+                  setIsParsingExcel(false);
+                }
+              }}
+            >
+              <mode.icon
+                size={16}
+                className={`transition-colors ${
+                  activeSpecializedMode === mode.id ? 'text-white' : ''
+                }`}
+              />
+              {activeSpecializedMode === mode.id && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
+                />
+              )}
+            </motion.button>
+          ))}
+
+          {/* Separator between specialized and static icons */}
+          {specializedModes.length > 0 && (
+            <div className="w-full h-px bg-slate-300 my-1"></div>
+          )}
+
           {/* Static Icons */}
           {staticIcons.map((action, index) => {
             const getDynamicStyles = () => {
@@ -917,15 +1095,15 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
             return (
               <motion.button
                 key={index}
-                whileHover={{ scale: 1.1 }}
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="p-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow border border-slate-200 group"
+                className="p-2 rounded-md bg-white shadow-sm hover:shadow-md transition-shadow border border-slate-200 group"
                 title={`${action.label}${action.dynamicState ? ` (${action.dynamicState})` : ''}`}
                 onClick={action.onClick}
                 {...getAnimationProps()}
               >
                 <action.icon
-                  size={20}
+                  size={16}
                   className={`transition-colors ${getDynamicStyles()}`}
                 />
               </motion.button>
@@ -934,7 +1112,7 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
 
           {/* Separator for dynamic icons */}
           {getDynamicUnitIcons().length > 0 && (
-            <div className="w-full h-px bg-slate-300 my-2"></div>
+            <div className="w-full h-px bg-slate-300 my-1"></div>
           )}
 
           {/* Dynamic Unit Icons */}
@@ -968,11 +1146,11 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
                     stiffness: 200,
                     damping: 20
                   }}
-                className={`relative p-1.5 rounded-lg transition-all duration-300 border group ${getStateClass()} ${
+                className={`relative p-1 rounded-md transition-all duration-300 border group ${getStateClass()} ${
                   unitIcon.isConnected
                     ? `border-2`
                     : 'bg-white border-slate-200'
-                } ${unitIcon.isFocused ? 'ring-2 ring-blue-400' : ''}`}
+                } ${unitIcon.isFocused ? 'ring-1 ring-blue-400' : ''}`}
                 style={{
                   backgroundColor: unitIcon.isConnected ? unitIcon.connectionColor : undefined,
                   borderColor: unitIcon.isConnected ? unitIcon.connectionColor : undefined,
@@ -1013,7 +1191,7 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
                 }}
               >
                 <unitIcon.icon
-                  size={14}
+                  size={20}
                   className={`transition-colors ${
                     unitIcon.isConnected
                       ? 'text-white'
@@ -1275,3 +1453,4 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
 };
 
 export default PlaceholderTab;
+

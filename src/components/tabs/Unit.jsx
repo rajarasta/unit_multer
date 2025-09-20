@@ -20,7 +20,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
-const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPosition = null }) => {
+const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPosition = null, specializedMode = null }) => {
   const [unitType, setUnitType] = useState('empty');
   const [content, setContent] = useState(null);
   const [imageAnnotations, setImageAnnotations] = useState({ circles: [] });
@@ -758,6 +758,31 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
         { icon: Layers, label: 'Layers', action: () => console.log('Toggle Layers') },
         { icon: Ruler, label: 'Measure', action: () => console.log('Measure') },
         createDynamicAction('Export', { icon: Download, action: () => console.log('Export DWG') })
+      ],
+      textfile: [
+        { icon: Eye, label: 'View', action: () => console.log('View Text File') },
+        createDynamicAction('Download', { icon: Download, action: () => console.log('Download Text File') }),
+        { icon: Edit3, label: 'Edit', action: () => console.log('Edit Text File') }
+      ],
+      document: [
+        { icon: Eye, label: 'View', action: () => console.log('View Document') },
+        createDynamicAction('Download', { icon: Download, action: () => console.log('Download Document') }),
+        { icon: Search, label: 'Search', action: () => console.log('Search Document') }
+      ],
+      svg: [
+        { icon: Eye, label: 'View', action: () => console.log('View SVG') },
+        { icon: Edit3, label: 'Edit', action: () => console.log('Edit SVG') },
+        createDynamicAction('Export', { icon: Download, action: () => console.log('Export SVG') })
+      ],
+      xml: [
+        { icon: Eye, label: 'View', action: () => console.log('View XML') },
+        { icon: Code, label: 'Parse', action: () => console.log('Parse XML') },
+        createDynamicAction('Export', { icon: Download, action: () => console.log('Export XML') })
+      ],
+      file: [
+        { icon: Eye, label: 'View', action: () => console.log('View File') },
+        createDynamicAction('Download', { icon: Download, action: () => console.log('Download File') }),
+        { icon: Edit3, label: 'Edit', action: () => console.log('Edit File') }
       ]
     };
 
@@ -868,12 +893,15 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
           <ContentRenderer
             unitType={unitType}
             views={{
-              table: {
+              table: specializedMode !== 'excel' ? {
                 content,
                 getActionsByType,
                 resetUnit,
                 onConnectionDragStart: handleConnectionDragStart
-              }
+              } : undefined,
+              excel: specializedMode === 'excel' ? {
+                content
+              } : undefined
             }}
           />
         );
@@ -1011,8 +1039,64 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
           </div>
         );
 
+      case 'textfile':
+      case 'document':
+      case 'svg':
+      case 'xml':
+        // Use ContentRenderer for these types
+        return (
+          <ContentRenderer
+            unitType={unitType}
+            views={{
+              text: unitType === 'textfile' ? {
+                content: typeof content === 'string' ? content : content?.name || 'File uploaded',
+                onChange: (val) => setContent(val),
+                getActionsByType,
+                resetUnit,
+                onConnectionDragStart: handleConnectionDragStart
+              } : undefined,
+              pdf: unitType === 'document' ? {
+                fileUrl,
+                pdfNumPages,
+                pdfPageNumber,
+                onDocumentLoadSuccess,
+                setPdfPageNumber,
+                getActionsByType,
+                resetUnit,
+                onConnectionDragStart: handleConnectionDragStart
+              } : undefined,
+              image: (unitType === 'svg') ? {
+                fileUrl,
+                content,
+                getActionsByType,
+                resetUnit,
+                imageAnnotations,
+                setImageAnnotations,
+                onConnectionDragStart: handleConnectionDragStart
+              } : undefined,
+              table: (unitType === 'xml') ? {
+                content,
+                getActionsByType,
+                resetUnit,
+                onConnectionDragStart: handleConnectionDragStart
+              } : undefined
+            }}
+          />
+        );
+
       default:
-        return <div className="h-full flex items-center justify-center text-slate-400">Unknown type</div>;
+        console.warn(`⚠️ Unit ${id}: Unknown unitType "${unitType}"`);
+        return (
+          <div className="h-full flex items-center justify-center text-slate-400">
+            <div className="text-center">
+              <div className="text-lg font-medium">Unknown type</div>
+              <div className="text-sm">"{unitType}"</div>
+              <div className="text-xs mt-2 text-slate-500">
+                Check console for details
+              </div>
+            </div>
+          </div>
+        );
     }
   };
 
