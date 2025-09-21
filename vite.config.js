@@ -16,7 +16,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3002", // Voice server port (server.js)
+        target: "http://localhost:3002", // Main server (server.js) - handles all /api routes including /api/excel
         changeOrigin: true,
         secure: false
       }

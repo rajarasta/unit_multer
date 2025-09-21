@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Bell, Search, Plus, Download, Share, Brain, Send, Activity, Type, Image, FileText, Table, Archive, File, Merge } from 'lucide-react';
+import { Settings, Bell, Search, Plus, Download, Share, Brain, Send, Activity, Type, Image, FileText, Table, Archive, File, Merge, Bot } from 'lucide-react';
 import Unit from './Unit';
 import useConnectionStore from '../../store/useConnectionStore';
 import SettingsModal from '../SettingsModal';
@@ -9,6 +9,7 @@ import { GoogleGenAI } from '@google/genai';
 import { excelParserService } from '../../services/ExcelParserService';
 import ExcelViewer from '../ExcelViewer';
 import ExcelRowEditor from '../ExcelRowEditor';
+import ExcelAgentTab from './ExcelAgentTab/ExcelAgentTab';
 
 // Import our extracted hooks
 import useUnitStates from './PlaceholderTab/hooks/useUnitStates';
@@ -77,6 +78,9 @@ const PlaceholderTab = () => {
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
+
+  // Excel Agent state
+  const [showExcelAgent, setShowExcelAgent] = useState(false);
 
   // Specialized mode state
   const [activeSpecializedMode, setActiveSpecializedMode] = useState(null); // null = classic mode
@@ -844,6 +848,28 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
 
         {/* Side Panel */}
         <div className="w-12 bg-slate-50 border-l border-slate-200 flex flex-col items-center pt-8 pb-5 space-y-1 relative overflow-hidden h-full">
+          {/* Excel Agent Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`p-2 rounded-md shadow-sm hover:shadow-md transition-all border group ${
+              showExcelAgent
+                ? 'bg-purple-500 border-purple-600 text-white'
+                : 'bg-white border-slate-200 text-slate-600 hover:text-slate-800'
+            }`}
+            title="Excel AI Agent - Natural language spreadsheet operations"
+            onClick={() => setShowExcelAgent(prev => !prev)}
+          >
+            <Bot size={16} className="transition-colors" />
+            {showExcelAgent && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
+              />
+            )}
+          </motion.button>
+
           {/* Specialized Mode Icons */}
           {specializedModes.map((mode, index) => (
             <motion.button
@@ -1272,6 +1298,12 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
             />
           )}
         </AnimatePresence>
+
+        {/* Excel Agent Tab */}
+        <ExcelAgentTab
+          isOpen={showExcelAgent}
+          onClose={() => setShowExcelAgent(false)}
+        />
 
       </div>
     </>

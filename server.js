@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import cors from "cors";
 import dotenv from "dotenv";
+import XLSX from "xlsx";
 import { v4 as uuidv4 } from 'uuid';
 
 // Focus Session Store for sequential interpretation
@@ -33,6 +34,58 @@ class FocusSessionStore {
 }
 
 const FocusStore = new FocusSessionStore();
+
+// Excel Agent Session Store
+class ExcelSessionStore {
+  constructor() {
+    this.sessions = new Map();
+  }
+
+  createSession() {
+    const sessionId = uuidv4();
+    const session = {
+      id: sessionId,
+      created: new Date().toISOString(),
+      workbook: null,
+      workbookPath: null,
+      sheets: [],
+      events: [],
+      lastActivity: new Date().toISOString()
+    };
+    this.sessions.set(sessionId, session);
+    return sessionId;
+  }
+
+  getSession(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.lastActivity = new Date().toISOString();
+    }
+    return session;
+  }
+
+  addEvent(sessionId, event) {
+    const session = this.getSession(sessionId);
+    if (session) {
+      session.events.push({
+        ...event,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  cleanup() {
+    // Clean up sessions older than 2 hours
+    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (new Date(session.lastActivity) < cutoff) {
+        this.sessions.delete(sessionId);
+      }
+    }
+  }
+}
+
+const ExcelStore = new ExcelSessionStore();
 
 // Document Registry implementation (inline)
 class DocumentRegistry {
@@ -158,7 +211,27 @@ const documentRegistry = new DocumentRegistry();
 dotenv.config();
 
 const app = express();
-const upload = multer(); // memory storage
+
+// Configure multer for file uploads - save to src/backend
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'E:\\UI REFACTOR\\aluminum-store-ui\\src\\backend';
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Use timestamp + original name to avoid conflicts
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname);
+    const name = path.basename(file.originalname, ext);
+    cb(null, `${name}_${timestamp}${ext}`);
+  }
+});
+
+const upload = multer({ storage });
 
 console.log("🔑 OpenAI API Key present:", !!process.env.OPENAI_API_KEY);
 console.log("🔑 API Key length:", process.env.OPENAI_API_KEY?.length || 0);
@@ -1916,8 +1989,877 @@ app.get('/api/documents/:filename/pages/:pageNumber', async (req, res) => {
   }
 });
 
+/* ========== Excel Agent Helper Functions ========== */
+
+/**
+ * Execute Excel operations on a session
+ */
+async function executeExcelOperations(sessionId, actions) {
+  console.log(`📊 Excel Agent: Executing ${actions.length} operations for session ${sessionId}`);
+
+  const session = ExcelStore.getSession(sessionId);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+
+  if (!session.workbook) {
+    throw new Error('No workbook loaded in session');
+  }
+
+  const applied = [];
+  const errors = [];
+
+  // Load the Excel workbook
+  console.log('🔍 XLSX available methods:', Object.keys(XLSX));
+
+  // Try different ways to access readFile
+  const readFile = XLSX.readFile || XLSX.default?.readFile || XLSX.utils?.readFile;
+
+  if (!readFile) {
+    throw new Error('XLSX.readFile function not available');
+  }
+
+  const workbook = readFile(session.workbook.path);
+
+  for (const action of actions) {
+    try {
+      console.log(`🔧 Executing action: ${action.type} on ${action.target}`);
+
+      if (action.type === 'formatCell') {
+        // Get the worksheet
+        const worksheet = workbook.Sheets[action.sheet || 'Sheet1'];
+        if (!worksheet) {
+          throw new Error(`Sheet '${action.sheet}' not found`);
+        }
+
+        // Apply formatting (XLSX library has limited formatting support)
+        const cell = worksheet[action.target] || {};
+
+        // Set cell properties
+        if (action.style) {
+          cell.s = cell.s || {};
+
+          // Background color (limited support in XLSX)
+          if (action.style.backgroundColor) {
+            cell.s.fill = {
+              fgColor: { rgb: action.style.backgroundColor.replace('#', '') }
+            };
+          }
+
+          // Font styles
+          if (action.style.fontWeight === 'bold' || action.style.color || action.style.fontSize) {
+            cell.s.font = cell.s.font || {};
+            if (action.style.fontWeight === 'bold') cell.s.font.bold = true;
+            if (action.style.color) cell.s.font.color = { rgb: action.style.color.replace('#', '') };
+            if (action.style.fontSize) cell.s.font.sz = action.style.fontSize;
+          }
+        }
+
+        worksheet[action.target] = cell;
+        applied.push(`${action.type} on ${action.target} - formatted`);
+
+      } else if (action.type === 'updateCell') {
+        // Get the worksheet
+        const worksheet = workbook.Sheets[action.sheet || 'Sheet1'];
+        if (!worksheet) {
+          throw new Error(`Sheet '${action.sheet}' not found`);
+        }
+
+        // Update cell value
+        worksheet[action.target] = { t: 's', v: action.value };
+        applied.push(`${action.type} on ${action.target} - set to "${action.value}"`);
+
+      } else {
+        throw new Error(`Unsupported action type: ${action.type}`);
+      }
+
+      // Add event to session for SSE
+      ExcelStore.addEvent(sessionId, {
+        type: 'action',
+        message: `Applied ${action.type} to ${action.target}`,
+        data: action
+      });
+
+    } catch (error) {
+      console.error(`❌ Action failed: ${action.type}:`, error);
+      errors.push(`${action.type}: ${error.message}`);
+    }
+  }
+
+  // Save the modified workbook back to the file
+  try {
+    const writeFile = XLSX.writeFile || XLSX.default?.writeFile || XLSX.utils?.writeFile;
+
+    if (!writeFile) {
+      throw new Error('XLSX.writeFile function not available');
+    }
+
+    writeFile(workbook, session.workbook.path);
+    console.log(`💾 Saved changes to: ${session.workbook.path}`);
+  } catch (saveError) {
+    console.error(`❌ Failed to save workbook:`, saveError);
+    errors.push(`Save failed: ${saveError.message}`);
+  }
+
+  const result = {
+    applied,
+    errors,
+    stats: {
+      totalActions: actions.length,
+      appliedActions: applied.length,
+      errorCount: errors.length
+    }
+  };
+
+  console.log(`✅ Excel Agent: Operations completed for session ${sessionId}`);
+  return result;
+}
+
+/* ========== Excel Agent API Routes ========== */
+
+// POST /api/llm/excel-planner - Convert natural language to Excel actions
+app.post("/api/llm/excel-planner", async (req, res) => {
+  try {
+    const { prompt, sessionId, activeSheet, selection, context } = req.body;
+
+    if (!prompt?.trim()) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    console.log(`🤖 Excel Planner: Processing prompt for session ${sessionId}`);
+    console.log(`📝 Prompt: "${prompt}"`);
+    console.log(`📊 Context: Sheet=${activeSheet}, Selection=${selection?.range || 'none'}`);
+
+    // Generate planning prompt for the LLM
+    const planningPrompt = `You are an Excel AI assistant that converts natural language commands into structured Excel actions.
+
+CONTEXT:
+- Active sheet: ${activeSheet || 'Unknown'}
+- Available sheets: ${context?.sheets?.join(', ') || 'Unknown'}
+- Current selection: ${selection?.range || 'None'}
+- Workbook: ${context?.workbookInfo?.name || 'Unknown'}
+
+USER COMMAND: "${prompt}"
+
+INSTRUCTIONS:
+1. Interpret the user's natural language command
+2. Convert it to precise Excel actions using the supported action types
+3. Use A1 notation for cell references (e.g., "A1", "B5", "C10")
+4. For ranges, use format "A1:B5"
+5. Be conservative - if uncertain, provide simple actions
+
+SUPPORTED ACTIONS:
+- updateCell: Change cell value
+- formatCell: Apply styling (bold, italic, colors, alignment, font size)
+- insertRow/deleteRow: Add or remove rows
+- setRowHeight/setColumnWidth: Adjust dimensions
+- mergeCells: Merge cell ranges
+
+RESPONSE FORMAT: Return valid JSON with actions array, reasoning, and confidence score.
+
+Examples:
+"Make A1 bold" → [{"type": "formatCell", "sheet": "${activeSheet || 'Sheet1'}", "target": "A1", "style": {"bold": true}}]
+"Change B2 to Hello" → [{"type": "updateCell", "sheet": "${activeSheet || 'Sheet1'}", "target": "B2", "value": "Hello"}]
+"Change cell A1 background color to blue" → [{"type": "formatCell", "sheet": "${activeSheet || 'Sheet1'}", "target": "A1", "style": {"backgroundColor": "#0000FF"}}]
+
+Respond with JSON only - no explanatory text before or after:
+{
+  "actions": [...],
+  "reasoning": "explanation of what will be done",
+  "confidence": 0.8
+}`;
+
+    try {
+      // Call your hosted LLM
+      const LLM_BASE_URL = 'http://192.168.30.11:1234';
+      const LLM_MODEL = 'qwen3-4b-thinking-2507';
+
+      console.log(`🤖 Calling hosted LLM at ${LLM_BASE_URL} with model ${LLM_MODEL}`);
+
+      const llmResponse = await fetch(`${LLM_BASE_URL}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: LLM_MODEL,
+          messages: [
+            {
+              role: 'system',
+              content: `You are an Excel AI assistant. When users request Excel operations, you MUST call the appropriate function.
+
+CRITICAL RULES:
+- ALWAYS use function calls for Excel operations
+- DO NOT output JSON in text content
+- DO NOT include <think> blocks
+- DO NOT explain what you're doing
+- ONLY call the function with the correct parameters
+
+Available functions: formatCell, updateCell, insertRow`
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "formatCell",
+                description: "Apply formatting to Excel cells (colors, fonts, alignment)",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    sheet: {
+                      type: "string",
+                      description: "Sheet name (e.g., 'Sheet1')"
+                    },
+                    target: {
+                      type: "string",
+                      description: "Cell reference in A1 notation (e.g., 'A1', 'B5:C10')"
+                    },
+                    style: {
+                      type: "object",
+                      properties: {
+                        backgroundColor: { type: "string", description: "Hex color code (e.g., '#FF0000')" },
+                        color: { type: "string", description: "Text color hex code" },
+                        fontWeight: { type: "string", description: "'bold' or 'normal'" },
+                        fontStyle: { type: "string", description: "'italic' or 'normal'" },
+                        fontSize: { type: "number", description: "Font size in points" }
+                      }
+                    }
+                  },
+                  required: ["sheet", "target", "style"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "updateCell",
+                description: "Update cell values",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    sheet: { type: "string", description: "Sheet name" },
+                    target: { type: "string", description: "Cell reference (A1 notation)" },
+                    value: { type: "string", description: "New cell value" }
+                  },
+                  required: ["sheet", "target", "value"]
+                }
+              }
+            }
+          ],
+          tool_choice: "required",
+          temperature: 0.1,
+          max_tokens: 4096,
+          stream: false
+        })
+      });
+
+      if (!llmResponse.ok) {
+        throw new Error(`LLM API error: ${llmResponse.status} ${llmResponse.statusText}`);
+      }
+
+      const llmData = await llmResponse.json();
+
+      if (!llmData.choices || !llmData.choices[0] || !llmData.choices[0].message) {
+        throw new Error('Invalid LLM response structure');
+      }
+
+      const message = llmData.choices[0].message;
+      const responseText = message.content;
+      const toolCalls = message.tool_calls;
+
+      console.log(`🔍 LLM Response - Content: ${responseText?.length || 0} chars, Tool calls: ${toolCalls?.length || 0}`);
+
+      // Parse and validate response
+      let parsedResult;
+
+      // Process tool calls if available
+      if (toolCalls && toolCalls.length > 0) {
+        console.log(`🔧 Processing ${toolCalls.length} tool calls`);
+
+        const actions = toolCalls.map(toolCall => {
+          const { name, arguments: args } = toolCall.function;
+          console.log(`📞 Tool call: ${name} with args:`, args);
+
+          // Parse arguments if they're a string
+          const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+
+          return {
+            type: name,
+            ...parsedArgs
+          };
+        });
+
+        parsedResult = {
+          actions,
+          reasoning: "Tool functions called by LLM",
+          confidence: 0.95
+        };
+      } else {
+        // Fallback to content parsing
+        console.log(`📝 No tool calls, parsing content as JSON`);
+        try {
+          // Clean response - remove any non-JSON content
+          let cleanedResponse = responseText.trim();
+
+          // Remove think tags if present (for hosted LLM that outputs thinking)
+          const beforeCleaning = cleanedResponse.length;
+          cleanedResponse = cleanedResponse.replace(/<think>[\s\S]*?<\/think>/g, '');
+          const afterCleaning = cleanedResponse.length;
+
+          if (beforeCleaning !== afterCleaning) {
+            console.log(`🧹 [Server] Removed thinking tags: ${beforeCleaning} -> ${afterCleaning} chars`);
+          }
+
+          cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+          cleanedResponse = cleanedResponse.trim();
+
+          const jsonStart = cleanedResponse.indexOf('{');
+          const jsonEnd = cleanedResponse.lastIndexOf('}');
+
+          if (jsonStart === -1 || jsonEnd === -1) {
+            throw new Error('No JSON object found in response');
+          }
+
+          const jsonStr = cleanedResponse.substring(jsonStart, jsonEnd + 1);
+          parsedResult = JSON.parse(jsonStr);
+
+          // Basic validation
+          if (!parsedResult.actions || !Array.isArray(parsedResult.actions)) {
+            throw new Error('Response must contain actions array');
+          }
+
+          // Validate each action has required fields
+          for (const action of parsedResult.actions) {
+            if (!action.type || !action.sheet || !action.target) {
+              throw new Error(`Invalid action: missing required fields in ${JSON.stringify(action)}`);
+            }
+          }
+
+        } catch (parseError) {
+          console.error('❌ Failed to parse LLM response:', parseError);
+          console.error('Raw response:', responseText);
+
+          // Generate fallback actions for simple patterns
+          const lowerPrompt = prompt.toLowerCase();
+          let fallbackActions = [];
+
+          if (lowerPrompt.includes('background') && lowerPrompt.includes('color') && lowerPrompt.includes('blue') && lowerPrompt.includes('a1')) {
+            fallbackActions = [{
+              type: 'formatCell',
+              sheet: activeSheet || 'Sheet1',
+              target: 'A1',
+              style: { backgroundColor: '#0000FF' }
+            }];
+          } else if (lowerPrompt.includes('color') && lowerPrompt.includes('red') && lowerPrompt.includes('a1')) {
+            fallbackActions = [{
+              type: 'formatCell',
+              sheet: activeSheet || 'Sheet1',
+              target: 'A1',
+              style: { backgroundColor: '#FF0000' }
+            }];
+          }
+
+          if (fallbackActions.length > 0) {
+            parsedResult = {
+              actions: fallbackActions,
+              reasoning: "Fallback pattern matching used due to LLM parsing failure",
+              confidence: 0.3
+            };
+          } else {
+            throw parseError;
+          }
+        }
+      }
+
+      console.log(`✅ Parsed ${parsedResult.actions.length} actions with confidence ${parsedResult.confidence || 'unknown'}`);
+      console.log(`💭 Reasoning: ${parsedResult.reasoning}`);
+
+      // Execute the actions immediately
+      if (parsedResult.actions.length > 0) {
+        console.log(`🔧 Executing ${parsedResult.actions.length} actions on session ${sessionId}`);
+
+        try {
+          // Execute actions via the Excel operations endpoint
+          const executeResult = await executeExcelOperations(sessionId, parsedResult.actions);
+          console.log(`✅ Excel operations completed:`, executeResult);
+
+          return res.status(200).json({
+            success: true,
+            actions: parsedResult.actions,
+            reasoning: parsedResult.reasoning,
+            confidence: parsedResult.confidence || 0.8,
+            executionResult: executeResult,
+            sessionId,
+            llmSource: 'hosted',
+            timestamp: new Date().toISOString()
+          });
+        } catch (executeError) {
+          console.error(`❌ Excel operations failed:`, executeError);
+
+          return res.status(200).json({
+            success: true,
+            actions: parsedResult.actions,
+            reasoning: parsedResult.reasoning,
+            confidence: parsedResult.confidence || 0.8,
+            executionError: executeError.message,
+            sessionId,
+            llmSource: 'hosted',
+            timestamp: new Date().toISOString()
+          });
+        }
+      } else {
+        return res.status(200).json({
+          success: true,
+          actions: parsedResult.actions,
+          reasoning: parsedResult.reasoning,
+          confidence: parsedResult.confidence || 0.8,
+          sessionId,
+          llmSource: 'hosted',
+          timestamp: new Date().toISOString()
+        });
+      }
+
+    } catch (llmError) {
+      console.error('❌ LLM call failed:', llmError);
+
+      // Generate fallback actions based on simple pattern matching
+      const lowerPrompt = prompt.toLowerCase();
+      let fallbackActions = [];
+
+      if (lowerPrompt.includes('background') && lowerPrompt.includes('color') && lowerPrompt.includes('blue') && lowerPrompt.includes('a1')) {
+        fallbackActions = [{
+          type: 'formatCell',
+          sheet: activeSheet || 'Sheet1',
+          target: 'A1',
+          style: { backgroundColor: '#0000FF' }
+        }];
+      } else if (lowerPrompt.includes('bold') && lowerPrompt.includes('a1')) {
+        fallbackActions = [{
+          type: 'formatCell',
+          sheet: activeSheet || 'Sheet1',
+          target: 'A1',
+          style: { bold: true }
+        }];
+      } else if (lowerPrompt.includes('insert row')) {
+        const rowMatch = lowerPrompt.match(/row (\d+)/);
+        const index = rowMatch ? parseInt(rowMatch[1]) + 1 : 2;
+        fallbackActions = [{
+          type: 'insertRow',
+          sheet: activeSheet || 'Sheet1',
+          target: `A${index}`,
+          index: index,
+          count: 1
+        }];
+      } else {
+        fallbackActions = [{
+          type: 'updateCell',
+          sheet: activeSheet || 'Sheet1',
+          target: 'A1',
+          value: 'Updated by AI'
+        }];
+      }
+
+      console.log(`🔄 Using fallback actions: ${fallbackActions.length} actions generated`);
+
+      return res.status(200).json({
+        success: true,
+        actions: fallbackActions,
+        reasoning: `Fallback pattern matching used (LLM error: ${llmError.message})`,
+        confidence: 0.3,
+        fallback: true,
+        sessionId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Excel planner error:', error);
+
+    return res.status(500).json({
+      error: 'Failed to plan Excel actions',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/excel/session - Create new Excel session
+app.post("/api/excel/session", (req, res) => {
+  try {
+    const sessionId = ExcelStore.createSession();
+    console.log(`📊 Excel Agent: Created session ${sessionId}`);
+
+    res.json({
+      success: true,
+      sessionId: sessionId
+    });
+  } catch (error) {
+    console.error('❌ Excel session creation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/excel/open - Upload and open Excel file
+app.post("/api/excel/open", upload.single("file"), async (req, res) => {
+  try {
+    const sessionId = req.headers['x-session-id'];
+    const file = req.file;
+
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: "Session ID required" });
+    }
+
+    if (!file) {
+      return res.status(400).json({ success: false, error: "Excel file required" });
+    }
+
+    const session = ExcelStore.getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, error: "Session not found" });
+    }
+
+    // Store file info in session
+    session.workbook = {
+      name: file.originalname,
+      size: file.size,
+      path: file.path,
+      uploadedAt: new Date().toISOString()
+    };
+
+    // Mock sheet data for now
+    session.sheets = [
+      { name: "Sheet1", rows: 100, cols: 26, cellCount: 2600 },
+      { name: "Data", rows: 50, cols: 8, cellCount: 400 }
+    ];
+
+    ExcelStore.addEvent(sessionId, {
+      type: "status",
+      message: `Excel file '${file.originalname}' loaded successfully`
+    });
+
+    console.log(`📊 Excel Agent: File uploaded to session ${sessionId}`);
+
+    res.json({
+      success: true,
+      workbook: {
+        name: file.originalname,
+        sheets: session.sheets.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Excel file upload failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/excel/sheets - Get sheets list
+app.get("/api/excel/sheets", (req, res) => {
+  try {
+    const sessionId = req.query.sessionId;
+
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: "Session ID required" });
+    }
+
+    const session = ExcelStore.getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, error: "Session not found" });
+    }
+
+    res.json({
+      success: true,
+      sheets: session.sheets
+    });
+
+  } catch (error) {
+    console.error('❌ Excel sheets listing failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/excel/range - Get cell range data
+app.get("/api/excel/range", (req, res) => {
+  try {
+    const { sessionId, sheet, range } = req.query;
+
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: "Session ID required" });
+    }
+
+    const session = ExcelStore.getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, error: "Session not found" });
+    }
+
+    // Mock cell data
+    res.json({
+      success: true,
+      range: range,
+      cells: [
+        [{ value: "Header 1", coordinate: "A1" }, { value: "Header 2", coordinate: "B1" }],
+        [{ value: "Data 1", coordinate: "A2" }, { value: "Data 2", coordinate: "B2" }]
+      ]
+    });
+
+  } catch (error) {
+    console.error('❌ Excel range retrieval failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/excel/ops - Execute Excel operations
+app.post("/api/excel/ops", async (req, res) => {
+  try {
+    const sessionId = req.headers['x-session-id'];
+    const { actions, dryRun = false, transactionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: "Session ID required" });
+    }
+
+    const session = ExcelStore.getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, error: "Session not found" });
+    }
+
+    console.log(`📊 Excel Agent: Executing ${actions.length} operations for session ${sessionId}`);
+
+    // Add processing events
+    ExcelStore.addEvent(sessionId, {
+      type: "status",
+      message: `Starting execution of ${actions.length} operations...`
+    });
+
+    // Mock execution - in real implementation, this would use a proper Excel library
+    const applied = [];
+    const errors = [];
+    const diff = [];
+
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+
+      ExcelStore.addEvent(sessionId, {
+        type: "finding",
+        message: `Executing ${action.type} on ${action.sheet}:${action.target}`
+      });
+
+      try {
+        // Mock successful execution
+        applied.push(`${action.type} on ${action.sheet}:${action.target}`);
+
+        diff.push({
+          sheet: action.sheet,
+          row: 1,
+          col: 1,
+          before: { value: "old_value" },
+          after: { value: action.value || "new_value" }
+        });
+
+        // Simulate processing time
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+      } catch (error) {
+        errors.push(`Failed ${action.type}: ${error.message}`);
+      }
+    }
+
+    // Add completion event
+    ExcelStore.addEvent(sessionId, {
+      type: "result",
+      message: `Execution complete: ${applied.length} operations applied, ${errors.length} errors`,
+      diff: diff
+    });
+
+    const result = {
+      success: true,
+      applied: applied,
+      errors: errors,
+      diff: diff,
+      stats: {
+        totalActions: actions.length,
+        appliedActions: applied.length,
+        errorCount: errors.length,
+        cellsModified: diff.length
+      },
+      traceId: transactionId || uuidv4()
+    };
+
+    console.log(`✅ Excel Agent: Operations completed for session ${sessionId}`);
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ Excel operations failed:', error);
+
+    ExcelStore.addEvent(sessionId, {
+      type: "error",
+      message: `Execution failed: ${error.message}`
+    });
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/excel/export - Export workbook
+app.post("/api/excel/export", (req, res) => {
+  try {
+    const { sessionId, format = "xlsx" } = req.body;
+
+    console.log(`📥 Export request: sessionId=${sessionId}, format=${format}`);
+
+    if (!sessionId) {
+      console.error('❌ Export failed: No session ID provided');
+      return res.status(400).json({ success: false, error: "Session ID required" });
+    }
+
+    const session = ExcelStore.getSession(sessionId);
+    if (!session) {
+      console.error(`❌ Export failed: Session ${sessionId} not found`);
+      return res.status(404).json({ success: false, error: "Session not found" });
+    }
+
+    console.log(`📊 Session found: ${sessionId}, workbook:`, session.workbook);
+
+    // Check if workbook exists
+    if (!session.workbook) {
+      console.error('❌ Export failed: No workbook in session');
+      return res.status(400).json({ success: false, error: "No workbook loaded in session" });
+    }
+
+    // Check if file exists
+    if (!session.workbook.path) {
+      console.error('❌ Export failed: No file path in workbook');
+      return res.status(400).json({ success: false, error: "No file path available" });
+    }
+
+    // Check if file exists on disk
+    if (!fs.existsSync(session.workbook.path)) {
+      console.error(`❌ Export failed: File not found at ${session.workbook.path}`);
+      return res.status(400).json({ success: false, error: "File not found on disk" });
+    }
+
+    console.log(`✅ Exporting file: ${session.workbook.path}`);
+
+    // Copy to easily accessible location for inspection
+    const inspectionPath = path.join('E:\\UI REFACTOR\\aluminum-store-ui\\src\\backend', `EXPORTED_${Date.now()}.xlsx`);
+    try {
+      fs.copyFileSync(session.workbook.path, inspectionPath);
+      console.log(`📋 File copied for inspection: ${inspectionPath}`);
+    } catch (copyError) {
+      console.warn('⚠️ Could not copy file for inspection:', copyError.message);
+    }
+
+    // Set appropriate headers for file download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="exported_workbook.${format}"`);
+
+    // Send the file
+    res.download(session.workbook.path, `exported_workbook.${format}`, (err) => {
+      if (err) {
+        console.error('❌ File download error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, error: "File download failed" });
+        }
+      } else {
+        console.log('✅ File export completed successfully');
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Excel export failed:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+});
+
+// GET /api/excel/stream/:sessionId - SSE event stream
+app.get("/api/excel/stream/:sessionId", (req, res) => {
+  const sessionId = req.params.sessionId;
+
+  // Set SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control'
+  });
+
+  // Send initial connection event
+  res.write(`data: ${JSON.stringify({ type: 'connected', message: 'Stream connected' })}\n\n`);
+
+  const session = ExcelStore.getSession(sessionId);
+  if (!session) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: 'Session not found' })}\n\n`);
+    res.end();
+    return;
+  }
+
+  let lastEventIndex = 0;
+
+  // Send existing events
+  session.events.slice(lastEventIndex).forEach(event => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  });
+  lastEventIndex = session.events.length;
+
+  // Set up polling for new events
+  const pollInterval = setInterval(() => {
+    const currentSession = ExcelStore.getSession(sessionId);
+    if (!currentSession) {
+      res.write(`data: ${JSON.stringify({ type: 'error', message: 'Session expired' })}\n\n`);
+      clearInterval(pollInterval);
+      res.end();
+      return;
+    }
+
+    // Send new events
+    const newEvents = currentSession.events.slice(lastEventIndex);
+    newEvents.forEach(event => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    });
+    lastEventIndex = currentSession.events.length;
+  }, 500);
+
+  // Cleanup on client disconnect
+  req.on('close', () => {
+    clearInterval(pollInterval);
+  });
+});
+
+// Cleanup Excel sessions periodically
+setInterval(() => {
+  ExcelStore.cleanup();
+}, 60000); // Every minute
+
 /* ========== Pokreni server ========== */
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`✅ API server radi na http://localhost:${PORT}`);
+  console.log(`📊 Excel Agent API dostupan na /api/excel/*`);
 });

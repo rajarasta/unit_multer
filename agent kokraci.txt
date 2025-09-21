@@ -1,0 +1,335 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Bot, User, HardDrive, Search, FileText, Loader, Send, CornerDownLeft } from 'lucide-react';
+
+// --- Mock Database & Tools ---
+// A fake database of project drawings the agent can search.
+const MOCK_DRAWINGS_DB = [
+    { id: 'pdf-001', position: 5, location: 'basement', type: 'PDF', date: '2025-08-15', project: 'AGS-NIRS', version: 4, file: 'ags_nirs_basement_p5_v4.pdf' },
+    { id: 'dwg-002', position: 5, location: 'basement', type: 'DWG', date: '2025-08-12', project: 'AGS-NIRS', version: 3, file: 'ags_nirs_basement_p5_v3.dwg' },
+    { id: 'pdf-003', position: 5, location: 'ground-floor', type: 'PDF', date: '2025-07-20', project: 'AGS-NIRS', version: 2, file: 'ags_nirs_gf_p5_v2.pdf' },
+    { id: 'pdf-004', position: 12, location: 'basement', type: 'PDF', date: '2025-09-01', project: 'ZEN-TOWER', version: 1, file: 'zen_tower_basement_p12_v1.pdf' },
+    { id: 'cat-005', position: 5, location: 'basement', type: 'CATALOG', date: '2025-08-10', project: 'AGS-NIRS', version: 1, file: 'catalog_ags_nirs_materials.json' },
+];
+
+// This simulates running a tool, like a database search.
+const runMockTool = async (toolCall) => {
+    console.log("Running tool:", toolCall);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    if (toolCall.name === 'catalog.search') {
+        const { query, filters } = toolCall.args;
+        let results = MOCK_DRAWINGS_DB;
+
+        if (filters) {
+            results = results.filter(item =>
+                Object.entries(filters).every(([key, value]) => {
+                    if (key === 'date' && value === 'last_month') {
+                        // In a real app, you'd calculate this. We'll hardcode for the demo.
+                        // Assuming current date is September 21, 2025
+                        const itemDate = new Date(item.date);
+                        const lastMonth = new Date('2025-08-01');
+                        return itemDate >= lastMonth;
+                    }
+                     if (key === 'project' && value === 'AGS-NIRS') {
+                        return item.project === 'AGS-NIRS';
+                    }
+                    return item[key]?.toString().toLowerCase() === value?.toString().toLowerCase();
+                })
+            );
+        }
+        return { success: true, results };
+    }
+    return { success: false, error: 'Tool not found' };
+};
+
+
+// --- Mock Language Model ---
+// This function simulates the LLM's brain. It decides the next step.
+const runMockLLM = async (history) => {
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate model thinking time
+    const lastMessage = history[history.length - 1];
+
+    // Case 1: Initial user prompt
+    if (lastMessage.role === 'user' && lastMessage.type === 'goal') {
+        return {
+            plan_step: "1. Search for PDF drawings for Position 5 in the basement from last month.",
+            tool_call: { name: "catalog.search", args: { filters: { position: 5, location: "basement", type: "pdf", date: "last_month" } } },
+            request_user_input: false,
+            notes_for_ui: "Starting the search. I will prioritize PDF files as requested."
+        };
+    }
+
+    // Case 2: Received tool results, but also user guidance to check another project.
+    if(lastMessage.role === 'user' && lastMessage.type === 'guidance' && lastMessage.content.includes("AGS-NIRS")) {
+         return {
+            plan_step: "2. Refine search with user's project guidance.",
+            tool_call: { name: "catalog.search", args: { filters: { position: 5, location: "basement", type: "pdf", date: "last_month", project: "AGS-NIRS" } } },
+            request_user_input: false,
+            notes_for_ui: "Okay, I've added the project filter 'AGS-NIRS' to the search."
+        };
+    }
+    
+    // Case 3: Received tool results and user guidance to ignore old versions.
+    if (lastMessage.role === 'user' && lastMessage.type === 'guidance' && lastMessage.content.includes("v3")) {
+        const toolResult = history.find(m => m.role === 'tool' && m.type === 'result')?.content.results;
+        const filteredResults = toolResult.filter(r => r.version >= 3);
+         return {
+            plan_step: "3. Filtered out old versions based on user feedback.",
+            final_answer: {
+                summary: "Found the requested drawing after applying your guidance.",
+                results: filteredResults,
+            },
+            notes_for_ui: "I've filtered the results and am now presenting the final answer."
+        };
+    }
+
+    // Case 4: Received successful tool results. Now, ask the user for confirmation.
+    if (lastMessage.role === 'tool' && lastMessage.type === 'result') {
+        return {
+            plan_step: "2. Ask user to confirm results before finishing.",
+            request_user_input: true,
+            question: "I found a few matching drawings. Do you want me to exclude any older versions before I finalize the report?",
+            notes_for_ui: "The initial search was successful. Pausing for user feedback to refine the results."
+        };
+    }
+
+    // Fallback
+    return {
+        final_answer: { summary: "I'm not sure how to proceed. Here's what I have so far.", results: [] },
+        notes_for_ui: "Reached an unexpected state."
+    };
+};
+
+
+// --- React Component ---
+export default function App() {
+    const [history, setHistory] = useState([]);
+    const [agentState, setAgentState] = useState({ goal: "", constraints: [], evidence: [], next_action: "idle", pending_questions: [] });
+    const [userInput, setUserInput] = useState("Find drawing for position 5 in basement, added last month (prefer PDF).");
+    const [isLoading, setIsLoading] = useState(false);
+    const [isPaused, setIsPaused] = useState(true);
+    const [placeholder, setPlaceholder] = useState("Enter your initial goal...");
+    const chatEndRef = useRef(null);
+
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [history]);
+
+    const addToHistory = (item) => {
+        setHistory(prev => [...prev, item]);
+    };
+
+    const processStep = async (currentHistory) => {
+        setIsLoading(true);
+        setIsPaused(false);
+        
+        const llmResponse = await runMockLLM(currentHistory);
+        
+        // Update agent's internal state/scratchpad
+        setAgentState(prev => ({ ...prev, next_action: llmResponse.plan_step, notes: llmResponse.notes_for_ui }));
+        addToHistory({ role: 'assistant', type: 'thought', content: llmResponse.notes_for_ui });
+        
+        if (llmResponse.tool_call) {
+            addToHistory({ role: 'assistant', type: 'tool_call', content: llmResponse.tool_call });
+            const toolResult = await runMockTool(llmResponse.tool_call);
+            const newHistory = [...currentHistory, { role: 'assistant', type: 'thought', content: llmResponse.notes_for_ui }, { role: 'assistant', type: 'tool_call', content: llmResponse.tool_call }, { role: 'tool', type: 'result', content: toolResult }];
+            addToHistory({ role: 'tool', type: 'result', content: toolResult });
+            
+            // This is a key step: after the tool runs, we process the *next* step automatically
+            // which in our mock logic, leads to a pause for user input.
+            await processStep(newHistory);
+
+        } else if (llmResponse.request_user_input) {
+            addToHistory({ role: 'assistant', type: 'question', content: llmResponse.question });
+            setPlaceholder(`Respond to: "${llmResponse.question}"`);
+            setIsPaused(true); // Pause for user
+            setIsLoading(false);
+        } else if (llmResponse.final_answer) {
+            addToHistory({ role: 'assistant', type: 'answer', content: llmResponse.final_answer });
+            setPlaceholder("Start a new goal...");
+            setIsPaused(true); // End of flow, ready for new goal
+            setIsLoading(false);
+        }
+    };
+
+    const handleUserInput = async (e) => {
+        e.preventDefault();
+        if (!userInput.trim() || isLoading) return;
+
+        const isFirstTurn = history.length === 0;
+        const messageType = isFirstTurn ? 'goal' : 'guidance';
+
+        const userMessage = { role: 'user', type: messageType, content: userInput };
+        const newHistory = [...history, userMessage];
+
+        addToHistory(userMessage);
+        setUserInput("");
+        setAgentState(prev => ({...prev, goal: isFirstTurn ? userInput : prev.goal }));
+
+        await processStep(newHistory);
+    };
+
+    const renderMessage = (msg, index) => {
+        switch (msg.role) {
+            case 'user':
+                return (
+                    <div key={index} className="flex items-start gap-3 justify-end">
+                        <div className="bg-blue-500 text-white p-3 rounded-xl max-w-lg">
+                            <p className="font-semibold text-sm">{msg.type === 'goal' ? 'Initial Goal' : 'User Guidance'}</p>
+                            <p>{msg.content}</p>
+                        </div>
+                        <div className="bg-blue-500 rounded-full h-10 w-10 flex items-center justify-center text-white flex-shrink-0"><User size={20} /></div>
+                    </div>
+                );
+            case 'assistant':
+                switch (msg.type) {
+                    case 'thought':
+                        return (
+                             <div key={index} className="flex items-start gap-3">
+                                <div className="bg-gray-700 rounded-full h-10 w-10 flex items-center justify-center text-gray-300 flex-shrink-0"><Bot size={20} /></div>
+                                <div className="bg-gray-700 text-gray-300 p-3 rounded-xl max-w-lg italic">
+                                     <p className="font-semibold text-sm opacity-80 mb-1">Agent Thought</p>
+                                    <p>{msg.content}</p>
+                                </div>
+                            </div>
+                        );
+                    case 'tool_call':
+                        return (
+                            <div key={index} className="flex items-start gap-3">
+                               <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-10 w-10 flex items-center justify-center text-gray-500 dark:text-gray-300 flex-shrink-0"><HardDrive size={20} /></div>
+                                <div className="bg-gray-200 dark:bg-gray-800 p-3 rounded-xl max-w-lg text-gray-800 dark:text-gray-200">
+                                    <p className="font-semibold text-sm text-indigo-400 mb-1">Calling Tool: <span className="font-mono">{msg.content.name}</span></p>
+                                    <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded-md whitespace-pre-wrap"><code>{JSON.stringify(msg.content.args, null, 2)}</code></pre>
+                                </div>
+                            </div>
+                        );
+                    case 'question':
+                        return (
+                            <div key={index} className="flex items-start gap-3">
+                                <div className="bg-gray-700 rounded-full h-10 w-10 flex items-center justify-center text-gray-300 flex-shrink-0"><Bot size={20} /></div>
+                                <div className="bg-purple-600 text-white p-3 rounded-xl max-w-lg shadow-lg">
+                                    <p className="font-semibold text-sm mb-1">Waiting for Input</p>
+                                    <p>{msg.content}</p>
+                                </div>
+                            </div>
+                        );
+                    case 'answer':
+                        return (
+                            <div key={index} className="flex items-start gap-3">
+                               <div className="bg-gray-700 rounded-full h-10 w-10 flex items-center justify-center text-gray-300 flex-shrink-0"><Bot size={20} /></div>
+                                <div className="bg-green-600 text-white p-4 rounded-xl max-w-lg">
+                                    <p className="font-bold text-md mb-2">Final Answer</p>
+                                    <p className="mb-3">{msg.content.summary}</p>
+                                    <div className="bg-green-700 rounded-lg p-3 space-y-2">
+                                        {msg.content.results.map(r => (
+                                            <div key={r.id} className="flex items-center gap-2 bg-green-800 p-2 rounded">
+                                                <FileText size={16} />
+                                                <span className="font-mono text-sm">{r.file}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                }
+                return null;
+            case 'tool':
+                return (
+                    <div key={index} className="flex items-start gap-3">
+                        <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-10 w-10 flex items-center justify-center text-gray-500 dark:text-gray-300 flex-shrink-0"><Search size={20} /></div>
+                        <div className="bg-gray-200 dark:bg-gray-800 p-3 rounded-xl max-w-lg text-gray-800 dark:text-gray-200">
+                            <p className="font-semibold text-sm text-teal-400 mb-1">Tool Result</p>
+                            <p className="text-xs">Found {msg.content.results.length} items.</p>
+                        </div>
+                    </div>
+                );
+        }
+    };
+    
+
+    return (
+        <div className="flex h-screen bg-gray-900 text-white font-sans antialiased">
+            {/* Main Chat Interface */}
+            <div className="flex flex-col flex-1">
+                <header className="p-4 border-b border-gray-700 shadow-md bg-gray-800">
+                    <h1 className="text-xl font-bold">Interruptible AI Agent Demo</h1>
+                    <p className="text-sm text-gray-400">Observe and guide the AI's reasoning process step-by-step.</p>
+                </header>
+
+                <main className="flex-1 p-6 overflow-y-auto">
+                    <div className="space-y-6">
+                        {history.length === 0 && (
+                            <div className="text-center text-gray-500 pt-16">
+                                <Bot size={48} className="mx-auto mb-4"/>
+                                <p>The agent is idle.</p>
+                                <p>Enter a goal below to start the process.</p>
+                            </div>
+                        )}
+                        {history.map(renderMessage)}
+                        <div ref={chatEndRef} />
+                    </div>
+                </main>
+
+                <footer className="p-4 bg-gray-800 border-t border-gray-700">
+                    <form onSubmit={handleUserInput} className="relative">
+                        <input
+                            type="text"
+                            value={userInput}
+                            onChange={(e) => setUserInput(e.target.value)}
+                            placeholder={isLoading ? "Agent is thinking..." : placeholder}
+                            disabled={isLoading || !isPaused}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-full py-3 px-6 pr-16 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
+                        />
+                        <button 
+                            type="submit"
+                            disabled={isLoading || !userInput.trim()}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-blue-600 text-white rounded-full h-9 w-9 flex items-center justify-center hover:bg-blue-500 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {isLoading ? <Loader className="animate-spin" size={20}/> : <Send size={20}/>}
+                        </button>
+                    </form>
+                </footer>
+            </div>
+
+            {/* Agent State Scratchpad */}
+            <aside className="w-1/3 max-w-md bg-gray-900 border-l border-gray-700 flex flex-col">
+                <div className="p-4 border-b border-gray-700 bg-gray-800">
+                    <h2 className="text-lg font-semibold">Agent's Scratchpad</h2>
+                    <p className="text-sm text-gray-400">Live view of the agent's internal state.</p>
+                </div>
+                <div className="flex-1 p-4 overflow-y-auto font-mono text-sm bg-black/20">
+                   <div className="space-y-4">
+                        <div>
+                           <label className="text-xs text-gray-400 block mb-1">GOAL:</label>
+                           <p className="text-green-400 p-2 bg-gray-800 rounded">{agentState.goal || "Not set"}</p>
+                        </div>
+                        <div>
+                           <label className="text-xs text-gray-400 block mb-1">CURRENT STEP / PLAN:</label>
+                           <p className="text-cyan-400 p-2 bg-gray-800 rounded">{agentState.next_action || "idle"}</p>
+                        </div>
+                        <div>
+                           <label className="text-xs text-gray-400 block mb-1">UI NOTES / THOUGHTS:</label>
+                           <p className="text-yellow-400 p-2 bg-gray-800 rounded italic">{agentState.notes || "None"}</p>
+                        </div>
+                        <div>
+                           <label className="text-xs text-gray-400 block mb-1">STATUS:</label>
+                           <div className={`p-2 rounded font-semibold flex items-center gap-2 ${isLoading ? 'text-yellow-400 bg-yellow-900/50' : isPaused ? 'text-green-400 bg-green-900/50' : 'text-red-400'}`}>
+                                {isLoading ? "THINKING" : isPaused ? "PAUSED / AWAITING INPUT" : "ERROR"}
+                           </div>
+                        </div>
+                   </div>
+                </div>
+                <div className="p-4 text-xs text-gray-500 border-t border-gray-700">
+                    <h3 className="font-bold text-gray-400 mb-2">How to use this demo:</h3>
+                    <ol className="list-decimal list-inside space-y-1">
+                        <li>Press <Send className="inline h-4 w-4"/> to start with the pre-filled goal.</li>
+                        <li>The agent will run a tool and then pause, asking you a question.</li>
+                        <li>Type your guidance (e.g., "ignore anything before v3") and send it.</li>
+                        <li>The agent will use your input to produce a final, filtered answer.</li>
+                        <li>Try another initial goal like "also check for project AGS-NIRS".</li>
+                    </ol>
+                </div>
+            </aside>
+        </div>
+    );
+}
+

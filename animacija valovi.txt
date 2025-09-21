@@ -1,0 +1,101 @@
+import React, { useState } from 'react';
+
+// Trajanje animacije u milisekundama
+const ANIMATION_DURATION = 1500;
+
+// Glavna komponenta aplikacije
+export default function App() {
+  const [theme, setTheme] = useState('day');
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const themes = {
+    day: {
+      outerBgClass: 'bg-sky-200',
+      innerBg: 'bg-gradient-to-b from-orange-300 to-sky-400',
+      textColor: 'text-slate-800',
+      text: 'Svijetlo. Toplina. Energija dana nosi sve pred sobom.',
+    },
+    night: {
+      outerBgClass: 'bg-slate-900',
+      innerBg: 'bg-gradient-to-b from-indigo-800 to-purple-900',
+      textColor: 'text-white',
+      text: 'Tišina. Mir. Zvijezde ispisuju priče na tamnom platnu.',
+    },
+  };
+
+  const handleThemeChange = () => {
+    if (isAnimating) return;
+
+    // Pokreni animaciju
+    setIsAnimating(true);
+    
+    // Promijeni temu (boje i tekst) usred animacije
+    setTimeout(() => {
+      setTheme(prevTheme => prevTheme === 'day' ? 'night' : 'day');
+    }, ANIMATION_DURATION / 2);
+
+    // Zaustavi animaciju nakon što završi
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, ANIMATION_DURATION);
+  };
+
+  const currentTheme = themes[theme];
+
+  return (
+    <>
+      {/* Definicija SVG filtera koji stvara efekt valova.
+        Ovaj SVG je skriven, ali njegov filter koristimo putem CSS-a.
+        Ključni elementi su:
+        - feTurbulence: Generira "šum" sličan oblacima ili vodi. Animiramo 'seed' da bi dobili titranje.
+        - feDisplacementMap: Koristi taj šum da izobliči ("pomakne") piksele originalne slike. Animiramo 'scale' da bi valovi narasli pa se smirili.
+      */}
+      {isAnimating && (
+        <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+          <filter id="wave-filter">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01 0.03" numOctaves="2" seed="2" result="turbulence">
+              <animate attributeName="seed" dur={`${ANIMATION_DURATION}ms`} from="1" to="100" repeatCount="1" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="0">
+              <animate attributeName="scale" dur={`${ANIMATION_DURATION}ms`} values="0; 80; 0" repeatCount="1" />
+            </feDisplacementMap>
+          </filter>
+        </svg>
+      )}
+
+      <div
+        className={`w-full h-screen flex items-center justify-center font-sans overflow-hidden ${currentTheme.outerBgClass}`}
+        style={{ transition: 'background-color 0.5s ease' }}
+      >
+        <div
+          onClick={handleThemeChange}
+          className="relative w-11/12 max-w-md cursor-pointer rounded-2xl overflow-hidden shadow-2xl"
+          style={{ 
+            aspectRatio: '10 / 12', // Omjer stranica prilagođen
+          }}
+        >
+          {/* Jedinstvena površina (platno) s gradijentom */}
+          <div
+            className={`w-full h-full transition-opacity duration-500 ${currentTheme.innerBg}`}
+            style={{
+              // Primjenjujemo SVG filter samo dok traje animacija
+              filter: isAnimating ? 'url(#wave-filter)' : 'none',
+            }}
+          />
+
+          {/* Tekst koji stoji iznad valovite površine */}
+          <p className={`
+            absolute inset-0 flex items-center justify-center 
+            p-8 md:p-12 text-xl md:text-2xl font-light text-center leading-relaxed 
+            transition-colors duration-500
+            pointer-events-none 
+            ${currentTheme.textColor}
+          `}>
+            {currentTheme.text}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+

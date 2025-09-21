@@ -25,6 +25,8 @@
     "dev-all": "node start-dev.js"
   },
   "dependencies": {
+    "@fortune-sheet/core": "^1.0.2",
+    "@fortune-sheet/react": "^1.0.2",
     "@google/genai": "^1.20.0",
     "@google/generative-ai": "^0.24.1",
     "concurrently": "^9.2.1",
