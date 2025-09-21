@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check } from 'lucide-react';
+import { X, Check, Sparkles } from 'lucide-react';
+import InlineAgentProcessor from './InlineAgentProcessor';
 
 const ExcelRowEditor = ({ rowData, onSave, onCancel, onClose }) => {
   const [editableValues, setEditableValues] = useState({});
@@ -12,6 +13,11 @@ const ExcelRowEditor = ({ rowData, onSave, onCancel, onClose }) => {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeDescriptionHeader, setActiveDescriptionHeader] = useState(null);
+  
+  // Inline Agent states
+  const [agentActive, setAgentActive] = useState(false);
+  const [agentInput, setAgentInput] = useState('');
+  const [agentTargetHeader, setAgentTargetHeader] = useState('');
 
   // Initialize editable values from row data
   useEffect(() => {
@@ -155,6 +161,47 @@ Vrati samo 3 prijedloga, svaki u novom redu, bez dodatnih objašnjenja.`;
     console.log(`✅ Updated description for header ${activeDescriptionHeader}:`, suggestion);
   };
 
+  // Handle inline agent for description
+  const handleDescriptionAgentClick = (headerName, description) => {
+    console.log(`🤖 Inline agent analysis for ${headerName}:`, description);
+    
+    if (!description || description.toString().trim() === '') {
+      return;
+    }
+
+    // Set agent state
+    setAgentTargetHeader(headerName);
+    setAgentInput(description.toString());
+    setAgentActive(true);
+  };
+
+  // Handle inline agent completion
+  const handleAgentComplete = (improvedDescription) => {
+    console.log(`🤖 Inline agent completed:`, improvedDescription);
+    
+    if (agentTargetHeader && improvedDescription) {
+      setEditableValues(prev => ({
+        ...prev,
+        [agentTargetHeader]: improvedDescription
+      }));
+      setHasChanges(true);
+    }
+    
+    // Reset agent state
+    setAgentActive(false);
+    setAgentInput('');
+    setAgentTargetHeader('');
+  };
+
+  const handleAgentError = (error) => {
+    console.error(`🤖 Inline agent error:`, error);
+    
+    // Reset agent state
+    setAgentActive(false);
+    setAgentInput('');
+    setAgentTargetHeader('');
+  };
+
   // Handle confirm button - save changes and update left unit
   const handleConfirm = () => {
     if (!hasChanges) {
@@ -269,13 +316,10 @@ Vrati samo 3 prijedloga, svaki u novom redu, bez dodatnih objašnjenja.`;
                     index === rowData.headers.length - 1 ? 'border-r-0' : ''
                   } ${
                     isDescriptionColumn 
-                      ? 'text-purple-700 cursor-pointer hover:text-purple-900 hover:bg-purple-50 bg-purple-25'
+                      ? 'text-purple-700'
                       : 'text-slate-600'
-                  } ${
-                    isActiveDescription ? 'bg-purple-100 ring-2 ring-purple-300' : ''
                   }`}
                   title={header.name}
-                  onClick={isDescriptionColumn ? () => handleDescriptionHeaderClick(header.name) : undefined}
                 >
                   {header.name.length > 12 ? `${header.name.substring(0, 12)}...` : header.name}
                   {isDescriptionColumn && (
@@ -358,8 +402,21 @@ Vrati samo 3 prijedloga, svaki u novom redu, bez dodatnih objašnjenja.`;
                       className="w-full cursor-pointer hover:bg-blue-50 rounded"
                     >
                       {isDescriptionColumn ? (
-                        <div className="text-slate-700 break-words text-xs leading-tight py-1">
+                        <div className="text-slate-700 break-words text-xs leading-tight py-1 group relative">
                           {value || <span className="text-slate-400 italic">Prazno</span>}
+                          {/* AI Agent Trigger */}
+                          {value && value.length > 10 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDescriptionAgentClick(headerName, value);
+                              }}
+                              className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-purple-100 rounded"
+                              title="Analiziraj s AI agentom"
+                            >
+                              <Sparkles className="w-3 h-3 text-purple-600" />
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="text-xs text-slate-700 leading-tight text-right">
@@ -437,6 +494,16 @@ Vrati samo 3 prijedloga, svaki u novom redu, bez dodatnih objašnjenja.`;
           </div>
         </div>
       )}
+
+      {/* Inline Agent Processor */}
+      <InlineAgentProcessor
+        isActive={agentActive}
+        input={agentInput}
+        endpoint="http://10.71.21.136:1234/v1/chat/completions"
+        onComplete={handleAgentComplete}
+        onError={handleAgentError}
+        showCoT={true} // Development mode - prikazuj Chain of Thought
+      />
     </div>
   );
 };
