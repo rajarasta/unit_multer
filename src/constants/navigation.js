@@ -1,5 +1,5 @@
 import { 
-  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings, Server, SortAsc, Search, Database
+  Package, BarChart2, FileText, Layers, Building, Bot, Brain, QrCode, Upload, MessageCircle, Zap, Users, Network, Smartphone, FolderKanban, Truck, Wallet, Mic, BookOpen, Headphones, Calendar, Sparkles, Settings, Server, SortAsc, Search, Database, Wrench, TestTube
 } from 'lucide-react';
 
 export const navItems = [
@@ -47,5 +47,7 @@ export const navItems = [
   ,{ key: "llm-server", label: "LLM Server Manager", icon: Server }
   ,{ key: "contextual-input", label: "Contextual Input", icon: Search }
   ,{ key: "iris3", label: "IRI S3", icon: Database }
+  ,{ key: "orchestrator-test", label: "Orchestrator Test", icon: TestTube }
+  ,{ key: "orchestrator-demo", label: "Orchestrator Demo", icon: Wrench }
   ,{ key: "placeholder", label: "Placeholder", icon: Package }
 ];

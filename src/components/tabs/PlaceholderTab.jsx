@@ -10,6 +10,7 @@ import { agentAnalyzeCombinedContent } from '../../utils/agentHelpers';
 import { GoogleGenAI } from '@google/genai';
 import { excelParserService } from '../../services/ExcelParserService';
 import ExcelViewer from '../ExcelViewer';
+import ExcelRowEditor from '../ExcelRowEditor';
 
 const PlaceholderTab = () => {
   const [unitStates, setUnitStates] = useState({
@@ -60,6 +61,7 @@ const PlaceholderTab = () => {
   const [specializedData, setSpecializedData] = useState({});
   const [parsedExcelData, setParsedExcelData] = useState(null);
   const [isParsingExcel, setIsParsingExcel] = useState(false);
+  const [selectedRowData, setSelectedRowData] = useState(null);
 
   // Multi-phase icon management
   useEffect(() => {
@@ -851,6 +853,38 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
     // This could trigger Gemini or other AI service for data analysis
   }, []);
 
+  // Listen for Excel row selection events
+  useEffect(() => {
+    const handleRowSelection = (event) => {
+      const rowData = event.detail;
+      console.log('📋 Received row selection event:', rowData);
+      setSelectedRowData(rowData);
+    };
+
+    if (activeSpecializedMode === 'excel') {
+      window.addEventListener('excel-row-selected', handleRowSelection);
+    }
+
+    return () => {
+      window.removeEventListener('excel-row-selected', handleRowSelection);
+    };
+  }, [activeSpecializedMode]);
+
+  // Handle row editor actions
+  const handleRowSave = useCallback((editedValues) => {
+    console.log('💾 Saving row changes:', editedValues);
+    // TODO: Implement save functionality
+    // This could update the original Excel data, send to backend, etc.
+  }, []);
+
+  const handleRowCancel = useCallback(() => {
+    console.log('❌ Row editing cancelled');
+  }, []);
+
+  const handleRowClose = useCallback(() => {
+    setSelectedRowData(null);
+  }, []);
+
   // Listen for unit connections and integrate with connection store
   useEffect(() => {
     const handleUnitConnection = (event) => {
@@ -932,7 +966,7 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
                 </motion.div>
               </div>
               
-              {/* Right side: Reserved for future functionality */}
+              {/* Right side: Row processing panel */}
               <div className="w-1/2">
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
@@ -940,19 +974,30 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
                   transition={{ duration: 0.3, delay: 0.1 }}
                   className="h-full bg-white border border-slate-200 rounded-lg p-4 overflow-hidden"
                 >
-                  <div className="h-full flex items-center justify-center text-slate-400">
-                    <div className="text-center">
-                      <div className="text-lg font-medium text-slate-600 mb-2">
-                        Excel Uređivanje Ponuda - Bill of Quantities
+                  {selectedRowData ? (
+                    // Excel Row Editor - same style as left Excel view
+                    <ExcelRowEditor
+                      rowData={selectedRowData}
+                      onSave={handleRowSave}
+                      onCancel={handleRowCancel}
+                      onClose={handleRowClose}
+                    />
+                  ) : (
+                    // No row selected placeholder
+                    <div className="h-full flex items-center justify-center text-slate-400">
+                      <div className="text-center">
+                        <div className="text-lg font-medium text-slate-600 mb-2">
+                          Excel Uređivanje Ponuda - Bill of Quantities
+                        </div>
+                        <Table size={48} className="mx-auto mb-3 opacity-30" />
+                        <p className="text-sm text-slate-500">
+                          Klikni na redni broj u lijevoj tablici
+                          <br />
+                          za prikaz i obradu reda
+                        </p>
                       </div>
-                      <Table size={48} className="mx-auto mb-3 opacity-30" />
-                      <p className="text-sm text-slate-500">
-                        Desni panel rezerviran za
-                        <br />
-                        buduće funkcionalnosti
-                      </p>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               </div>
             </div>
@@ -998,12 +1043,14 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
                   setSpecializedData({});
                   setParsedExcelData(null);
                   setIsParsingExcel(false);
+                  setSelectedRowData(null);
                 } else {
                   // Enter specialized mode
                   setActiveSpecializedMode(mode.id);
                   setSpecializedData({});
                   setParsedExcelData(null);
                   setIsParsingExcel(false);
+                  setSelectedRowData(null);
                 }
               }}
             >

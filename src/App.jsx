@@ -77,6 +77,8 @@ const CodexControl = lazy(() => import('./components/tabs/CodexControl'));
 const DocumentSorterTab = lazy(() => import('./components/tabs/DocumentSorterTab'));
 const ContextualInput = lazy(() => import('./components/tabs/ContextualInput'));
 const IRIS3 = lazy(() => import('./components/tabs/IRIS3'));
+const OrchestratorTest = lazy(() => import('./components/tabs/OrchestratorTest'));
+const OrchestratorDemo = lazy(() => import('./components/tabs/OrchestratorDemo'));
 const PlaceholderTab = lazy(() => import('./components/tabs/PlaceholderTab'));
 
 
@@ -234,6 +236,10 @@ export default function App() {
           return <ContextualInput />;
         case 'iris3':
           return <IRIS3 />;
+        case 'orchestrator-test':
+          return <OrchestratorTest />;
+        case 'orchestrator-demo':
+          return <OrchestratorDemo />;
         case 'placeholder':
           return <PlaceholderTab />;
         default:
