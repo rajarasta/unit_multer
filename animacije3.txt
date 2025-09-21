@@ -1,0 +1,231 @@
+import React, { useState, useMemo } from 'react';
+
+// Broj stupaca i redaka za mrežu animacije
+const COLS = 10;
+const ROWS = 9;
+const NUM_TILES = COLS * ROWS;
+// Trajanje animacije u milisekundama
+const ANIMATION_DURATION = 2000;
+
+// Definicija keyframe animacije s random pokretima
+const generateWaveKeyframes = () => {
+  let keyframes = '';
+  for (let i = 0; i < NUM_TILES; i++) {
+    // Potpuno nasumične vrijednosti za svaku kockicu
+    const maxHeight = 10 + Math.random() * 50; // 10-60px random
+    const midHeight1 = 5 + Math.random() * 30; // Random međuvrijednosti
+    const midHeight2 = 5 + Math.random() * 40;
+    const rotation = -5 - Math.random() * 20; // -5 do -25 stupnjeva random
+    const midRotation1 = Math.random() * 15 * (Math.random() > 0.5 ? 1 : -1);
+    const midRotation2 = Math.random() * 10 * (Math.random() > 0.5 ? 1 : -1);
+    const translateX = (Math.random() - 0.5) * 20; // -10 do 10px X pomak
+    const translateY = (Math.random() - 0.5) * 15; // -7.5 do 7.5px Y pomak
+    
+    // Svaka kockica ima jedinstvenu putanju
+    keyframes += `
+      @keyframes wave-${i} {
+        0% {
+          transform: translateZ(0) translateX(0) translateY(0) rotateX(0) rotateY(0);
+          opacity: 1;
+        }
+        20% {
+          transform: translateZ(${midHeight1}px) translateX(${translateX * 0.3}px) translateY(-${midHeight1 * 0.4}px) rotateX(${midRotation1}deg) rotateY(${Math.random() * 5}deg);
+          opacity: ${0.9 + Math.random() * 0.1};
+        }
+        40% {
+          transform: translateZ(${midHeight2}px) translateX(${-translateX * 0.5}px) translateY(-${midHeight2 * 0.5}px) rotateX(${midRotation2}deg) rotateY(${-Math.random() * 8}deg);
+          opacity: ${0.85 + Math.random() * 0.15};
+        }
+        60% {
+          transform: translateZ(${maxHeight}px) translateX(${translateX}px) translateY(-${maxHeight * 0.6}px) rotateX(${rotation}deg) rotateY(${(Math.random() - 0.5) * 10}deg);
+          opacity: ${0.8 + Math.random() * 0.2};
+        }
+        80% {
+          transform: translateZ(${midHeight1}px) translateX(${translateX * 0.2}px) translateY(-${midHeight1 * 0.3}px) rotateX(${midRotation1 * 0.5}deg) rotateY(${Math.random() * 3}deg);
+          opacity: ${0.9 + Math.random() * 0.1};
+        }
+        100% {
+          transform: translateZ(0) translateX(0) translateY(0) rotateX(0) rotateY(0);
+          opacity: 1;
+        }
+      }
+    `;
+  }
+  return keyframes;
+};
+
+// Glavna komponenta aplikacije
+export default function App() {
+  const [theme, setTheme] = useState('day');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
+  
+  // Stanje za tekst koji se prikazuje
+  const [displayText, setDisplayText] = useState('Svijetlo. Toplina. Energija dana nosi sve pred sobom.');
+  const [textOpacity, setTextOpacity] = useState(1);
+
+  // Podaci za teme
+  const themes = {
+    day: {
+      innerBg: 'from-orange-300 to-sky-400',
+      textColor: 'text-white',
+      text: 'Svijetlo. Toplina. Energija dana nosi sve pred sobom.',
+    },
+    night: {
+      innerBg: 'from-indigo-800 to-purple-900',
+      textColor: 'text-white',
+      text: 'Tišina. Mir. Zvijezde ispisuju priče na tamnom platnu.',
+    },
+  };
+
+  // Generiraj potpuno random podatke za svaku pločicu
+  const tilesData = useMemo(() => {
+    return Array.from({ length: NUM_TILES }, (_, i) => {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      
+      return {
+        id: i,
+        col,
+        row,
+        // Potpuno nasumična kašnjenja (0-1200ms)
+        animationDelay: Math.random() * 1200,
+        // Random trajanje za svaku kockicu (1.2-2.2 sekunde)
+        animationDuration: 1200 + Math.random() * 1000,
+        // Random brzina animacije
+        timingFunction: Math.random() > 0.5 ? 'ease-in-out' : 'cubic-bezier(0.4, 0, 0.6, 1)',
+      };
+    });
+  }, [animationKey]); // Regeneriraj kada se promijeni animationKey
+
+  // Funkcija koja se poziva na klik
+  const handleThemeChange = () => {
+    if (isAnimating) return;
+
+    setIsAnimating(true);
+    setTextOpacity(0);
+    setAnimationKey(prev => prev + 1); // Nova random animacija svaki put
+
+    const nextTheme = theme === 'day' ? 'night' : 'day';
+
+    setTimeout(() => {
+      setTheme(nextTheme);
+    }, 400);
+
+    setTimeout(() => {
+      setIsAnimating(false);
+      setDisplayText(themes[nextTheme].text);
+      setTextOpacity(1);
+    }, ANIMATION_DURATION + 200);
+  };
+
+  const currentTheme = themes[theme];
+
+  return (
+    <>
+      {/* Umetanje keyframe animacija - regeneriraju se svaki put */}
+      <style key={animationKey}>{generateWaveKeyframes()}</style>
+      
+      {/* Vanjska komponenta (pozornica) - fiksna boja pozadine */}
+      <div
+        className={`
+          w-full h-screen 
+          flex items-center justify-center 
+          font-sans 
+          overflow-hidden
+          bg-slate-900
+        `}
+      >
+        {/* Unutarnja komponenta */}
+        <div
+          onClick={handleThemeChange}
+          className="relative w-11/12 max-w-lg cursor-pointer"
+          style={{ 
+            aspectRatio: `${COLS / ROWS}`,
+            perspective: '1000px',
+            transform: isAnimating 
+              ? `rotateX(${Math.random() * 4 - 2}deg) rotateY(${Math.random() * 4 - 2}deg) scale(0.98)`
+              : 'rotateX(0) rotateY(0) scale(1)',
+            transition: 'transform 2s ease-in-out'
+          }}
+        >
+          {/* Tekstualni sadržaj */}
+          <p
+            className={`
+              absolute inset-0 flex items-center justify-center
+              p-6 md:p-8
+              text-lg md:text-xl 
+              font-light text-center leading-relaxed
+              transition-opacity duration-500 ease-in-out
+              z-30
+              ${currentTheme.textColor}
+            `}
+            style={{ 
+              opacity: textOpacity,
+              textShadow: '0 2px 20px rgba(0,0,0,0.8)',
+              transform: isAnimating 
+                ? `translateZ(${10 + Math.random() * 20}px) rotate(${(Math.random() - 0.5) * 2}deg)` 
+                : 'translateZ(0)',
+              transition: 'all 1.5s ease-in-out'
+            }}
+          >
+            {displayText}
+          </p>
+
+          {/* Mreža animiranih pločica */}
+          <div 
+            className="grid grid-cols-10 grid-rows-9 w-full h-full rounded-2xl overflow-hidden shadow-2xl"
+            style={{ 
+              transformStyle: 'preserve-3d',
+            }}
+          >
+            {tilesData.map((tile) => {
+              // Random shadow za svaku kockicu
+              const shadowIntensity = isAnimating ? Math.random() * 30 + 10 : 5;
+              const shadowBlur = isAnimating ? Math.random() * 20 + 10 : 3;
+              
+              return (
+                <div
+                  key={tile.id}
+                  className={`w-full h-full bg-gradient-to-b ${currentTheme.innerBg} transition-colors duration-1000`}
+                  style={{
+                    // Svaka pločica prikazuje dio gradijenta
+                    backgroundSize: `${COLS * 100}% ${ROWS * 100}%`,
+                    backgroundPosition: `${(100 / (COLS - 1)) * tile.col}% ${(100 / (ROWS - 1)) * tile.row}%`,
+                    // Random animacija za svaku kockicu
+                    animation: isAnimating
+                      ? `wave-${tile.id} ${tile.animationDuration}ms ${tile.animationDelay}ms ${tile.timingFunction} both`
+                      : 'none',
+                    // Random početna Z pozicija
+                    transform: !isAnimating 
+                      ? `translateZ(${Math.random() * 3}px)`
+                      : 'none',
+                    // Random sjene
+                    boxShadow: `0 ${shadowIntensity}px ${shadowBlur}px rgba(0,0,0,${Math.random() * 0.3 + 0.1})`,
+                    // Random filter efekti tijekom animacije
+                    filter: isAnimating 
+                      ? `brightness(${0.9 + Math.random() * 0.3}) contrast(${0.9 + Math.random() * 0.2})`
+                      : 'none',
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Dodatni chaos efekt tijekom animacije */}
+          <div 
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{
+              background: isAnimating 
+                ? `radial-gradient(circle at ${Math.random() * 100}% ${Math.random() * 100}%, rgba(255,255,255,0.1) 0%, transparent 50%)`
+                : 'none',
+              opacity: isAnimating ? Math.random() * 0.5 + 0.2 : 0,
+              transition: 'opacity 0.5s ease-in-out',
+              animation: isAnimating ? 'pulse 1s ease-in-out' : 'none'
+            }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}

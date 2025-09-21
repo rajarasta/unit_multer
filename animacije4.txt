@@ -1,0 +1,224 @@
+import React, { useState, useMemo } from 'react';
+
+// Broj stupaca i redaka za mrežu animacije
+const COLS = 10;
+// Zadano ROWS = 18 -> trenutno 10 x 18 = 180 pločica
+const ROWS = 18;
+const NUM_TILES = COLS * ROWS;
+// Trajanje animacije u milisekundama
+const ANIMATION_DURATION = 2000;
+
+// Nova keyframe animacija koja pomiče pločice po X, Y i Z i uključuje skaliranje (smanjenje 15% + bounce)
+const waveKeyframe = `
+  @keyframes wave {
+    0% {
+      transform: translate3d(0px, 0px, 0px) scale(1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      opacity: 1;
+    }
+
+    /* brzi shrink - pločica se skine za ~15% i dosta odmakne */
+    35% {
+      transform: translate3d(calc(var(--tx) * 0.9), calc(var(--ty) * 1.0), calc(var(--tz) * 0.9)) scale(0.85);
+      box-shadow: 0 calc(var(--thick, 8px) * 1.6) calc(var(--thick, 1px) * 2.4) rgba(0,0,0,0.28);
+      opacity: 0.96;
+    }
+
+    /* vrhunac - terasa razdvojenosti */
+    50% {
+      transform: translate3d(var(--tx, 0px), var(--ty, -40px), var(--tz, 0px)) scale(0.85);
+      box-shadow: 0 calc(var(--thick, 8px) * 1.6) calc(var(--thick, 1px) * 3.2) rgba(0,0,0,0.32);
+      opacity: 0.94;
+    }
+
+    /* brz odskok (bounce) - malo veće od 1 */
+    65% {
+      transform: translate3d(calc(var(--tx) * 0.45), calc(var(--ty) * -0.45), calc(var(--tz) * 0.45)) scale(1.03);
+      box-shadow: 0 calc(var(--thick, 8px) * 1.2) calc(var(--thick, 1px) * 2.0) rgba(0,0,0,0.22);
+      opacity: 0.98;
+    }
+
+    /* polagano vraćanje u početni položaj */
+    100% {
+      transform: translate3d(0px, 0px, 0px) scale(1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      opacity: 1;
+    }
+  }
+`;
+
+// Glavna komponenta aplikacije
+export default function App() {
+  const [theme, setTheme] = useState('day');
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Stanje za tekst koji se prikazuje
+  const [displayText, setDisplayText] = useState('Svijetlo. Toplina. Energija dana nosi sve pred sobom.');
+
+  // Podaci za teme (vanjska pozadina neće animirati)
+  const themes = {
+    day: {
+      outerBgClass: 'bg-sky-200',
+      innerBg: 'from-orange-300 to-sky-400',
+      textColor: 'text-slate-800',
+      text: 'Svijetlo. Toplina. Energija dana nosi sve pred sobom.',
+    },
+    night: {
+      outerBgClass: 'bg-slate-900',
+      innerBg: 'from-indigo-800 to-purple-900',
+      textColor: 'text-white',
+      text: 'Tišina. Mir. Zvijezde ispisuju priče na tamnom platnu.',
+    },
+  };
+
+  // Deterministički PRNG za stabilne vrijednosti
+  const { animationDelays, ampX, ampY, ampZ, thickness } = useMemo(() => {
+    let seed = 1337;
+    function rand() {
+      seed = (seed * 16807) % 2147483647;
+      return (seed % 1000) / 1000;
+    }
+
+    const delays = Array.from({ length: NUM_TILES }, () => Math.round(rand() * (ANIMATION_DURATION / 2)));
+    // amplitude Y: 15..80 px (vertikalno)
+    const aY = Array.from({ length: NUM_TILES }, () => Math.round(15 + rand() * (80 - 15)));
+    // amplitude X: -30..30 px (horizontal wave)
+    const aX = Array.from({ length: NUM_TILES }, () => Math.round(-30 + rand() * 60));
+    // amplitude Z: 0..40 px (depth)
+    const aZ = Array.from({ length: NUM_TILES }, () => Math.round(rand() * 40));
+    // thickness in px (vizualna 'debljina' komadića)
+    const thick = Array.from({ length: NUM_TILES }, () => Math.round(4 + rand() * 10));
+
+    return {
+      animationDelays: delays,
+      ampX: aX,
+      ampY: aY,
+      ampZ: aZ,
+      thickness: thick
+    };
+  }, []);
+
+  // Funkcija koja se poziva na klik
+  const handleThemeChange = () => {
+    if (isAnimating) return; // Sprječava ponovno pokretanje animacije
+
+    setIsAnimating(true);
+
+    const nextTheme = theme === 'day' ? 'night' : 'day';
+
+    // Nakon kratkog vremena, mijenjamo temu (boje) ali tekst ostaje vidljiv
+    setTimeout(() => {
+        setTheme(nextTheme);
+    }, 300);
+
+    // Postavljamo timeout za resetiranje stanja nakon završetka animacije
+    const maxDelay = Math.max(...animationDelays);
+    setTimeout(() => {
+      setIsAnimating(false);
+      setDisplayText(themes[nextTheme].text); // Postavi novi tekst nakon animacije
+    }, ANIMATION_DURATION + maxDelay + 80);
+  };
+
+  const currentTheme = themes[theme];
+
+  return (
+    <>
+      {/* Umetanje keyframe animacije direktno u DOM */}
+      <style>{waveKeyframe}</style>
+
+      {/* Vanjska komponenta (pozornica) - tranzicije boje isključene */}
+      <div
+        className={`
+          w-full h-screen 
+          flex items-center justify-center 
+          font-sans 
+          overflow-hidden
+          ${currentTheme.outerBgClass}
+        `}
+        style={{ transition: 'none' }}
+      >
+        {/* Unutarnja komponenta - dodana perspektiva za 3D efekt */}
+        <div
+          onClick={handleThemeChange}
+          className="relative w-11/12 max-w-md cursor-pointer"
+          style={{ 
+            aspectRatio: `${COLS / (ROWS * 1.5)}`,
+            perspective: '1000px' 
+          }}
+        >
+          {/* Tekstualni sadržaj: 
+              - kad se animacija ne odvija prikazuje se centrirano preko pločica
+              - kad se animacija odvija, fiksira se ispod mreže i ostaje vidljiv
+          */}
+
+          {/* Centrirani overlay tekst (vidljiv samo kad nije animacija) */}
+          {!isAnimating && (
+            <p
+              className={`
+                absolute inset-0 flex items-center justify-center
+                p-8 md:p-12
+                text-xl md:text-2xl 
+                font-light text-center leading-relaxed
+                z-10
+                ${currentTheme.textColor}
+              `}
+            >
+              {displayText}
+            </p>
+          )}
+
+          {/* Mreža animiranih pločica - PLOČICE SU JEDNA DO DRUGE (gap: 0) i oštri rubovi */}
+          <div 
+            className="grid w-full h-full overflow-hidden shadow-2xl"
+            style={{ transformStyle: 'preserve-3d', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gridTemplateRows: `repeat(${ROWS}, 1fr)`, display: 'grid', gap: 0, padding: 0 }}
+          >
+            {Array.from({ length: NUM_TILES }).map((_, i) => {
+              const col = i % COLS;
+              const row = Math.floor(i / COLS);
+
+              const delay = animationDelays[i];
+              const tx = ampX[i];
+              const ty = ampY[i];
+              const tz = ampZ[i];
+              const thick = thickness[i];
+
+              return (
+                <div
+                  key={i}
+                  className={`w-full h-full transition-all duration-1000`}
+                  style={{
+                    // Svaka pločica prikazuje samo dio cijelog gradijenta
+                    backgroundSize: `${COLS * 100}% ${ROWS * 100}%`,
+                    backgroundPosition: `${(100 / (COLS - 1)) * col}% ${(100 / (ROWS - 1)) * row}%`,
+                    // Postavi CSS varijable za keyframe
+                    ['--tx' as any]: `${tx}px`,
+                    ['--ty' as any]: `${-ty}px`,
+                    ['--tz' as any]: `${tz}px`,
+                    ['--thick' as any]: `${thick}px`,
+                    // Debljina komadića - vizualna baza
+                    border: 'none',
+                    boxShadow: `0 ${Math.max(2, Math.floor(thick/2))}px ${Math.floor(thick*1.4)}px rgba(0,0,0,0.12)`,
+                    borderRadius: 0,
+                    backgroundImage: `linear-gradient(180deg, rgba(255,200,120,0.06), rgba(255,255,255,0.02))`,
+                    animation: isAnimating ? `wave ${ANIMATION_DURATION}ms ${delay}ms cubic-bezier(.2,.8,.2,1)` : 'none',
+                    transformStyle: 'preserve-3d'
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Fiksni tekst ispod mreže: prikazuje se tijekom animacije i ostaje vidljiv */}
+          {isAnimating && (
+            <div style={{ position: 'absolute', left: 0, right: 0, bottom: 12, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ width: '85%', maxWidth: 980, padding: '12px 16px', borderRadius: 10, backdropFilter: 'blur(6px)', background: 'rgba(255,255,255,0.02)', color: currentTheme.textColor, textAlign: 'center' }}>
+                {displayText}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </>
+  );
+}
