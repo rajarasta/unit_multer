@@ -7,6 +7,8 @@ import useUnitContent from '../unit/hooks/useUnitContent';
 import usePdf from '../unit/hooks/usePdf';
 import useReasoning from '../unit/hooks/useReasoning';
 import useDnd from '../unit/hooks/useDnd';
+import useUnitConnection from '../unit/hooks/useUnitConnection';
+import useSpeechRecognition from '../unit/hooks/useSpeechRecognition';
 import { mockLLMService, STATUS_TYPES } from '../../services/mockLLMService';
 import { getStatusIcon, canProcessContent } from '../../utils/helpers';
 import aiCallService from '../../services/aiCallService';
@@ -31,17 +33,26 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
   const [fileUrl, setFileUrl] = useState(null);
   // Text input + detection via hook (bind onInput->morphUnit)
   const { textInputValue, setTextInputValue, detectInputType, handleFileChange, handleTextChange, handleTextKeyPress } = useUnitContent((input) => morphUnit(input));
-  const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [isDraggingConnection, setIsDraggingConnection] = useState(false);
-  const [dragStartPosition, setDragStartPosition] = useState(null);
-  const [dragCurrentPosition, setDragCurrentPosition] = useState(null);
-  const [dragTargetUnit, setDragTargetUnit] = useState(null);
+  // Use extracted hooks
+  const {
+    isDraggingConnection,
+    dragStartPosition,
+    dragCurrentPosition,
+    isConnectedUnit,
+    connectedToUnit,
+    connectionColor,
+    handleConnectionDragStart,
+    resetConnection,
+    unitRef
+  } = useUnitConnection(id, unitType, content, fileUrl);
 
-  // Enhanced connection management
-  const [isConnectedUnit, setIsConnectedUnit] = useState(false);
-  const [connectedToUnit, setConnectedToUnit] = useState(null); // ID of connected unit
-  const [connectionColor, setConnectionColor] = useState(null); // Shared glow color
+  const {
+    isListening,
+    speechSupported,
+    startListening,
+    stopListening,
+    toggleListening
+  } = useSpeechRecognition(setTextInputValue);
 
   // Multiphase dynamic action states
   const [unitGlowState, setUnitGlowState] = useState('idle'); // idle, activated, processing, thinking, completed, error
@@ -69,7 +80,6 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
   });
 
   const recognitionRef = useRef(null);
-  const unitRef = useRef(null);
   // Reasoning hook
   const { reasoningState, setReasoningState, startReasoningProcess: _startReasoningWithArgs, cancelReasoningProcess } = useReasoning({ id, setProcessingStatus });
 
@@ -415,204 +425,7 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
 
   
 
-  // Initialize speech recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        setSpeechSupported(true);
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
 
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
-
-        recognition.onresult = (event) => {
-          const transcript = event.results[0][0].transcript;
-          setTextInputValue(prev => prev + (prev ? ' ' : '') + transcript);
-          setIsListening(false);
-        };
-
-        recognition.onerror = (event) => {
-          console.error('Speech recognition error:', event.error);
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-      }
-    }
-  }, []);
-
-  const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
-      recognitionRef.current.start();
-    }
-  }, [isListening]);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
-    }
-  }, [isListening]);
-
-  // Connection Button Drag Functions
-  const handleConnectionDragStart = useCallback((e) => {
-    e.stopPropagation();
-    if (unitType === 'empty') return;
-
-    const rect = unitRef.current.getBoundingClientRect();
-    const startPos = {
-      x: e.clientX,
-      y: e.clientY,
-      unitX: rect.left + rect.width / 2,
-      unitY: rect.top + rect.height / 2
-    };
-
-    setDragStartPosition(startPos);
-    setDragCurrentPosition(startPos);
-    setIsDraggingConnection(true);
-
-    // Trigger global drag state
-    window.dispatchEvent(new CustomEvent('unit-connection-drag-start', {
-      detail: { sourceUnitId: id, sourceData: { type: unitType, content, fileUrl } }
-    }));
-  }, [id, unitType, content, fileUrl]);
-
-  const handleConnectionDragMove = useCallback((e) => {
-    if (!isDraggingConnection) return;
-
-    setDragCurrentPosition({
-      x: e.clientX,
-      y: e.clientY
-    });
-  }, [isDraggingConnection]);
-
-  const handleConnectionDragEnd = useCallback((e) => {
-    if (!isDraggingConnection) return;
-
-    // Check if we're over a valid drop target
-    const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
-    const targetUnit = elementBelow?.closest('[data-unit-id]');
-
-    if (targetUnit) {
-      const targetId = targetUnit.getAttribute('data-unit-id');
-      if (targetId !== id) {
-        // Generate unique connection color
-        const colors = [
-          'rgb(59, 130, 246)', // blue
-          'rgb(139, 92, 246)', // purple
-          'rgb(34, 197, 94)',  // green
-          'rgb(251, 146, 60)', // orange
-          'rgb(236, 72, 153)', // pink
-          'rgb(14, 165, 233)'  // sky
-        ];
-        const connectionColor = colors[Math.floor(Math.random() * colors.length)];
-
-        // Connect both units with same color
-        setIsConnectedUnit(true);
-        setConnectedToUnit(targetId);
-        setConnectionColor(connectionColor);
-
-        // Get Unit positions for container calculation
-        const sourceRect = unitRef.current.getBoundingClientRect();
-        const targetRect = targetUnit.getBoundingClientRect();
-
-        // Trigger global connection event to create connected container
-        window.dispatchEvent(new CustomEvent('units-create-connected-container', {
-          detail: {
-            sourceUnitId: id,
-            targetUnitId: targetId,
-            connectionColor,
-            sourcePosition: {
-              x: sourceRect.left,
-              y: sourceRect.top,
-              width: sourceRect.width,
-              height: sourceRect.height
-            },
-            targetPosition: {
-              x: targetRect.left,
-              y: targetRect.top,
-              width: targetRect.width,
-              height: targetRect.height
-            }
-          }
-        }));
-
-        // Also trigger individual unit connection for internal state
-        window.dispatchEvent(new CustomEvent('unit-connected', {
-          detail: {
-            sourceUnitId: id,
-            targetUnitId: targetId,
-            connectionColor
-          }
-        }));
-      }
-    }
-
-    // Reset drag state
-    setIsDraggingConnection(false);
-    setDragStartPosition(null);
-    setDragCurrentPosition(null);
-
-    window.dispatchEvent(new CustomEvent('unit-connection-drag-end'));
-  }, [isDraggingConnection, id]);
-
-  // Listen for connection events from other units
-  useEffect(() => {
-    const handleConnection = (event) => {
-      const { sourceUnitId, targetUnitId, connectionColor } = event.detail;
-      if (targetUnitId === id) {
-        setIsConnectedUnit(true);
-        setConnectedToUnit(sourceUnitId);
-        setConnectionColor(connectionColor);
-      }
-    };
-
-    window.addEventListener('unit-connected', handleConnection);
-    return () => window.removeEventListener('unit-connected', handleConnection);
-  }, [id]);
-
-  // Reset connection
-  const resetConnection = useCallback(() => {
-    setIsConnectedUnit(false);
-    setConnectedToUnit(null);
-    setConnectionColor(null);
-
-    // Reset connection status
-    setProcessingStatus(prev => ({
-      ...prev,
-      connection: STATUS_TYPES.CONNECTION.DISCONNECTED
-    }));
-
-    // Notify connected unit to also reset
-    if (connectedToUnit) {
-      window.dispatchEvent(new CustomEvent('unit-disconnected', {
-        detail: { unitId: connectedToUnit }
-      }));
-    }
-  }, [connectedToUnit]);
-
-  // Listen for disconnection events
-  useEffect(() => {
-    const handleDisconnection = (event) => {
-      const { unitId } = event.detail;
-      if (unitId === id) {
-        setIsConnectedUnit(false);
-        setConnectedToUnit(null);
-        setConnectionColor(null);
-      }
-    };
-
-    window.addEventListener('unit-disconnected', handleDisconnection);
-    return () => window.removeEventListener('unit-disconnected', handleDisconnection);
-  }, [id]);
 
   // Load unit user prompt from settings
   useEffect(() => {
@@ -641,21 +454,6 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
     return () => window.removeEventListener('llm-settings-updated', handleSettingsUpdate);
   }, []);
 
-  // Global event listeners for connection drag tracking
-  useEffect(() => {
-    if (isDraggingConnection) {
-      const handleGlobalMouseMove = (e) => handleConnectionDragMove(e);
-      const handleGlobalMouseUp = (e) => handleConnectionDragEnd(e);
-
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-
-      return () => {
-        document.removeEventListener('mousemove', handleGlobalMouseMove);
-        document.removeEventListener('mouseup', handleGlobalMouseUp);
-      };
-    }
-  }, [isDraggingConnection, handleConnectionDragMove, handleConnectionDragEnd]);
 
   const getSupportedTypeIcons = () => [
     { icon: Camera, label: 'Images', color: 'text-green-500' },
@@ -825,8 +623,7 @@ const Unit = ({ id, onContentChange, isInConnectedContainer = false, containerPo
                 handleTextKeyPress,
                 speechSupported,
                 isListening,
-                startListening,
-                stopListening,
+                toggleListening,
                 getSupportedTypeIcons
               }
             }}

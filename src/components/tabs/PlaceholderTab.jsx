@@ -2,8 +2,6 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, Bell, Search, Plus, Download, Share, Brain, Send, Activity, Type, Image, FileText, Table, Archive, File, Merge } from 'lucide-react';
 import Unit from './Unit';
-import { sendChatMessage } from './LLMServerManager/llmBridge';
-import { useLLMSession } from './LLMServerManager/llmSessionStore';
 import useConnectionStore from '../../store/useConnectionStore';
 import SettingsModal from '../SettingsModal';
 import { agentAnalyzeCombinedContent } from '../../utils/agentHelpers';
@@ -12,23 +10,35 @@ import { excelParserService } from '../../services/ExcelParserService';
 import ExcelViewer from '../ExcelViewer';
 import ExcelRowEditor from '../ExcelRowEditor';
 
+// Import our extracted hooks
+import useUnitStates from './PlaceholderTab/hooks/useUnitStates';
+import useIconStates from './PlaceholderTab/hooks/useIconStates';
+import useMultiInputChat from './PlaceholderTab/hooks/useMultiInputChat';
+
 const PlaceholderTab = () => {
-  const [unitStates, setUnitStates] = useState({
-    1: { type: 'empty', content: null },
-    2: { type: 'empty', content: null },
-    3: { type: 'empty', content: null },
-    4: { type: 'empty', content: null }
-  });
+  // Use extracted hooks
+  const {
+    unitStates,
+    setUnitStates,
+    handleContentChange,
+    getUnitsActivityState,
+    extractTextFromUnit
+  } = useUnitStates();
 
-  // Multi-phase icon states for dynamic functionality
-  const [iconStates, setIconStates] = useState({});
-  const [clickCounts, setClickCounts] = useState({});
-  const [focusedUnitId, setFocusedUnitId] = useState(null);
-
-  // Fusion icon states for multi-unit processing
-  const [fusionIconStates, setFusionIconStates] = useState({});
-  const [fusionClickCounts, setFusionClickCounts] = useState({});
-  const [focusedFusionId, setFocusedFusionId] = useState(null);
+  const {
+    iconStates,
+    clickCounts,
+    focusedUnitId,
+    setFocusedUnitId,
+    updateIconState,
+    updateClickCount,
+    fusionIconStates,
+    fusionClickCounts,
+    focusedFusionId,
+    setFocusedFusionId,
+    updateFusionIconState,
+    updateFusionClickCount
+  } = useIconStates();
 
   // Use persistent connection store
   const {
@@ -40,18 +50,30 @@ const PlaceholderTab = () => {
     getStats
   } = useConnectionStore();
 
-  // Multi-input chat UI state
-  const { activeSession } = useLLMSession ? useLLMSession() : { activeSession: null };
-  const [multiOpen, setMultiOpen] = useState(false);
-  const [input1, setInput1] = useState('');
-  const [input2, setInput2] = useState('');
-  const [input3, setInput3] = useState('');
-  const [response, setResponse] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState(null);
-  const [model, setModel] = useState(activeSession?.selectedModel || 'openai-oss-20b');
-  const [baseUrl, setBaseUrl] = useState(activeSession?.baseUrl || 'http://10.71.21.136:1234');
-  const [lastRequestPreview, setLastRequestPreview] = useState('');
+  const {
+    multiOpen,
+    setMultiOpen,
+    input1,
+    setInput1,
+    input2,
+    setInput2,
+    input3,
+    setInput3,
+    response,
+    setResponse,
+    isSending,
+    error,
+    setError,
+    model,
+    setModel,
+    baseUrl,
+    setBaseUrl,
+    lastRequestPreview,
+    combinedPrompt,
+    sendCombinedMessage,
+    fillFromUnits,
+    clearInputs
+  } = useMultiInputChat(extractTextFromUnit, unitStates);
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
@@ -63,140 +85,7 @@ const PlaceholderTab = () => {
   const [isParsingExcel, setIsParsingExcel] = useState(false);
   const [selectedRowData, setSelectedRowData] = useState(null);
 
-  // Multi-phase icon management
-  useEffect(() => {
-    const handleUnitProcessed = (event) => {
-      const { unitId, unitType, content, hasProcessedContent } = event.detail;
-      if (hasProcessedContent) {
-        setIconStates(prev => ({
-          ...prev,
-          [unitId]: 'unprocessed'
-        }));
-        setClickCounts(prev => ({
-          ...prev,
-          [unitId]: 0
-        }));
-      }
-    };
 
-    const handleUnitReset = (event) => {
-      const { unitId } = event.detail;
-      setIconStates(prev => {
-        const newStates = { ...prev };
-        delete newStates[unitId];
-        return newStates;
-      });
-      setClickCounts(prev => {
-        const newCounts = { ...prev };
-        delete newCounts[unitId];
-        return newCounts;
-      });
-      if (focusedUnitId === unitId) {
-        setFocusedUnitId(null);
-      }
-    };
-
-    const handleReasoningStart = (event) => {
-      const { unitId } = event.detail;
-      setIconStates(prev => ({
-        ...prev,
-        [unitId]: 'processing'
-      }));
-    };
-
-    const handleReasoningComplete = (event) => {
-      const { unitId, success } = event.detail;
-      setIconStates(prev => ({
-        ...prev,
-        [unitId]: success ? 'completed' : 'error'
-      }));
-    };
-
-    const handleReasoningError = (event) => {
-      const { unitId } = event.detail;
-      setIconStates(prev => ({
-        ...prev,
-        [unitId]: 'error'
-      }));
-    };
-
-    // Fusion icon processing event handlers
-    const handleFusionProcessingStart = (event) => {
-      const { fusionId } = event.detail;
-      setFusionIconStates(prev => ({
-        ...prev,
-        [fusionId]: 'processing'
-      }));
-    };
-
-    const handleFusionProcessingComplete = (event) => {
-      const { fusionId, success } = event.detail;
-      setFusionIconStates(prev => ({
-        ...prev,
-        [fusionId]: success ? 'completed' : 'error'
-      }));
-    };
-
-    const handleFusionProcessingError = (event) => {
-      const { fusionId } = event.detail;
-      setFusionIconStates(prev => ({
-        ...prev,
-        [fusionId]: 'error'
-      }));
-    };
-
-    const handleFusionReset = (event) => {
-      const { fusionId } = event.detail;
-      setFusionIconStates(prev => {
-        const newStates = { ...prev };
-        delete newStates[fusionId];
-        return newStates;
-      });
-      setFusionClickCounts(prev => {
-        const newCounts = { ...prev };
-        delete newCounts[fusionId];
-        return newCounts;
-      });
-      if (focusedFusionId === fusionId) {
-        setFocusedFusionId(null);
-      }
-    };
-
-    window.addEventListener('unit-processed', handleUnitProcessed);
-    window.addEventListener('unit-reset', handleUnitReset);
-    window.addEventListener('reasoning-started', handleReasoningStart);
-    window.addEventListener('reasoning-completed', handleReasoningComplete);
-    window.addEventListener('reasoning-error', handleReasoningError);
-
-    // Fusion event listeners
-    window.addEventListener('fusion-processing-start', handleFusionProcessingStart);
-    window.addEventListener('fusion-processing-complete', handleFusionProcessingComplete);
-    window.addEventListener('fusion-processing-error', handleFusionProcessingError);
-    window.addEventListener('fusion-reset', handleFusionReset);
-
-    return () => {
-      window.removeEventListener('unit-processed', handleUnitProcessed);
-      window.removeEventListener('unit-reset', handleUnitReset);
-      window.removeEventListener('reasoning-started', handleReasoningStart);
-      window.removeEventListener('reasoning-completed', handleReasoningComplete);
-      window.removeEventListener('reasoning-error', handleReasoningError);
-
-      // Fusion event cleanup
-      window.removeEventListener('fusion-processing-start', handleFusionProcessingStart);
-      window.removeEventListener('fusion-processing-complete', handleFusionProcessingComplete);
-      window.removeEventListener('fusion-processing-error', handleFusionProcessingError);
-      window.removeEventListener('fusion-reset', handleFusionReset);
-    };
-  }, [focusedUnitId, focusedFusionId]);
-
-  const extractTextFromUnit = useCallback((u) => {
-    if (!u) return '';
-    if (typeof u.content === 'string') return u.content;
-    if (u && u.content && typeof u.content === 'object' && 'name' in u.content) {
-      return `[${u.type}] File: ${u.content.name}`;
-    }
-    return u?.type ? `[${u.type}]` : '';
-  }, []);
 
   // Log function (needs to be defined before other functions that use it)
   const addLog = useCallback((type, message) => {
@@ -538,18 +427,6 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
     }
   }, [collectCombinedData, addLog]);
 
-  // Dynamic activity state calculation
-  const getUnitsActivityState = useCallback(() => {
-    const units = Object.values(unitStates);
-    const hasContent = units.some(u => u.type !== 'empty');
-    const hasProcessing = units.some(u => u.isProcessing);
-    const hasConnections = units.some(u => u.isConnected);
-
-    if (hasProcessing) return 'processing';
-    if (hasConnections) return 'connected';
-    if (hasContent) return 'active';
-    return 'idle';
-  }, [unitStates]);
 
   // Generate dynamic icons for Units with content - NEW: Preserve individual + add fusion
   const getDynamicUnitIcons = useCallback(() => {
@@ -585,18 +462,12 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
           label: `Unit ${id} - ${unit.type}${connection ? ' (Connected)' : ''}`,
           onClick: () => {
             const newClickCount = currentClickCount + 1;
-            setClickCounts(prev => ({
-              ...prev,
-              [unitId]: newClickCount
-            }));
+            updateClickCount(unitId, newClickCount);
 
             if (newClickCount === 1) {
               // First click: Focus on unit
               setFocusedUnitId(unitId);
-              setIconStates(prev => ({
-                ...prev,
-                [unitId]: 'focused'
-              }));
+              updateIconState(unitId, 'focused');
 
               // Scroll and focus unit
               window.dispatchEvent(new CustomEvent('focus-unit', {
@@ -605,20 +476,14 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
 
               // Reset click count after timeout
               setTimeout(() => {
-                setClickCounts(prev => {
-                  if (prev[unitId] === 1) {
-                    return { ...prev, [unitId]: 0 };
-                  }
-                  return prev;
-                });
+                if (clickCounts[unitId] === 1) {
+                  updateClickCount(unitId, 0);
+                }
               }, 2000);
 
             } else if (newClickCount === 2) {
               // Second click: Start LLM processing
-              setIconStates(prev => ({
-                ...prev,
-                [unitId]: 'processing'
-              }));
+              updateIconState(unitId, 'processing');
 
               // Trigger LLM processing
               window.dispatchEvent(new CustomEvent('trigger-unit-reasoning', {
@@ -630,10 +495,7 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
               }));
 
               // Reset click count
-              setClickCounts(prev => ({
-                ...prev,
-                [unitId]: 0
-              }));
+              updateClickCount(unitId, 0);
             }
           },
           onRightClick: () => {
@@ -675,18 +537,12 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
           label: `Fusion Group (${group.units.join(', ')})`,
           onClick: () => {
             const newFusionClickCount = currentFusionClickCount + 1;
-            setFusionClickCounts(prev => ({
-              ...prev,
-              [fusionId]: newFusionClickCount
-            }));
+            updateFusionClickCount(fusionId, newFusionClickCount);
 
             if (newFusionClickCount === 1) {
               // First click: Focus on fusion group
               setFocusedFusionId(fusionId);
-              setFusionIconStates(prev => ({
-                ...prev,
-                [fusionId]: 'focused'
-              }));
+              updateFusionIconState(fusionId, 'focused');
 
               // Highlight all units in group
               group.units.forEach(unitId => {
@@ -699,20 +555,14 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
 
               // Reset click count after timeout
               setTimeout(() => {
-                setFusionClickCounts(prev => {
-                  if (prev[fusionId] === 1) {
-                    return { ...prev, [fusionId]: 0 };
-                  }
-                  return prev;
-                });
+                if (fusionClickCounts[fusionId] === 1) {
+                  updateFusionClickCount(fusionId, 0);
+                }
               }, 2000);
 
             } else if (newFusionClickCount === 2) {
               // Second click: Start Gemini 3 processing
-              setFusionIconStates(prev => ({
-                ...prev,
-                [fusionId]: 'processing'
-              }));
+              updateFusionIconState(fusionId, 'processing');
 
               // Trigger multimodal processing - fallback to Gemini due to HF Agent model issues
               if (groupTypes.includes('image') && groupTypes.includes('text')) {
@@ -730,10 +580,7 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
               }
 
               // Reset click count
-              setFusionClickCounts(prev => ({
-                ...prev,
-                [fusionId]: 0
-              }));
+              updateFusionClickCount(fusionId, 0);
             }
           },
           onRightClick: () => {
@@ -756,27 +603,6 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
     return icons;
   }, [unitStates, getAllGroups, getUnitConnection, iconStates, clickCounts, focusedUnitId, fusionIconStates, fusionClickCounts, focusedFusionId]);
 
-  const combinedPrompt = useMemo(() => {
-    return [
-      input1 && `# Input 1\n${input1}`,
-      input2 && `# Input 2\n${input2}`,
-      input3 && `# Input 3\n${input3}`,
-      'Make a short story inspired by these inputs. Take your time in thinking.'
-    ].filter(Boolean).join('\n\n');
-  }, [input1, input2, input3]);
-
-  // Prefill inputs from Units 1–3 when opening the drawer (only if empty)
-  useEffect(() => {
-    if (multiOpen) {
-      const u1 = extractTextFromUnit(unitStates[1]);
-      const u2 = extractTextFromUnit(unitStates[2]);
-      const u3 = extractTextFromUnit(unitStates[3]);
-      if (!input1 && u1) setInput1(u1);
-      if (!input2 && u2) setInput2(u2);
-      if (!input3 && u3) setInput3(u3);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiOpen]);
 
   // Specialized mode configurations
   const specializedModes = [
@@ -802,12 +628,6 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
     }
   ];
 
-  const handleContentChange = useCallback((unitId, type, content) => {
-    setUnitStates(prev => ({
-      ...prev,
-      [unitId]: { type, content }
-    }));
-  }, []);
 
   // Handle Excel file parsing
   const handleExcelFileParsing = useCallback(async (file) => {
@@ -1403,44 +1223,7 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
                     <div className="text-[11px] text-slate-400">Chars: {combinedPrompt.length}</div>
                     <button
                       disabled={isSending || combinedPrompt.trim().length === 0}
-                      onClick={async () => {
-                        setIsSending(true);
-                        setError(null);
-                        setResponse('');
-                        try {
-                          const sessionLike = {
-                            activeSession: {
-                              sessionId: 'multiinput-local',
-                              engineType: 'lm_studio',
-                              baseUrl,
-                              apiKey: '',
-                              selectedModel: model,
-                              systemPrompt: '',
-                              modelParams: {
-                                temperature: 0.7,
-                                max_tokens: 1024,
-                                top_p: 0.95,
-                                top_k: 50,
-                                frequency_penalty: 0,
-                                presence_penalty: 0,
-                                stop: []
-                              }
-                            }
-                          };
-
-                          setLastRequestPreview(combinedPrompt);
-                          const res = await sendChatMessage(combinedPrompt, { session: sessionLike });
-                          if (res.success) {
-                            setResponse(res.data?.content || '');
-                          } else {
-                            setError(res.error?.message || 'LLM error');
-                          }
-                        } catch (e) {
-                          setError(e?.message || String(e));
-                        } finally {
-                          setIsSending(false);
-                        }
-                      }}
+                      onClick={sendCombinedMessage}
                       className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs text-white ${isSending ? 'bg-slate-400' : 'bg-purple-600 hover:bg-purple-700'}`}
                     >
                       <Send size={14} />
@@ -1452,11 +1235,7 @@ Fokusiraj se na povezanost između elemenata ako su oba prisutna.`
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       className="px-2 py-1 text-[11px] border rounded text-slate-600 hover:bg-slate-50"
-                      onClick={() => {
-                        setInput1(extractTextFromUnit(unitStates[1]));
-                        setInput2(extractTextFromUnit(unitStates[2]));
-                        setInput3(extractTextFromUnit(unitStates[3]));
-                      }}
+                      onClick={fillFromUnits}
                     >Use Units 1–3</button>
                     <span className="text-[11px] text-slate-400">Tip: Prefill pulls text from Units 1–3.</span>
                   </div>
